@@ -20,4 +20,5 @@ bash "$ROOT/tests/shell/test_profiles.sh" || status=1
 bash "$ROOT/tests/shell/test_planner.sh" || status=1
 bash "$ROOT/tests/shell/test_recovery.sh" || status=1
 bash "$ROOT/tests/shell/test_release.sh" || status=1
+bash "$ROOT/tests/shell/test_reset.sh" || status=1
 exit "$status"
