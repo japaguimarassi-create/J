@@ -13,9 +13,11 @@ tx_configure() {
 
 tx_new_id() {
   local seq=1
-  if [[ -f "$TX_JOURNAL" ]]; then
-    seq=$(( $(wc -l < "$TX_JOURNAL") + 1 ))
+  local sequence_file="$TX_ROOT/transactions/sequence"
+  if [[ -f "$sequence_file" ]]; then
+    seq=$(( $(cat "$sequence_file") + 1 ))
   fi
+  printf '%s\n' "$seq" > "$sequence_file"
   printf 'TX-%06d' "$seq"
 }
 
