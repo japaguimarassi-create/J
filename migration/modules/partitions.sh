@@ -31,6 +31,9 @@ PY
 inspect_slots() {
   local output="$1"
   local value="${LOKIVOLT_SLOT:-}"
+  if [[ -z "$value" && -n "${LOKIVOLT_GETPROP_FILE:-}" && -f "$LOKIVOLT_GETPROP_FILE" ]]; then
+    value="$(awk -F'[][]' '/ro.boot.slot_suffix/ {print $4; exit}' "$LOKIVOLT_GETPROP_FILE")"
+  fi
   if [[ -z "$value" ]]; then value="$(getprop ro.boot.slot_suffix 2>/dev/null || true)"; fi
   python3 - "$output" "$value" <<'PY'
 import json,sys
