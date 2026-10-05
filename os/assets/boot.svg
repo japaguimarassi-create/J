@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920">
+<rect width="1080" height="1920" fill="#050509"/>
+<g fill="none" stroke="#b56cff" stroke-width="18">
+<circle cx="540" cy="830" r="170"/>
+<circle cx="300" cy="830" r="72"/>
+<circle cx="780" cy="830" r="72"/>
+<path d="M372 830H468M612 830H708"/>
+</g>
+<circle cx="540" cy="830" r="44" fill="#ffffff"/>
+<text x="540" y="1100" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="86" font-weight="700">LOKIVOLT</text>
+<text x="540" y="1180" text-anchor="middle" fill="#aaaabb" font-family="sans-serif" font-size="32">WHERE SYSTEMS COLLIDE</text>
+</svg>
