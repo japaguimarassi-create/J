@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "default_mode": "read-only",
+  "mutation_requires_authorization": true,
+  "fail_closed": true,
+  "allow_v1_partition_writes": false,
+  "allow_bootloader_bypass": false,
+  "allow_frp_bypass": false,
+  "allow_signature_forgery": false
+}
