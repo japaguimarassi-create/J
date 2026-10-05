@@ -7,7 +7,12 @@ VAULT_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)"
 vault_init() {
   local root="$1"
   local state_id="$2"
-  mkdir -p "$root/states/$state_id" "$root/transactions" "$root/logs" "$root/firmware/manifests" "$root/firmware/hashes" "$root/run"
+  local target="$root/states/$state_id"
+  mkdir -p "$root/states" "$root/transactions" "$root/logs" "$root/firmware/manifests" "$root/firmware/hashes" "$root/run"
+  if [[ -e "$target/state-digest" ]]; then
+    return 1
+  fi
+  mkdir -p "$target"
   printf '%s\n' "$state_id" > "$root/run/current-state"
 }
 
@@ -15,6 +20,7 @@ vault_write_state() {
   local root="$1" state_id="$2" input_dir="$3"
   local target="$root/states/$state_id"
   mkdir -p "$target"
+  [[ ! -e "$target/state-digest" ]] || return 1
   python3 - "$input_dir" "$target" <<'PY'
 import shutil,sys
 from pathlib import Path
@@ -45,3 +51,20 @@ vault_verify_state() {
   actual="$(python3 "$VAULT_LIB/hash_tree.py" "$target" "$target/hashes.check.sha256")" || return 1
   [[ "$expected" == "$actual" ]]
 }
+
+vault_next_state_id() {
+  local root="$1"
+  python3 - "$root" <<'PY'
+import re,sys
+from pathlib import Path
+root=Path(sys.argv[1])/"states"
+highest=-1
+if root.exists():
+    for item in root.iterdir():
+        m=re.fullmatch(r"STATE-(d{3,})",item.name)
+        if m:
+            highest=max(highest,int(m.group(1)))
+print(f"STATE-{highest+1:03d}")
+PY
+}
+
