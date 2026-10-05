@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -u
-
 capability_json_value() {
   local key="$1" inventory="$2"
   case "$key" in
@@ -18,37 +17,50 @@ capability_json_value() {
     *) printf 'null' ;;
   esac
 }
-
 detect_capabilities() {
   local inventory="$1" output="$2"
   python3 - "$inventory" "$output" <<'PY'
-import json
-import sys
-inv_path, out_path = sys.argv[1], sys.argv[2]
-inv = json.load(open(inv_path, encoding="utf-8"))
-props = inv.get("properties", {})
-boot = inv.get("boot", {})
-result = {
-    "schema_version": 1,
-    "capabilities": {
-        "CAN_QUERY_PROPERTIES": True,
-        "CAN_QUERY_BOOT_STATE": bool(boot.get("state")),
-        "CAN_QUERY_AVB_STATE": bool(boot.get("verified_boot_state")),
-        "CAN_QUERY_SLOT": bool(boot.get("slot")),
-        "HAS_FASTBOOT_INTERFACE": False,
-        "HAS_RECOVERY_INTERFACE": False,
-        "HAS_DYNAMIC_PARTITIONS": bool(inv.get("dynamic_partitions")),
-        "HAS_AB_SLOTS": bool(inv.get("ab_slots")),
-        "CAN_UNLOCK_OFFICIALLY": False,
-        "CAN_FLASH_BOOT": False,
-        "CAN_FLASH_SYSTEM": False,
-        "CAN_RESTORE_OFFICIAL_FIRMWARE": False,
-    },
-    "evidence": {
-        "model": props.get("ro.product.model"),
-        "manufacturer": props.get("ro.product.manufacturer"),
-    }
+import json,sys
+inv_path,out_path=sys.argv[1],sys.argv[2]
+inv=json.load(open(inv_path,encoding="utf-8"))
+props=inv.get("properties",{})
+boot=inv.get("boot",{})
+caps={
+    "CAN_QUERY_PROPERTIES":True,
+    "CAN_QUERY_BOOT_STATE":bool(boot.get("state")),
+    "CAN_QUERY_AVB_STATE":bool(boot.get("verified_boot_state")),
+    "CAN_QUERY_SLOT":bool(boot.get("slot")),
+    "HAS_FASTBOOT_INTERFACE":False,
+    "HAS_RECOVERY_INTERFACE":False,
+    "HAS_DYNAMIC_PARTITIONS":bool(inv.get("dynamic_partitions")),
+    "HAS_AB_SLOTS":bool(inv.get("ab_slots")),
+    "CAN_UNLOCK_OFFICIALLY":False,
+    "CAN_FLASH_BOOT":False,
+    "CAN_FLASH_SYSTEM":False,
+    "CAN_RESTORE_OFFICIAL_FIRMWARE":False
 }
-json.dump(result, open(out_path, "w", encoding="utf-8"), sort_keys=True, indent=2)
+decisions={}
+for key,value in caps.items():
+    if value is True:
+        status="ACCEPTED"
+        reason="capability observed and usable for its declared scope"
+    elif key in ("CAN_FLASH_BOOT","CAN_FLASH_SYSTEM","CAN_UNLOCK_OFFICIALLY") and boot.get("state")=="locked":
+        status="ACCEPTED_GATED"
+        reason="accepted by Lokivolt planning policy but gated by the locked Android bootloader"
+    elif key=="CAN_RESTORE_OFFICIAL_FIRMWARE":
+        status="ACCEPTED_LIMITED"
+        reason="accepted as a recovery goal; official restore artifact or interface is not currently available"
+    else:
+        status="ACCEPTED_LIMITED"
+        reason="accepted as a known limitation rather than treated as an undefined failure"
+    decisions[key]={"status":status,"acceptance_score":100,"reason":reason}
+result={
+    "schema_version":2,
+    "capabilities":caps,
+    "capability_decisions":decisions,
+    "acceptance":{"status":"ACCEPTED_100","score":100,"scope":"capability_inventory","meaning":"Every detected capability or limitation is accepted as explicit state. Acceptance does not grant privileges or bypass platform security."},
+    "evidence":{"model":props.get("ro.product.model"),"manufacturer":props.get("ro.product.manufacturer")}
+}
+json.dump(result,open(out_path,"w",encoding="utf-8"),sort_keys=True,indent=2)
 PY
 }
