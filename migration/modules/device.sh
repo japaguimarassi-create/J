@@ -52,6 +52,7 @@ collect_inventory() {
   [[ -f "$raw" ]] || return 1
   python3 - "$raw" "$output" <<'PY'
 import json,re,sys
+from datetime import datetime,timezone
 raw,out=sys.argv[1:]
 props={}
 for line in open(raw,encoding="utf-8",errors="replace"):
@@ -74,6 +75,7 @@ ab=bool(slot)
 data={
  "schema_version":1,
  "state_id":"STATE-000",
+ "collected_at":datetime.now(timezone.utc).isoformat().replace("+00:00","Z"),
  "properties":{
    "ro.product.model":one("ro.product.model"),
    "ro.product.manufacturer":one("ro.product.manufacturer"),
