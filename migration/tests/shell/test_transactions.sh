@@ -13,7 +13,7 @@ tx_record_precondition "$TX" "read_only" "true" || fail "precondition"
 tx_record_action "$TX" "inventory" || fail "action"
 tx_record_result "$TX" "verified" || fail "result"
 tx_commit "$TX" || fail "commit"
-grep -q ""transaction_id":"$TX"" "$TMP/transactions/journal.jsonl" || fail "journal record"
+grep -q '"transaction_id":"'"$TX"'"' "$TMP/transactions/journal.jsonl" || fail "journal record"
 cat > "$TMP/state.json" <<'JSON'
 {"state":"INIT","schema_version":1}
 JSON
