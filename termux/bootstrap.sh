@@ -31,6 +31,7 @@ done < <(find "$tmp" -mindepth 1 -maxdepth 1 -type d -print)
 cp -R "$source_dir/migration" "$DEST/"
 cp -R "$source_dir/bin" "$DEST/"
 cp -R "$source_dir/docs" "$DEST/" || true
+cp -R "$source_dir/os" "$DEST/" || true
 cp "$source_dir/bin/lokivolt" "$PREFIX/bin/lokivolt" || exit 70
 chmod 755 "$PREFIX/bin/lokivolt" || exit 70
 
