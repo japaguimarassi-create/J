@@ -131,19 +131,20 @@ PY
 state_transition_file "$STATE_FILE" CAPABILITY_ANALYSIS PLAN || { tx_abort "$TX_ID" "state-plan"; exit "$LV_INTERNAL_ERROR"; }
 resolve_profile "$VAULT/staging/inventory.json" "$VAULT/staging/profile.json" || { tx_abort "$TX_ID" "profile"; exit "$LV_VERIFY_FAILED"; }
 build_plan "$VAULT/staging/inventory.json" "$VAULT/staging/profile.json" "$VAULT/staging/plan.json" || { tx_abort "$TX_ID" "plan"; exit "$LV_VERIFY_FAILED"; }
-python3 - "$VAULT/staging/inventory.json" <<'PY'
+ENRICHED_STATE="$(vault_next_state_id "$VAULT")"
+python3 - "$VAULT/staging/inventory.json" "$ENRICHED_STATE" <<'PY'
 import json,sys
-p=sys.argv[1]
+p,state=sys.argv[1:]
 data=json.load(open(p,encoding="utf-8"))
-data["state_id"]=sys.argv[2]
+data["state_id"]=state
 json.dump(data,open(p,"w",encoding="utf-8"),sort_keys=True,indent=2)
 PY
 build_recovery_plan "$VAULT/staging/inventory.json" "$VAULT/staging/plan.json" "$VAULT/staging/recovery.json" || { tx_abort "$TX_ID" "recovery"; exit "$LV_VERIFY_FAILED"; }
 validate_recovery_plan "$VAULT/staging/recovery.json" || { tx_abort "$TX_ID" "recovery-validation"; exit "$LV_VERIFY_FAILED"; }
-vault_init "$VAULT" "STATE-001"
+vault_init "$VAULT" "$ENRICHED_STATE" || { tx_abort "$TX_ID" "vault-enriched-init"; exit "$LV_VERIFY_FAILED"; }
 cp "$VAULT/staging/inventory.json" "$VAULT/staging/state.json"
-vault_write_state "$VAULT" "STATE-001" "$VAULT/staging"
-vault_verify_state "$VAULT" "STATE-001" || { tx_abort "$TX_ID" "vault-enriched"; exit "$LV_VERIFY_FAILED"; }
+vault_write_state "$VAULT" "$ENRICHED_STATE" "$VAULT/staging" || { tx_abort "$TX_ID" "vault-enriched-write"; exit "$LV_VERIFY_FAILED"; }
+vault_verify_state "$VAULT" "$ENRICHED_STATE" || { tx_abort "$TX_ID" "vault-enriched"; exit "$LV_VERIFY_FAILED"; }
 
 state_transition_file "$STATE_FILE" PLAN WAITING_FOR_AUTHORIZATION || { tx_abort "$TX_ID" "authorization-state"; exit "$LV_INTERNAL_ERROR"; }
 health_check_discovery "$VAULT/staging/health.json" || { tx_abort "$TX_ID" "health"; exit "$LV_VERIFY_FAILED"; }
