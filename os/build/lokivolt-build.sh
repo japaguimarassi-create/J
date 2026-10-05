@@ -3,8 +3,8 @@ set -u
 set -o pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-AOSP_DIR="\${LOKIVOLT_AOSP_DIR:-\$HOME/lokivolt/aosp}"
-TARGET="\${1:-cf}"
+AOSP_DIR="${LOKIVOLT_AOSP_DIR:-\$HOME/lokivolt/aosp}"
+TARGET="${1:-cf}"
 
 die() {
   printf '%s\n' "\$1" >&2
