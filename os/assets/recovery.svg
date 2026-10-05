@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920">
+<rect width="1080" height="1920" fill="#08080c"/>
+<rect x="70" y="120" width="940" height="230" rx="36" fill="#11111a" stroke="#b56cff" stroke-width="8"/>
+<circle cx="210" cy="235" r="54" fill="none" stroke="#b56cff" stroke-width="10"/>
+<path d="M184 235h52M210 209v52" stroke="#fff" stroke-width="9"/>
+<circle cx="870" cy="235" r="54" fill="none" stroke="#b56cff" stroke-width="10"/>
+<path d="M844 235l26-26 26 26-26 26z" fill="none" stroke="#fff" stroke-width="8"/>
+<text x="540" y="470" text-anchor="middle" fill="#ffffff" font-family="sans-serif" font-size="66" font-weight="700">LOKIVOLT RECOVERY</text>
+<g font-family="sans-serif" font-size="42" fill="#ffffff">
+<text x="110" y="650">Reboot system</text>
+<text x="110" y="770">Apply update</text>
+<text x="110" y="890">Factory reset</text>
+<text x="110" y="1010">Restore</text>
+<text x="110" y="1130">Diagnostics</text>
+</g>
+<rect x="80" y="1230" width="920" height="360" rx="28" fill="#11111a" stroke="#343445" stroke-width="4"/>
+<text x="115" y="1300" fill="#b56cff" font-family="sans-serif" font-size="31">SECURITY ACCOUNT</text>
+<text x="115" y="1365" fill="#ffffff" font-family="sans-serif" font-size="34">EMAIL 1</text>
+<text x="115" y="1460" fill="#b56cff" font-family="sans-serif" font-size="31">RESTORE ACCOUNT</text>
+<text x="115" y="1525" fill="#ffffff" font-family="sans-serif" font-size="34">EMAIL 2</text>
+</svg>
