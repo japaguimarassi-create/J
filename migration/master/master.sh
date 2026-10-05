@@ -72,6 +72,11 @@ cat > "$STATE_FILE" <<'JSON'
 JSON
 
 run_preflight "$VAULT/staging/preflight.json" || { tx_abort "$TX_ID" "preflight"; exit "$LV_MISSING_PREREQ"; }
+if ! grep -q '"safe": true' "$VAULT/staging/preflight.json"; then
+  tx_record_result "$TX_ID" "unsafe-context"
+  tx_abort "$TX_ID" "preflight-context"
+  exit "$LV_SAFE_ABORT"
+fi
 state_transition_file "$STATE_FILE" INIT PREFLIGHT || { tx_abort "$TX_ID" "state-init"; exit "$LV_INTERNAL_ERROR"; }
 
 tx_record_action "$TX_ID" "inventory"
