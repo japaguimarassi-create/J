@@ -109,3 +109,14 @@ The first physical-device action is discovery. It creates evidence and a Vault; 
 ## Moto G04s
 
 The device research dossier is at `docs/device-research/moto-g04s.md`. Public firmware sources currently point to Brazilian XT2421-6/Lion variants, while independent reports show variant differences. The engine deliberately requires live device evidence before a ROM profile is selected.
+
+
+## Final Termux command
+
+The complete first-run command is:
+
+```bash
+curl -fsSL 'https://raw.githubusercontent.com/japaguimarassi-create/J/lokivolt/migration-engine-v1/termux/bootstrap.sh' -o "$PREFIX/tmp/lokivolt-bootstrap.sh" && bash "$PREFIX/tmp/lokivolt-bootstrap.sh" && lokivolt doctor
+```
+
+This installs the current engine and immediately performs read-only discovery.
