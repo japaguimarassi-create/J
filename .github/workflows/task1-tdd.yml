@@ -1,0 +1,12 @@
+name: Lokivolt TDD Task 1
+on:
+  push:
+    branches:
+      - lokivolt/migration-engine-v1
+jobs:
+  task1:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Task 1 bootstrap tests
+        run: bash migration/tests/shell/test_master.sh
