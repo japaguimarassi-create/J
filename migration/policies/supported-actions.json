@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "actions": {
+    "discover": {"mode": "read-only", "allowed": true},
+    "create-vault": {"mode": "local-write", "allowed": true},
+    "plan": {"mode": "read-only", "allowed": true},
+    "validate-release": {"mode": "read-only", "allowed": true},
+    "flash": {"mode": "device-write", "allowed": false}
+  }
+}
