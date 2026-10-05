@@ -3,8 +3,13 @@ set -u
 set -o pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 MASTER="$ROOT/master/master.sh"
+OS_BUILD="$ROOT/../os/build/lokivolt-build.sh"
 fail(){ printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 [[ -f "$MASTER" ]] || fail "master engine exists"
+[[ -f "$OS_BUILD" ]] || fail "OS build script exists"
+bash -n "$OS_BUILD" || fail "OS build script syntax"
+grep -q 'fusion-architecture.json' "$OS_BUILD" || fail "fusion config copied by build"
+grep -q 'fusion-architecture.json' "$ROOT/../os/product/lokivolt.mk" || fail "fusion config packaged into system"
 bash "$MASTER" --help >/tmp/lokivolt-help.$$ 2>&1 || fail "help exits zero"
 grep -q -- "--mode" /tmp/lokivolt-help.$$ || fail "help exposes mode"
 grep -q -- "--vault" /tmp/lokivolt-help.$$ || fail "help exposes vault"
