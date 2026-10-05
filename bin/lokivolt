@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -u
+set -o pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+usage() {
+  printf '%s\n'     'Lokivolt CLI v1'     ''     'Commands:'     '  doctor [VAULT]     inspect device and create Vault evidence'     '  discover [VAULT]   run read-only migration discovery'     '  version             show engine version'
+}
+
+case "${1:-help}" in
+  doctor|discover)
+    vault="${2:-$HOME/LokivoltVault}"
+    exec bash "$ROOT/migration/master/master.sh" --mode discover --vault "$vault"
+    ;;
+  version)
+    printf '%s\n' 'Lokivolt Migration Engine v1.0.0'
+    ;;
+  help|-h|--help)
+    usage
+    ;;
+  *)
+    printf 'Unknown command: %s\n' "$1" >&2
+    usage >&2
+    exit 20
+    ;;
+esac
