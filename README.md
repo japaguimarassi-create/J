@@ -95,3 +95,17 @@ Phase C: AOSP/Lokivolt ROM build and image verification.
 Phase D: controlled flashing through the device's supported, explicitly authorized bootloader/recovery path.
 
 Phase E: Lokivolt runtime services, System UI, launcher and JARVIS integration.
+
+
+## Termux bridge
+
+The repository includes:
+- `bin/lokivolt` for discovery/version commands;
+- `termux/bootstrap.sh` for installing the current branch into the user's Termux home directory;
+- `docs/termux.md` for the Android-side workflow.
+
+The first physical-device action is discovery. It creates evidence and a Vault; it does not replace Android or modify boot-critical partitions.
+
+## Moto G04s
+
+The device research dossier is at `docs/device-research/moto-g04s.md`. Public firmware sources currently point to Brazilian XT2421-6/Lion variants, while independent reports show variant differences. The engine deliberately requires live device evidence before a ROM profile is selected.
