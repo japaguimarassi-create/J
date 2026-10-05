@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "security_account": {
+    "role": "EMAIL_1",
+    "required": true,
+    "purpose": "device_security_and_provisioning",
+    "stores_password": false,
+    "stores_refresh_token": false
+  },
+  "restore_account": {
+    "role": "EMAIL_2",
+    "required": true,
+    "purpose": "supported_backup_restore",
+    "stores_password": false,
+    "stores_refresh_token": false
+  },
+  "constraints": {
+    "accounts_must_be_distinct": true,
+    "never_export_passwords": true,
+    "never_bypass_factory_reset_protection": true,
+    "never_bypass_verified_boot": true
+  }
+}
