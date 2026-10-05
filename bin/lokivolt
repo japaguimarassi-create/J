@@ -1,43 +1,45 @@
 #!/usr/bin/env bash
 set -u
 set -o pipefail
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$ROOT/migration/modules/report.sh"
 
 usage() {
-  printf '%s\n'     'Lokivolt CLI v1'     ''     'Commands:'     '  doctor [VAULT]     inspect device and create Vault evidence'     '  discover [VAULT]   run read-only migration discovery'     '  start [VAULT]      discover and open Lokivolt Setup when installed'     '  os-build [TARGET]  build AOSP target on a supported build host'     '  version             show engine version'
+  printf '%s\n' \
+    'Lokivolt CLI v1' \
+    '' \
+    'Commands:' \
+    '  doctor [VAULT]     inspect device and create Vault evidence' \
+    '  discover [VAULT]   run read-only migration discovery' \
+    '  start [VAULT]      discover and open Lokivolt Setup when installed' \
+    '  os-build [TARGET]  build AOSP target on a supported build host' \
+    '  version            show engine version'
 }
 
-case "${1:-help}" in
-  doctor|discover|start)
-    vault="${2:-$HOME/LokivoltVault}"
+case "\${1:-help}" in
+  doctor|discover)
+    vault="\${2:-$HOME/LokivoltVault}"
     bash "$ROOT/migration/master/master.sh" --mode discover --vault "$vault" || exit $?
     if [[ -f "$vault/staging/inventory.json" && -f "$vault/staging/plan.json" && -f "$vault/staging/recovery.json" ]]; then
       print_discovery_report "$vault/staging/inventory.json" "$vault/staging/plan.json" "$vault/staging/recovery.json"
     fi
-    if [[ "$1" == "start" ]] && command -v am >/dev/null 2>&1 && command -v pm >/dev/null 2>&1; then
-      if pm list packages 2>/dev/null | grep -q '^package:com.lokivolt.setup
-  os-build)
-    target=cf
-    if [[ -n "$2" ]]; then target="$2"; fi
-    bash "$ROOT/os/build/lokivolt-build.sh" "$target"
     ;;
-  version)
-    printf '%s\n' 'Lokivolt Migration Engine v1.0.0'
-    ;;
-  help|-h|--help)
-    usage
-    ;;
-  *)
-    printf 'Unknown command: %s\n' "$1" >&2
-    usage >&2
-    exit 20
-    ;;
-esac
-; then
+  start)
+    vault="\${2:-$HOME/LokivoltVault}"
+    bash "$ROOT/migration/master/master.sh" --mode discover --vault "$vault" || exit $?
+    if [[ -f "$vault/staging/inventory.json" && -f "$vault/staging/plan.json" && -f "$vault/staging/recovery.json" ]]; then
+      print_discovery_report "$vault/staging/inventory.json" "$vault/staging/plan.json" "$vault/staging/recovery.json"
+    fi
+    if command -v am >/dev/null 2>&1 && command -v pm >/dev/null 2>&1; then
+      if pm list packages 2>/dev/null | grep -q '^package:com.lokivolt.setup$'; then
         am start -n com.lokivolt.setup/.MainActivity >/dev/null 2>&1 || true
       fi
     fi
+    ;;
+  os-build)
+    target="\${2:-cf}"
+    bash "$ROOT/os/build/lokivolt-build.sh" "$target"
     ;;
   version)
     printf '%s\n' 'Lokivolt Migration Engine v1.0.0'
