@@ -29,5 +29,6 @@ jobs:
           bash migration/tests/shell/test_release.sh
           bash migration/tests/shell/test_preflight.sh
           bash migration/tests/shell/test_jarvis_bridge.sh
+          bash migration/tests/shell/test_cli.sh
       - name: Full self-check
         run: bash migration/tests/selfcheck.sh
