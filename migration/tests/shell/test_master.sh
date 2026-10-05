@@ -27,7 +27,7 @@ grep -q '"state": "WAITING_FOR_AUTHORIZATION"' "$TMP/vault/run/state-machine.jso
 [[ -f "$TMP/vault/states/STATE-000/state-digest" ]] || fail "baseline Vault"
 [[ -f "$TMP/vault/states/STATE-001/state-digest" ]] || fail "enriched Vault"
 grep -q '"acceptance_status": "ACCEPTED_100"' "$TMP/vault/staging/plan.json" || fail "100% planning acceptance"
-grep -q '"status": "gated"' "$TMP/vault/staging/plan.json" || fail "execution gate"
+grep -q '"execution": "gated"' "$TMP/vault/staging/plan.json" || fail "execution gate"
 grep -q '"status": "ACCEPTED_GATED"' "$TMP/vault/staging/inventory.json" || fail "capability decision"
 BASE_DIGEST="$(cat "$TMP/vault/states/STATE-000/state-digest")"
 bash "$MASTER" --mode discover --vault "$TMP/vault" || fail "second discovery"
