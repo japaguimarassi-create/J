@@ -13,7 +13,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Shell syntax
-        run: find migration -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+        run: find migration os -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+      - name: OS metadata validation
+        run: |
+          python3 - <<'PY'
+          import json
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          for p in [
+              Path("os/config/identity-policy.json"),
+              Path("os/config/reset-flow.json"),
+              Path("os/images/MANIFEST.json"),
+          ]:
+              json.loads(p.read_text(encoding="utf-8"))
+          ET.parse("os/packages/apps/LokivoltSetup/AndroidManifest.xml")
+          ET.parse("os/packages/apps/LokivoltSetup/res/values/styles.xml")
+          print("OS metadata valid")
+          PY
       - name: Python suite
         run: python3 migration/tests/python/run_tests.py
       - name: Shell suite
