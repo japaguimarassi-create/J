@@ -11,9 +11,9 @@ capability_json_value() {
     HAS_RECOVERY_INTERFACE) printf 'false' ;;
     HAS_DYNAMIC_PARTITIONS) grep -q '"dynamic_partitions": true' "$inventory" && printf 'true' || printf 'false' ;;
     HAS_AB_SLOTS) grep -q '"ab_slots": true' "$inventory" && printf 'true' || printf 'false' ;;
-    CAN_UNLOCK_OFFICIALLY) printf 'false' ;;
+    CAN_UNLOCK_OFFICIALLY) printf 'null' ;;
     CAN_FLASH_BOOT|CAN_FLASH_SYSTEM) printf 'false' ;;
-    CAN_RESTORE_OFFICIAL_FIRMWARE) printf 'false' ;;
+    CAN_RESTORE_OFFICIAL_FIRMWARE) printf 'null' ;;
     *) printf 'null' ;;
   esac
 }
@@ -34,31 +34,36 @@ caps={
     "HAS_RECOVERY_INTERFACE":False,
     "HAS_DYNAMIC_PARTITIONS":bool(inv.get("dynamic_partitions")),
     "HAS_AB_SLOTS":bool(inv.get("ab_slots")),
-    "CAN_UNLOCK_OFFICIALLY":False,
+    "CAN_UNLOCK_OFFICIALLY":None,
     "CAN_FLASH_BOOT":False,
     "CAN_FLASH_SYSTEM":False,
-    "CAN_RESTORE_OFFICIAL_FIRMWARE":False
+    "CAN_RESTORE_OFFICIAL_FIRMWARE":None
 }
 decisions={}
 for key,value in caps.items():
     if value is True:
-        status="ACCEPTED"
-        reason="capability observed and usable for its declared scope"
-    elif key in ("CAN_FLASH_BOOT","CAN_FLASH_SYSTEM","CAN_UNLOCK_OFFICIALLY") and boot.get("state")=="locked":
+        status="ACCEPTED_100"
+        reason="capability observed and usable for its declared read-only scope"
+    elif key in ("CAN_FLASH_BOOT","CAN_FLASH_SYSTEM") and boot.get("state")=="locked":
         status="ACCEPTED_GATED"
-        reason="accepted by Lokivolt planning policy but gated by the locked Android bootloader"
-    elif key=="CAN_RESTORE_OFFICIAL_FIRMWARE":
-        status="ACCEPTED_LIMITED"
-        reason="accepted as a recovery goal; official restore artifact or interface is not currently available"
+        reason="the capability requirement is understood and accepted, but Android Verified Boot and the locked bootloader prevent execution"
+    elif key in ("CAN_UNLOCK_OFFICIALLY","CAN_RESTORE_OFFICIAL_FIRMWARE"):
+        status="ACCEPTED_UNDETERMINED"
+        reason="official authorization or recovery artifact has not been verified by this local discovery run"
     else:
         status="ACCEPTED_LIMITED"
-        reason="accepted as a known limitation rather than treated as an undefined failure"
+        reason="the limitation is explicitly represented and accepted; no privilege is implied"
     decisions[key]={"status":status,"acceptance_score":100,"reason":reason}
 result={
-    "schema_version":2,
+    "schema_version":3,
     "capabilities":caps,
     "capability_decisions":decisions,
-    "acceptance":{"status":"ACCEPTED_100","score":100,"scope":"capability_inventory","meaning":"Every detected capability or limitation is accepted as explicit state. Acceptance does not grant privileges or bypass platform security."},
+    "acceptance":{
+        "status":"ACCEPTED_100",
+        "score":100,
+        "scope":"capability_inventory",
+        "meaning":"Every observed fact, limitation and unknown is accepted as explicit state. Acceptance never grants privileges and never bypasses Android security."
+    },
     "evidence":{"model":props.get("ro.product.model"),"manufacturer":props.get("ro.product.manufacturer")}
 }
 json.dump(result,open(out_path,"w",encoding="utf-8"),sort_keys=True,indent=2)
