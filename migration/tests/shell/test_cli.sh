@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-CLI="$ROOT/bin/lokivolt"
+CLI="$(cd "$ROOT/../.." && pwd)/bin/lokivolt"
 
 [[ -x "$CLI" ]] || { printf '%s\n' 'CLI mode is not executable; use bash wrapper' >&2; }
 out="$(bash "$CLI" version)"
