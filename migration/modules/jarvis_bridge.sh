@@ -21,7 +21,7 @@ PY
 jarvis_request_plan() {
   local inventory="$1" profile="$2" output="$3"
   local module_dir
-  module_dir="$(cd "$(dirname "$0")" && pwd)"
+  module_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   source "$module_dir/plan.sh"
   build_plan "$inventory" "$profile" "$output"
 }
