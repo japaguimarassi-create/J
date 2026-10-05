@@ -32,7 +32,11 @@ cp -R "$source_dir/migration" "$DEST/"
 cp -R "$source_dir/bin" "$DEST/"
 cp -R "$source_dir/docs" "$DEST/" || true
 cp -R "$source_dir/os" "$DEST/" || true
-cp "$source_dir/bin/lokivolt" "$PREFIX/bin/lokivolt" || exit 70
+cat > "$PREFIX/bin/lokivolt" <<EOF
+#!/usr/bin/env bash
+export LOKIVOLT_ROOT="$DEST"
+exec "$DEST/bin/lokivolt" "$@"
+EOF
 chmod 755 "$PREFIX/bin/lokivolt" || exit 70
 
 printf '%s\n' 'Lokivolt installed.'
