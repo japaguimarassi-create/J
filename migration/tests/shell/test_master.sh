@@ -1,36 +1,51 @@
 #!/usr/bin/env bash
 set -u
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+set -o pipefail
+
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 MASTER="$ROOT/master/master.sh"
 
-fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
-pass() { printf 'PASS: %s\n' "$1"; }
+fail(){ printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 
 [[ -f "$MASTER" ]] || fail "master engine exists"
-
-if bash "$MASTER" --help >/tmp/lokivolt-help.$$ 2>&1; then
-  grep -q -- "--mode" /tmp/lokivolt-help.$$ || fail "help exposes mode"
-  grep -q -- "--vault" /tmp/lokivolt-help.$$ || fail "help exposes vault"
-else
-  rm -f /tmp/lokivolt-help.$$
-  fail "help exits zero"
-fi
-rm -f /tmp/lokivolt-help.$$
+bash "$MASTER" --help > /tmp/lokivolt-help.$$ 2>&1 || fail "help exits zero"
+grep -q -- "--mode" /tmp/lokivolt-help.$$ || fail "help exposes mode"
+grep -q -- "--vault" /tmp/lokivolt-help.$$ || fail "help exposes vault"
 
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
+mkdir -p "$TMP/device"
+cat > "$TMP/device/props" <<'PROPS'
+[ro.product.model]: [moto g04s]
+[ro.product.manufacturer]: [motorola]
+[ro.build.version.release]: [14]
+[ro.build.version.security_patch]: [2026-09-01]
+[ro.product.cpu.abi]: [arm64-v8a]
+[ro.boot.flash.locked]: [1]
+[ro.boot.verifiedbootstate]: [green]
+[ro.boot.slot_suffix]: [_a]
+PROPS
+export LOKIVOLT_GETPROP_FILE="$TMP/device/props"
+export LOKIVOLT_BLOCK_SOURCE="$TMP/device/props"
 
-if bash "$MASTER" --mode discover --vault "$TMP/vault"; then
-  [[ -f "$TMP/vault/run/state-machine.json" ]] || fail "discover creates run state"
-else
-  fail "discover exits zero in fixture mode"
+bash "$MASTER" --mode discover --vault "$TMP/vault" || fail "discover"
+grep -q '"state": "WAITING_FOR_AUTHORIZATION"' "$TMP/vault/run/state-machine.json" || fail "final discovery state"
+[[ -f "$TMP/vault/states/STATE-000/state-digest" ]] || fail "baseline Vault"
+[[ -f "$TMP/vault/states/STATE-001/state-digest" ]] || fail "enriched Vault"
+[[ -f "$TMP/vault/staging/plan.json" ]] || fail "plan"
+[[ -f "$TMP/vault/staging/recovery.json" ]] || fail "recovery"
+grep -q 'discovery-complete' "$TMP/vault/transactions/journal.jsonl" || fail "transaction result"
+grep -q '"commit"' "$TMP/vault/transactions/journal.jsonl" || fail "transaction commit"
+
+printf '%s\n' 'enabled=true' > "$TMP/kill"
+if bash "$MASTER" --mode discover --vault "$TMP/second" --kill-switch "$TMP/kill" >/dev/null 2>&1; then
+  fail "kill switch ignored"
 fi
 
-if bash "$MASTER" --mode mutate --vault "$TMP/vault" >/dev/null 2>&1; then
-  fail "mutate is refused in v1"
+if bash "$MASTER" --mode mutate --vault "$TMP/mutate" >/dev/null 2>&1; then
+  fail "mutation accepted"
 else
   code=$?
-  [[ "$code" -eq 40 ]] || fail "mutate returns authorization-required code"
+  [[ "$code" -eq 40 ]] || fail "mutation wrong exit code"
 fi
 
-pass "master bootstrap"
+printf 'PASS: master integration\n'
