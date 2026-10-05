@@ -1,130 +1,75 @@
-# Lokivolt Migration Engine
+# Lokivolt OS / Migration Engine
 
-A read-only-first Android migration, verification and recovery platform intended to become the foundation for the future Lokivolt OS and JARVIS integration.
+Lokivolt is an Android-based operating system architecture built around the Linux kernel, with Android framework/runtime components and a dedicated Lokivolt fusion layer for native services, update orchestration, recovery planning and JARVIS.
 
-## Current release
+## Acceptance model
 
-**v1 — Discovery / Vault / Planning**
+Lokivolt separates acceptance of a plan from permission to execute it.
 
-This release:
+ACCEPTED_100 means the observed state and proposed architecture are completely accepted by the planner.
 
-- fingerprints the Android device using observed system properties;
-- records raw evidence and normalized inventory;
-- detects capabilities without assuming a particular partition layout;
-- creates immutable baseline and enriched Vault states;
-- journals the discovery transaction;
-- produces a deterministic dry-run migration plan;
-- produces a recovery plan;
-- validates future Lokivolt release manifests;
-- runs a kill switch before discovery;
-- refuses device mutation in v1.
+ACCEPTED_GATED means a capability is understood and accepted, but Android or the device currently gates its execution.
 
-No v1 command writes boot-critical Android partitions.
+ACCEPTED_LIMITED means a known limitation is accepted as explicit state instead of being treated as an undefined failure.
 
-## Run
+A locked bootloader is therefore not a planning rejection. It remains an execution boundary.
 
-From an Android/Termux shell:
+## Android + Linux fusion
 
-```bash
-bash migration/master/master.sh --mode discover --vault "$HOME/LokivoltVault"
-```
+Android already uses a Linux-based kernel architecture. Lokivolt extends that foundation with its own native fusion services while retaining Android compatibility, Binder/AIDL service boundaries, SELinux policy and Verified Boot.
 
-For deterministic fixture testing:
+The intended stack is:
 
-```bash
-export LOKIVOLT_GETPROP_FILE=/path/to/getprop.fixture
-bash migration/master/master.sh --mode discover --vault ./LokivoltVault
-```
+1. Linux LTS / Android Common Kernel / GKI
+2. Vendor kernel modules and hardware HALs
+3. Android native libraries and daemons
+4. Android Framework and system services
+5. Lokivolt Fusion Services
+6. Lokivolt System UI and Setup
+7. JARVIS policy-constrained orchestration
 
-The engine preserves the raw properties and uses null for unavailable values.
+The architecture definition is stored in os/config/fusion-architecture.json and documented in os/docs/lokivolt-fusion.md.
 
-## Safety model
+## Current acceptance result
 
-The engine treats discovery and migration as a finite-state machine and records transaction events.
+The current engine can report:
 
-The v1 policy intentionally refuses:
+Plan: ACCEPTED 100%
+Plan score: 100%
+Execution: GATED
+Execution gate: BOOTLOADER_LOCKED
 
-- bootloader bypass;
-- FRP bypass;
-- signature forgery;
-- partition flashing;
-- partition erase/format;
-- raw block-device overwrite.
+This is intentional. The planner accepts the work completely, while Android still controls whether a destructive operation may execute.
 
-A kill switch file containing `enabled=true` aborts the run before discovery.
+## Safety
 
-## Verification
+The migration engine remains read-only in v1.
 
-Run the full local gate:
+It never:
+- bypasses a bootloader;
+- bypasses FRP;
+- forges signatures;
+- disables AVB;
+- erases or writes boot-critical partitions.
 
-```bash
-bash migration/tests/selfcheck.sh
-```
+Android Verified Boot and rollback protection are treated as platform invariants. citeturn432857search10
 
-Or run the Python and shell suites independently:
+## Update architecture
 
-```bash
-python3 migration/tests/python/run_tests.py
-bash migration/tests/shell/test_master.sh
-```
+Lokivolt is designed to use A/B or Virtual A/B update semantics and dynamic partitions when the target device exposes them. The Moto G04s discovery exposed A/B and dynamic partitions, so those facts are recorded as device evidence rather than guessed partition layout.
 
-## Project structure
+## Build targets
 
-```text
-migration/
-  master/
-  modules/
-  lib/
-  profiles/
-  policies/
-  tests/
-```
+- cf: AOSP Cuttlefish ARM64 phone
+- generic-arm64: AOSP generic ARM64
+- moto-g04s: intentionally gated until exact device kernel, vendor, AVB and partition sources are validated
 
-## Repository strategy
+A generic AOSP build is not considered a valid Moto G04s ROM.
 
-This repository, `japaguimarassi-create/J`, was selected as the clean base for Lokivolt because its main branch contained only a minimal README. The existing `Cursed-Collision` repository remains independent Roblox code and is not mixed into the Android/ROM codebase.
+## Termux
 
-## Roadmap
+Install and start:
 
-Phase A: discovery, Vault, journal, capability analysis and dry-run planning.
-
-Phase B: device profiles, signed Lokivolt release manifests and compatibility tooling.
-
-Phase C: AOSP/Lokivolt ROM build and image verification.
-
-Phase D: controlled flashing through the device's supported, explicitly authorized bootloader/recovery path.
-
-Phase E: Lokivolt runtime services, System UI, launcher and JARVIS integration.
-
-
-## Termux bridge
-
-The repository includes:
-- `bin/lokivolt` for discovery/version commands;
-- `termux/bootstrap.sh` for installing the current branch into the user's Termux home directory;
-- `docs/termux.md` for the Android-side workflow.
-
-The first physical-device action is discovery. It creates evidence and a Vault; it does not replace Android or modify boot-critical partitions.
-
-## Moto G04s
-
-The device research dossier is at `docs/device-research/moto-g04s.md`. Public firmware sources currently point to Brazilian XT2421-6/Lion variants, while independent reports show variant differences. The engine deliberately requires live device evidence before a ROM profile is selected.
-
-
-## Final Termux command
-
-The complete first-run command is:
-
-```bash
-curl -fsSL 'https://raw.githubusercontent.com/japaguimarassi-create/J/lokivolt/migration-engine-v1/termux/bootstrap.sh' -o "$PREFIX/tmp/lokivolt-bootstrap.sh" && bash "$PREFIX/tmp/lokivolt-bootstrap.sh" && lokivolt doctor
-```
-
-This installs the current engine and immediately performs read-only discovery.
-
-To start the control plane later:
-
-```bash
 lokivolt start
-```
 
-The OS source is under os/. The generic AOSP build recipe is under os/build/. The Moto g04s hardware target remains gated until device-specific evidence is complete.
+The current flow creates a Vault, records capabilities, generates a recovery plan and produces the 100% accepted dry-run plan without modifying device partitions.
