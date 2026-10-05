@@ -1,10 +1,13 @@
 {
-  "schema_version": 1,
-  "default_mode": "read-only",
-  "mutation_requires_authorization": true,
-  "fail_closed": true,
-  "allow_v1_partition_writes": false,
-  "allow_bootloader_bypass": false,
-  "allow_frp_bypass": false,
-  "allow_signature_forgery": false
+  "schema_version":2,
+  "default_mode":"read-only",
+  "planning_acceptance":{"enabled":true,"score":100,"meaning":"A plan may be fully accepted while execution remains gated by Android security and device capabilities."},
+  "mutation_requires_authorization":true,
+  "fail_closed":true,
+  "allow_v1_partition_writes":false,
+  "allow_bootloader_bypass":false,
+  "allow_frp_bypass":false,
+  "allow_signature_forgery":false,
+  "allow_avb_bypass":false,
+  "security_boundary":"ENFORCED"
 }
