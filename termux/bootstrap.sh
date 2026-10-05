@@ -14,6 +14,11 @@ tmp="$(mktemp -d)"
 archive="$tmp/lokivolt.tar.gz"
 url="https://github.com/$REPO/archive/refs/heads/$BRANCH.tar.gz"
 
+cleanup() {
+  rm -rf "$tmp"
+}
+trap cleanup EXIT
+
 curl --fail --location --silent --show-error "$url" --output "$archive" || exit 30
 mkdir -p "$DEST" "$PREFIX/bin" || exit 70
 tar -xzf "$archive" -C "$tmp" || exit 30
@@ -28,14 +33,19 @@ done < <(find "$tmp" -mindepth 1 -maxdepth 1 -type d -print)
 
 [[ -n "$source_dir" ]] || { printf '%s\n' 'Cannot locate Lokivolt archive root' >&2; exit 30; }
 
-cp -R "$source_dir/migration" "$DEST/"
-cp -R "$source_dir/bin" "$DEST/"
-cp -R "$source_dir/docs" "$DEST/" || true
-cp -R "$source_dir/os" "$DEST/" || true
+rm -rf "$DEST/migration" "$DEST/bin"
+cp -R "$source_dir/migration" "$DEST/" || exit 70
+cp -R "$source_dir/bin" "$DEST/" || exit 70
+cp -R "$source_dir/docs" "$DEST/" 2>/dev/null || true
+cp -R "$source_dir/os" "$DEST/" 2>/dev/null || true
+chmod 755 "$DEST/bin/lokivolt" || exit 70
+
 cat > "$PREFIX/bin/lokivolt" <<EOF
 #!/usr/bin/env bash
+set -u
+set -o pipefail
 export LOKIVOLT_ROOT="$DEST"
-exec "$DEST/bin/lokivolt" "\$@"
+exec bash "$DEST/bin/lokivolt" "\$@"
 EOF
 chmod 755 "$PREFIX/bin/lokivolt" || exit 70
 
