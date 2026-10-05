@@ -2,7 +2,17 @@
 set -u
 set -o pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [[ -d "$SCRIPT_DIR/../migration" ]]; then
+  ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+elif [[ -d "${LOKIVOLT_ROOT:-}/migration" ]]; then
+  ROOT="$LOKIVOLT_ROOT"
+elif [[ -d "$HOME/.local/share/lokivolt/migration" ]]; then
+  ROOT="$HOME/.local/share/lokivolt"
+else
+  printf "%s\n" "Lokivolt installation not found" >&2
+  exit 50
+fi
 source "$ROOT/migration/modules/report.sh"
 
 usage() {
