@@ -105,10 +105,18 @@ json.dump(inv,open(sys.argv[1],"w",encoding="utf-8"),sort_keys=True,indent=2)
 PY
 
 state_transition_file "$STATE_FILE" INVENTORY VAULT_CREATE || { tx_abort "$TX_ID" "state-vault"; exit "$LV_INTERNAL_ERROR"; }
-vault_init "$VAULT" "STATE-000"
+BASE_STATE="$(vault_next_state_id "$VAULT")"
+python3 - "$VAULT/staging/inventory.json" "$BASE_STATE" <<'PY'
+import json,sys
+path,state=sys.argv[1:]
+data=json.load(open(path,encoding="utf-8"))
+data["state_id"]=state
+json.dump(data,open(path,"w",encoding="utf-8"),sort_keys=True,indent=2)
+PY
+vault_init "$VAULT" "$BASE_STATE" || { tx_abort "$TX_ID" "vault-init"; exit "$LV_VERIFY_FAILED"; }
 cp "$VAULT/staging/inventory.json" "$VAULT/staging/state.json"
-vault_write_state "$VAULT" "STATE-000" "$VAULT/staging"
-vault_verify_state "$VAULT" "STATE-000" || { tx_record_result "$TX_ID" "vault-verification-failed"; tx_abort "$TX_ID" "vault"; exit "$LV_VERIFY_FAILED"; }
+vault_write_state "$VAULT" "$BASE_STATE" "$VAULT/staging" || { tx_abort "$TX_ID" "vault-write"; exit "$LV_VERIFY_FAILED"; }
+vault_verify_state "$VAULT" "$BASE_STATE" || { tx_record_result "$TX_ID" "vault-verification-failed"; tx_abort "$TX_ID" "vault"; exit "$LV_VERIFY_FAILED"; }
 
 state_transition_file "$STATE_FILE" VAULT_CREATE CAPABILITY_ANALYSIS || { tx_abort "$TX_ID" "state-capability"; exit "$LV_INTERNAL_ERROR"; }
 detect_capabilities "$VAULT/staging/inventory.json" "$VAULT/staging/capabilities.json" || { tx_abort "$TX_ID" "capabilities"; exit "$LV_VERIFY_FAILED"; }
@@ -127,7 +135,7 @@ python3 - "$VAULT/staging/inventory.json" <<'PY'
 import json,sys
 p=sys.argv[1]
 data=json.load(open(p,encoding="utf-8"))
-data["state_id"]="STATE-001"
+data["state_id"]=sys.argv[2]
 json.dump(data,open(p,"w",encoding="utf-8"),sort_keys=True,indent=2)
 PY
 build_recovery_plan "$VAULT/staging/inventory.json" "$VAULT/staging/plan.json" "$VAULT/staging/recovery.json" || { tx_abort "$TX_ID" "recovery"; exit "$LV_VERIFY_FAILED"; }
