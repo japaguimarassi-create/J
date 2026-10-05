@@ -64,3 +64,17 @@ The final exact-branch execution could not be reproduced in the container becaus
 - flashing/recovery integration
 - first-boot health checks against physical hardware
 - production JARVIS privileged integration
+
+## Final review
+
+Final review: self-review (no subagent tool).
+
+Static review found the following final invariants:
+- master uses a finite-state flow and refuses mutation in v1;
+- preflight is fail-closed outside verified Android/Termux context;
+- Vault snapshots are monotonic and sealed;
+- JARVIS bridge is read-only;
+- no unsafe device-write primitives were found in the audited migration shell modules;
+- the final branch tree contains the implementation, tests, policies and documentation.
+
+Remote CI status for the latest commits remains queued. No remote CI pass is claimed.
