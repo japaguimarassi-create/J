@@ -262,3 +262,18 @@
 Task 1 -> Task 2 -> Task 3 -> Task 4 -> Task 5 -> Task 6 -> Task 7 -> Task 8 -> Task 9 -> Task 10 -> Task 11 -> Task 12.
 
 Each task is independently testable before the next task begins. The repository is never given a production flashing command in v1; installation integration becomes a later phase after the ROM artifacts, device unlock state, and recovery path are independently validated.
+
+
+## v1.1 hardening decisions
+
+- The engine has an explicit `--read-only` default and refuses to enter any execute phase unless a future version explicitly enables it.
+- Every device observation is stored with an evidence source and a collection timestamp; unknown values are represented as `null`, never guessed.
+- Vault manifests use schema versioning and deterministic key ordering so state verification remains stable across upgrades.
+- A Vault state is content-addressed by a SHA-256 digest of its canonical manifest plus artifact hashes.
+- A kill-switch file can force an immediate safe abort before any mutating command is considered.
+- The master engine checks host/platform identity and refuses to treat a non-Android/non-Termux test host as a real device.
+- Recovery plans are generated even for discovery-only runs, but contain only non-destructive restore metadata until the corresponding official artifact is present.
+- The planner emits a machine-readable reason for every blocked action.
+- Test fixtures model adversarial and incomplete inputs: malformed JSON, duplicate keys, whitespace variance, missing properties, corrupted hashes, stale transactions, and unsupported capability combinations.
+- CI runs shell syntax checks, shell tests, Python tests, and a policy scan that fails when v1 introduces destructive flashing/wipe commands.
+- The v1 implementation deliberately contains no commands that write to boot-critical device partitions. This is a scope invariant, not an omission.
