@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "product": "lokivolt",
+  "version": "0.1.0",
+  "status": "source_ready_hardware_pending",
+  "images": [
+    {"name":"system.img","role":"generic_android_system","required":true,"generated":false},
+    {"name":"product.img","role":"product_layer","required":true,"generated":false},
+    {"name":"system_ext.img","role":"system_extension_layer","required":true,"generated":false},
+    {"name":"vendor.img","role":"device_vendor_layer","required":true,"generated":false},
+    {"name":"boot.img","role":"device_kernel_boot","required":true,"generated":false},
+    {"name":"vbmeta.img","role":"verified_boot_metadata","required":true,"generated":false},
+    {"name":"super.img","role":"dynamic_partition_container_when_required","required":false,"generated":false}
+  ],
+  "rule": "No image is flashable until its device match, hash, signature, rollback index, AVB chain, partition layout, and bootloader authorization are verified."
+}
