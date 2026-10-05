@@ -120,3 +120,11 @@ curl -fsSL 'https://raw.githubusercontent.com/japaguimarassi-create/J/lokivolt/m
 ```
 
 This installs the current engine and immediately performs read-only discovery.
+
+To start the control plane later:
+
+```bash
+lokivolt start
+```
+
+The OS source is under os/. The generic AOSP build recipe is under os/build/. The Moto g04s hardware target remains gated until device-specific evidence is complete.
