@@ -5,7 +5,7 @@ CLI="$ROOT/../bin/lokivolt"
 
 [[ -f "$CLI" ]] || { printf '%s\n' 'FAIL: CLI file missing' >&2; exit 1; }
 out="$(bash "$CLI" version)"
-grep -q 'Lokivolt Migration Engine v1.0.0' <<<"$out" || { printf '%s\n' 'FAIL: version' >&2; exit 1; }
+grep -q 'Lokivolt Migration Engine v1.1.0' <<<"$out" || { printf '%s\n' 'FAIL: version' >&2; exit 1; }
 bash "$CLI" --help >/dev/null || { printf '%s\n' 'FAIL: help' >&2; exit 1; }
 printf 'PASS: CLI\n'
 out="$(bash "$CLI" --help 2>&1)"
