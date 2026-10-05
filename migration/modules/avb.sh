@@ -3,8 +3,15 @@ set -u
 inspect_verified_boot() {
   local output="$1"
   local state digest
-  state="$(getprop ro.boot.verifiedbootstate 2>/dev/null || true)"
-  digest="$(getprop ro.boot.vbmeta.digest 2>/dev/null || true)"
+  state=""
+  digest=""
+  if [[ -n "${LOKIVOLT_GETPROP_FILE:-}" && -f "$LOKIVOLT_GETPROP_FILE" ]]; then
+    state="$(awk -F'[][]' '/ro.boot.verifiedbootstate/ {print $4; exit}' "$LOKIVOLT_GETPROP_FILE")"
+    digest="$(awk -F'[][]' '/ro.boot.vbmeta.digest/ {print $4; exit}' "$LOKIVOLT_GETPROP_FILE")"
+  else
+    state="$(getprop ro.boot.verifiedbootstate 2>/dev/null || true)"
+    digest="$(getprop ro.boot.vbmeta.digest 2>/dev/null || true)"
+  fi
   python3 - "$output" "$state" "$digest" <<'PY'
 import json,sys
 out,state,digest=sys.argv[1:]
