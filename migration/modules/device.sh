@@ -45,3 +45,47 @@ device_prop() {
     }
   ' "$file"
 }
+
+collect_inventory() {
+  local raw_dir="$1" output="$2"
+  local raw="$raw_dir/getprop.raw"
+  [[ -f "$raw" ]] || return 1
+  python3 - "$raw" "$output" <<'PY'
+import json,re,sys
+raw,out=sys.argv[1:]
+props={}
+for line in open(raw,encoding="utf-8",errors="replace"):
+    m=re.match(r"^\[([^]]+)\]: \[([^]]*)\]$",line.rstrip("\n"))
+    if m:
+        props[m.group(1)]=m.group(2)
+def one(*keys):
+    for k in keys:
+        if k in props and props[k]!="":
+            return props[k]
+    return None
+locked=one("ro.boot.flash.locked")
+if locked=="1": boot_state="locked"
+elif locked=="0": boot_state="unlocked"
+else: boot_state=None
+slot=one("ro.boot.slot_suffix")
+vb=one("ro.boot.verifiedbootstate")
+dynamic=any(props.get(k)=="true" for k in ("ro.boot.dynamic_partitions","ro.boot.dynamic_partitions_retrofit")) or bool(one("ro.boot.super_partition"))
+ab=bool(slot)
+data={
+ "schema_version":1,
+ "state_id":"STATE-000",
+ "properties":{
+   "ro.product.model":one("ro.product.model"),
+   "ro.product.manufacturer":one("ro.product.manufacturer"),
+   "ro.build.version.release":one("ro.build.version.release"),
+   "ro.build.version.security_patch":one("ro.build.version.security_patch"),
+   "ro.product.cpu.abi":one("ro.product.cpu.abi")
+ },
+ "boot":{"state":boot_state,"verified_boot_state":vb,"slot":slot},
+ "dynamic_partitions":dynamic,
+ "ab_slots":ab,
+ "evidence":{"source":"getprop","raw_file":"getprop.raw"}
+}
+json.dump(data,open(out,"w",encoding="utf-8"),sort_keys=True,indent=2)
+PY
+}
