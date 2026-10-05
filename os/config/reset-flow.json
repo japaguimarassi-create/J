@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "name": "Lokivolt Reset and Restore",
+  "destructive_operation": "platform_factory_reset",
+  "stages": [
+    "SCREEN_LOCK_CONFIRMATION",
+    "EMAIL_1_SECURITY_AUTH",
+    "RESTORE_CHECKPOINT",
+    "PLATFORM_FACTORY_RESET",
+    "FIRST_BOOT_PROVISIONING",
+    "EMAIL_1_SECURITY_REAUTH",
+    "EMAIL_2_RESTORE_AUTH",
+    "PLATFORM_BACKUP_RESTORE",
+    "PASSWORD_MANAGER_SYNC",
+    "POST_RESTORE_HEALTH_CHECK"
+  ],
+  "restore_rules": {
+    "apps": "restore_when_supported_by_platform_and_provider",
+    "app_data": "restore_when_supported_by_application_and_backup_policy",
+    "contacts": "provider_sync",
+    "messages": "platform_provider_restore_when_supported",
+    "settings": "platform_backup_restore_when_supported",
+    "passwords": "provider_password_manager_sync"
+  },
+  "failure_policy": {
+    "authentication_failure": "stop",
+    "restore_verification_failure": "stop_and_preserve_recovery",
+    "unsupported_data": "report_without_fabricating_success"
+  }
+}
