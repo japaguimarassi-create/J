@@ -1,0 +1,31 @@
+name: Lokivolt Migration Engine
+
+on:
+  push:
+    branches:
+      - main
+      - lokivolt/migration-engine-v1
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shell syntax
+        run: find migration -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+      - name: Python suite
+        run: python3 migration/tests/python/run_tests.py
+      - name: Shell suite
+        run: |
+          bash migration/tests/shell/test_master.sh
+          bash migration/tests/shell/test_device_discovery.sh
+          bash migration/tests/shell/test_transactions.sh
+          bash migration/tests/shell/test_vault.sh
+          bash migration/tests/shell/test_platform_inspection.sh
+          bash migration/tests/shell/test_profiles.sh
+          bash migration/tests/shell/test_planner.sh
+          bash migration/tests/shell/test_recovery.sh
+          bash migration/tests/shell/test_release.sh
+      - name: Full self-check
+        run: bash migration/tests/selfcheck.sh
