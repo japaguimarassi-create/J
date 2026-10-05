@@ -78,3 +78,7 @@ Static review found the following final invariants:
 - the final branch tree contains the implementation, tests, policies and documentation.
 
 Remote CI status for the latest commits remains queued. No remote CI pass is claimed.
+
+Ruling: the Vault state allocator uses numeric STATE identifiers and rejects an existing sealed state — this prevents repeated discovery from overwriting historical evidence — cost if wrong: older Vaults with non-numeric state names require migration.
+
+Final review correction: the state allocator regex was found malformed during HEAD inspection and corrected to a numeric matcher. This is the current verified Vault implementation.
