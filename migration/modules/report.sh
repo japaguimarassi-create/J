@@ -24,17 +24,18 @@ print("A/B:",bool(inv.get("ab_slots")))
 print("Dynamic partitions:",bool(inv.get("dynamic_partitions")))
 planning=plan.get("planning",{})
 execution=plan.get("execution",{})
-print("Plan:", "ACCEPTED 100%" if planning.get("acceptance_status")=="ACCEPTED_100" else ("allowed" if plan.get("allowed") else "blocked"))
-print("Plan score:",f"{planning.get('acceptance_score',0)}%")
-print("Execution:",execution.get("status") or "unknown")
+print("Planning acceptance:", "100% ACCEPTED" if planning.get("acceptance_status")=="ACCEPTED_100" else "NOT ACCEPTED")
+print("Planning score:",f"{planning.get('acceptance_score',0)}%")
+print("Execution authorization:",execution.get("status") or "UNKNOWN")
 print("Execution gate:",execution.get("gate") or "none")
+print("Partition writes:", "DISABLED" if execution.get("partition_writes_enabled") is False else "UNKNOWN")
 print("Authorization required:",bool(execution.get("requires_authorization",plan.get("requires_authorization"))))
 print("Security boundary:",plan.get("security_boundary") or "unknown")
-print("Recovery strategy:",[x.get("strategy") for x in [rec] if x.get("strategy")] or "metadata")
+print("Recovery strategy:",rec.get("strategy") or "metadata")
 print("Capabilities:")
 for k,v in sorted(caps.items()):
     d=decisions.get(k,{})
-    label=d.get("status","OBSERVED") if isinstance(d,dict) else "OBSERVED"
+    label=d.get("status","ACCEPTED_LIMITED") if isinstance(d,dict) else "ACCEPTED_LIMITED"
     print(f"  {k}={v} [{label}]")
 PY
 }
