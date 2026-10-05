@@ -277,3 +277,23 @@ Each task is independently testable before the next task begins. The repository 
 - Test fixtures model adversarial and incomplete inputs: malformed JSON, duplicate keys, whitespace variance, missing properties, corrupted hashes, stale transactions, and unsupported capability combinations.
 - CI runs shell syntax checks, shell tests, Python tests, and a policy scan that fails when v1 introduces destructive flashing/wipe commands.
 - The v1 implementation deliberately contains no commands that write to boot-critical device partitions. This is a scope invariant, not an omission.
+
+
+## Implementation Reconciliation
+
+The implementation intentionally differs from a few early task file names because the final design favored fewer parsing layers:
+- deterministic hashing is implemented in migration/lib/hash_tree.py;
+- canonical JSON is implemented in migration/lib/json_util.py;
+- Task 9 is represented by the master entrypoint rather than a separate run_discovery_pipeline function;
+- fixtures are mostly generated inline in tests to keep the repository small and deterministic.
+
+Hardening added after the initial plan:
+- immutable sealed Vault states with monotonic state IDs;
+- verified Android/Termux preflight;
+- kill switch;
+- read-only JARVIS bridge;
+- release manifest validation;
+- destructive-operation policy scan;
+- repeated-run integration coverage.
+
+Final verification status is recorded in docs/superpowers/progress/2026-10-05-lokivolt-migration-engine-v1.md. GitHub Actions for the current branch was observed queued, so no remote CI pass is claimed.
