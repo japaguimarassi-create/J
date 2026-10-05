@@ -26,13 +26,13 @@ KILL_SWITCH=""
 
 usage() {
   cat <<'USAGE'
-Lokivolt Migration Engine v1
+Lokivolt Migration Engine v1.1
 
 Usage:
   master.sh [--mode discover|mutate] [--vault PATH] [--kill-switch PATH]
 
 Modes:
-  discover     read-only inventory, Vault, capabilities and dry-run plan
+  discover     read-only inventory, Vault, capabilities and accepted 100% dry-run plan
   mutate       refused in v1
 
 Options:
@@ -69,7 +69,7 @@ TX_ID="$(tx_begin "discovery" "INIT")"
 
 STATE_FILE="$VAULT/run/state-machine.json"
 cat > "$STATE_FILE" <<'JSON'
-{"schema_version":1,"engine_version":"1.0.0","mode":"discover","state":"INIT","read_only":true}
+{"schema_version":2,"engine_version":"1.1.0","mode":"discover","state":"INIT","read_only":true}
 JSON
 
 run_preflight "$VAULT/staging/preflight.json" || { tx_abort "$TX_ID" "preflight"; exit "$LV_MISSING_PREREQ"; }
@@ -126,6 +126,8 @@ import json,sys
 a=json.load(open(sys.argv[1],encoding="utf-8"))
 b=json.load(open(sys.argv[2],encoding="utf-8"))
 a["capabilities"]=b["capabilities"]
+a["capability_decisions"]=b.get("capability_decisions",{})
+a["capability_acceptance"]=b.get("acceptance",{})
 json.dump(a,open(sys.argv[1],"w",encoding="utf-8"),sort_keys=True,indent=2)
 PY
 
