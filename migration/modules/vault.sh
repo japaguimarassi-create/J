@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -u
 set -o pipefail
-VAULT_LIB="$(cd "$(dirname "$0")/../lib" 2>/dev/null && pwd)"
+VAULT_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")/../lib" && pwd)"
 
 vault_init() {
   local root="$1"
