@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+readonly LV_OK=0
+readonly LV_UNSUPPORTED=10
+readonly LV_MISSING_PREREQ=20
+readonly LV_VERIFY_FAILED=30
+readonly LV_AUTH_REQUIRED=40
+readonly LV_SAFE_ABORT=50
+readonly LV_RECOVERY_REQUIRED=60
+readonly LV_INTERNAL_ERROR=70
