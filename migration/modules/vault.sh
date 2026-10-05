@@ -61,7 +61,7 @@ root=Path(sys.argv[1])/"states"
 highest=-1
 if root.exists():
     for item in root.iterdir():
-        m=re.fullmatch(r"STATE-(d{3,})",item.name)
+        m=re.fullmatch(r"STATE-([0-9]{3,})",item.name)
         if m:
             highest=max(highest,int(m.group(1)))
 print(f"STATE-{highest+1:03d}")
