@@ -1,0 +1,8 @@
+android_app {
+    name: "LokivoltSetup",
+    srcs: ["src/**/*.java"],
+    manifest: "AndroidManifest.xml",
+    privileged: true,
+    platform_apis: true,
+    certificate: "platform",
+}
