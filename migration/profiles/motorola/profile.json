@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "id": "motorola",
+  "manufacturer": "motorola",
+  "required_capabilities": ["CAN_QUERY_PROPERTIES"],
+  "notes": "Motorola discovery profile. Device-specific mutation remains disabled in v1."
+}
