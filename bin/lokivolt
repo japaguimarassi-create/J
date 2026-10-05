@@ -17,16 +17,16 @@ usage() {
     '  version            show engine version'
 }
 
-case "\${1:-help}" in
+case "${1:-help}" in
   doctor|discover)
-    vault="\${2:-$HOME/LokivoltVault}"
+    vault="${2:-$HOME/LokivoltVault}"
     bash "$ROOT/migration/master/master.sh" --mode discover --vault "$vault" || exit $?
     if [[ -f "$vault/staging/inventory.json" && -f "$vault/staging/plan.json" && -f "$vault/staging/recovery.json" ]]; then
       print_discovery_report "$vault/staging/inventory.json" "$vault/staging/plan.json" "$vault/staging/recovery.json"
     fi
     ;;
   start)
-    vault="\${2:-$HOME/LokivoltVault}"
+    vault="${2:-$HOME/LokivoltVault}"
     bash "$ROOT/migration/master/master.sh" --mode discover --vault "$vault" || exit $?
     if [[ -f "$vault/staging/inventory.json" && -f "$vault/staging/plan.json" && -f "$vault/staging/recovery.json" ]]; then
       print_discovery_report "$vault/staging/inventory.json" "$vault/staging/plan.json" "$vault/staging/recovery.json"
@@ -38,7 +38,7 @@ case "\${1:-help}" in
     fi
     ;;
   os-build)
-    target="\${2:-cf}"
+    target="${2:-cf}"
     bash "$ROOT/os/build/lokivolt-build.sh" "$target"
     ;;
   version)
