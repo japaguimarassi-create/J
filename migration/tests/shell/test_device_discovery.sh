@@ -17,6 +17,8 @@ PROPS
 export LOKIVOLT_GETPROP_FILE="$TMP/props"
 collect_device_properties "$TMP/raw" >/dev/null || fail "property collection"
 grep -q 'ro.product.model' "$TMP/raw/getprop.raw" || fail "raw properties recorded"
+collect_inventory "$TMP/raw" "$TMP/inventory.json" || fail "inventory"
+grep -Eq '"collected_at": "[^"]+"' "$TMP/inventory.json" || fail "collection timestamp"
 run_preflight "$TMP/preflight.json" || fail "preflight"
 grep -q '"read_only": true' "$TMP/preflight.json" || fail "read-only preflight"
 cat > "$TMP/inventory.json" <<'JSON'
