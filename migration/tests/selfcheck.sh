@@ -9,6 +9,8 @@ done < <(find "$ROOT" -type f -name '*.sh' -print)
 python3 -m py_compile "$ROOT"/lib/*.py "$ROOT"/tests/python/*.py || status=1
 python3 "$ROOT/tests/python/run_tests.py" || status=1
 bash "$ROOT/tests/shell/test_master.sh" || status=1
+bash "$ROOT/tests/shell/test_preflight.sh" || status=1
+bash "$ROOT/tests/shell/test_jarvis_bridge.sh" || status=1
 bash "$ROOT/tests/shell/test_device_discovery.sh" || status=1
 bash "$ROOT/tests/shell/test_transactions.sh" || status=1
 bash "$ROOT/tests/shell/test_vault.sh" || status=1
