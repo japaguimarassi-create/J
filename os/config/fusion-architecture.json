@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "name": "Lokivolt Android-Linux Fusion",
+  "model": "android_on_linux_with_lokivolt_fusion_layer",
+  "principle": "Android remains the platform userspace and Linux remains the kernel foundation; Lokivolt integrates native Linux capabilities through Android-compatible services instead of bypassing Android boundaries.",
+  "layers": [
+    {
+      "id": "linux_kernel",
+      "role": "hardware_and_process_core",
+      "source_family": "Linux_LTS_Android_Common_Kernel_GKI",
+      "device_specificity": "evidence_required"
+    },
+    {
+      "id": "vendor_hardware",
+      "role": "SoC_board_and_device_support",
+      "interfaces": ["kernel_modules", "AIDL_HAL"],
+      "device_specificity": "exact_device_required"
+    },
+    {
+      "id": "android_native",
+      "role": "native_libraries_and_core_daemons",
+      "components": ["bionic", "init", "logd", "storaged", "libbinder", "libselinux"]
+    },
+    {
+      "id": "android_framework",
+      "role": "system_services_and_android_api_surface",
+      "interfaces": ["Binder", "AIDL"]
+    },
+    {
+      "id": "lokivolt_fusion",
+      "role": "unified_os_control_plane",
+      "components": ["migration_engine", "vault", "health_engine", "update_orchestrator", "jarvis_policy_layer"],
+      "interface_policy": "use_supported_android_native_interfaces"
+    },
+    {
+      "id": "lokivolt_ui",
+      "role": "launcher_setup_system_ui_and_recovery_experience",
+      "components": ["LokivoltSetup", "LokivoltLauncher", "LokivoltRecoveryUI"]
+    }
+  ],
+  "linux_capability_model": {
+    "native_linux_kernel_features": true,
+    "android_native_userspace": true,
+    "linux_cli_tools_allowed": true,
+    "desktop_glibc_assumption": false,
+    "arbitrary_privileged_kernel_module_loading": false,
+    "isolated_linux_compatibility_environment": "future_optional_component"
+  },
+  "service_boundaries": {
+    "framework_to_service": "Binder_AIDL",
+    "hal_to_framework": "AIDL_preferred",
+    "security_policy": "SELinux",
+    "boot_trust": "Android_Verified_Boot",
+    "rollback": "AVB_rollback_policy"
+  },
+  "update_model": {
+    "ab_or_virtual_ab": "use_when_verified_on_target",
+    "dynamic_partitions": "use_when_verified_on_target",
+    "active_slot": "read_from_device_evidence",
+    "never_assume_slot_or_partition_names": true
+  },
+  "device_gate": {
+    "flash_requires_official_authorization": true,
+    "locked_bootloader_is_execution_gate": true,
+    "planning_acceptance_can_still_be_100_percent": true
+  }
+}
