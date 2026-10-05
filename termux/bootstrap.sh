@@ -35,7 +35,7 @@ cp -R "$source_dir/os" "$DEST/" || true
 cat > "$PREFIX/bin/lokivolt" <<EOF
 #!/usr/bin/env bash
 export LOKIVOLT_ROOT="$DEST"
-exec "$DEST/bin/lokivolt" "$@"
+exec "$DEST/bin/lokivolt" "\$@"
 EOF
 chmod 755 "$PREFIX/bin/lokivolt" || exit 70
 
