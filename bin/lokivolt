@@ -16,15 +16,7 @@ fi
 source "$ROOT/migration/modules/report.sh"
 
 usage() {
-  printf '%s\n' \
-    'Lokivolt CLI v1' \
-    '' \
-    'Commands:' \
-    '  doctor [VAULT]     inspect device and create Vault evidence' \
-    '  discover [VAULT]   run read-only migration discovery' \
-    '  start [VAULT]      discover and open Lokivolt Setup when installed' \
-    '  os-build [TARGET]  build AOSP target on a supported build host' \
-    '  version            show engine version'
+  printf '%s\n'     'Lokivolt CLI v1.1'     ''     'Commands:'     '  doctor [VAULT]     inspect device and create Vault evidence'     '  discover [VAULT]   run read-only discovery with 100% plan acceptance'     '  start [VAULT]      discover and open Lokivolt Setup when installed'     '  os-build [TARGET]  build AOSP target on a supported build host'     '  version            show engine version'
 }
 
 case "${1:-help}" in
@@ -52,7 +44,7 @@ case "${1:-help}" in
     bash "$ROOT/os/build/lokivolt-build.sh" "$target"
     ;;
   version)
-    printf '%s\n' 'Lokivolt Migration Engine v1.0.0'
+    printf '%s\n' 'Lokivolt Migration Engine v1.1.0'
     ;;
   help|-h|--help)
     usage
