@@ -119,8 +119,6 @@ b=json.load(open(sys.argv[2],encoding="utf-8"))
 a["capabilities"]=b["capabilities"]
 json.dump(a,open(sys.argv[1],"w",encoding="utf-8"),sort_keys=True,indent=2)
 PY
-vault_write_state "$VAULT" "STATE-000" "$VAULT/staging"
-vault_verify_state "$VAULT" "STATE-000" || { tx_abort "$TX_ID" "vault-refresh"; exit "$LV_VERIFY_FAILED"; }
 
 state_transition_file "$STATE_FILE" CAPABILITY_ANALYSIS PLAN || { tx_abort "$TX_ID" "state-plan"; exit "$LV_INTERNAL_ERROR"; }
 resolve_profile "$VAULT/staging/inventory.json" "$VAULT/staging/profile.json" || { tx_abort "$TX_ID" "profile"; exit "$LV_VERIFY_FAILED"; }
@@ -134,6 +132,10 @@ json.dump(data,open(p,"w",encoding="utf-8"),sort_keys=True,indent=2)
 PY
 build_recovery_plan "$VAULT/staging/inventory.json" "$VAULT/staging/plan.json" "$VAULT/staging/recovery.json" || { tx_abort "$TX_ID" "recovery"; exit "$LV_VERIFY_FAILED"; }
 validate_recovery_plan "$VAULT/staging/recovery.json" || { tx_abort "$TX_ID" "recovery-validation"; exit "$LV_VERIFY_FAILED"; }
+vault_init "$VAULT" "STATE-001"
+cp "$VAULT/staging/inventory.json" "$VAULT/staging/state.json"
+vault_write_state "$VAULT" "STATE-001" "$VAULT/staging"
+vault_verify_state "$VAULT" "STATE-001" || { tx_abort "$TX_ID" "vault-enriched"; exit "$LV_VERIFY_FAILED"; }
 
 state_transition_file "$STATE_FILE" PLAN WAITING_FOR_AUTHORIZATION || { tx_abort "$TX_ID" "authorization-state"; exit "$LV_INTERNAL_ERROR"; }
 health_check_discovery "$VAULT/staging/health.json" || { tx_abort "$TX_ID" "health"; exit "$LV_VERIFY_FAILED"; }
