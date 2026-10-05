@@ -2,6 +2,7 @@
 set -u
 set -o pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+source "$ROOT/migration/modules/report.sh"
 
 usage() {
   printf '%s\n'     'Lokivolt CLI v1'     ''     'Commands:'     '  doctor [VAULT]     inspect device and create Vault evidence'     '  discover [VAULT]   run read-only migration discovery'     '  version             show engine version'
@@ -10,7 +11,10 @@ usage() {
 case "${1:-help}" in
   doctor|discover)
     vault="${2:-$HOME/LokivoltVault}"
-    exec bash "$ROOT/migration/master/master.sh" --mode discover --vault "$vault"
+    bash "$ROOT/migration/master/master.sh" --mode discover --vault "$vault" || exit $?
+    if [[ -f "$vault/staging/inventory.json" && -f "$vault/staging/plan.json" && -f "$vault/staging/recovery.json" ]]; then
+      print_discovery_report "$vault/staging/inventory.json" "$vault/staging/plan.json" "$vault/staging/recovery.json"
+    fi
     ;;
   version)
     printf '%s\n' 'Lokivolt Migration Engine v1.0.0'
