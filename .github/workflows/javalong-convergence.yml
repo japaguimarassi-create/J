@@ -24,7 +24,42 @@ jobs:
           unzip -t JavaLong-Convergence-Source.zip
           unzip -q JavaLong-Convergence-Source.zip -d .
           sed -i "s/version = '1.7.10-10.13.4.1614'/version = '1.7.10-10.13.4.1614-1.7.10'/" JavaLong-Convergence/build.gradle
-          grep -n "version =" JavaLong-Convergence/build.gradle
+      - name: Patch Minecraft 1.7.10 API names
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path("JavaLong-Convergence/src/main/java/com/japaguimarassi/jldualfusion")
+          command = root / "command/CommandFusion.java"
+          source = command.read_text()
+          replacements = {
+              "sender.getCommandSenderEntity() instanceof EntityPlayer": "sender instanceof EntityPlayer",
+              "(EntityPlayer) sender.getCommandSenderEntity()": "(EntityPlayer) sender",
+              "getPlayerForUsername(args[1])": "func_152612_a(args[1])",
+          }
+          for old, new in replacements.items():
+              if old not in source:
+                  raise SystemExit("Expected source fragment not found in CommandFusion.java: " + old)
+              source = source.replace(old, new)
+          command.write_text(source)
+
+          race_probe = root / "fusion/RaceProbe.java"
+          source = race_probe.read_text()
+          old = "for (String key : data.func_150296_c()) {"
+          new = "for (Object rawKey : data.func_150296_c()) {\n            String key = (String) rawKey;"
+          if source.count(old) != 2:
+              raise SystemExit("Expected exactly two raw NBT key loops in RaceProbe.java")
+          source = source.replace(old, new)
+          race_probe.write_text(source)
+
+          fusion = root / "fusion/FusionService.java"
+          source = fusion.read_text()
+          old = "donor.getCustomNameTag()"
+          if old not in source:
+              raise SystemExit("Expected legacy custom-name call not found in FusionService.java")
+          fusion.write_text(source.replace(old, "donor.getCommandSenderName()"))
+          print("Patched three Java files for the actual 1.7.10 mapped API.")
+          PY
       - name: Set up Java 8
         uses: actions/setup-java@v4
         with:
