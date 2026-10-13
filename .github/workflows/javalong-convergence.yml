@@ -1,0 +1,56 @@
+name: JavaLong Convergence CI
+
+on:
+  push:
+    branches:
+      - javalong-convergence-build
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Reassemble source archive
+        shell: bash
+        run: |
+          cat JavaLong-Convergence-Source.part*.b64 > source.b64
+          base64 --decode source.b64 > JavaLong-Convergence-Source.zip
+          unzip -t JavaLong-Convergence-Source.zip
+          unzip -q JavaLong-Convergence-Source.zip -d .
+      - name: Set up Java 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+          cache: gradle
+      - name: Install Gradle 4.9
+        shell: bash
+        run: |
+          curl --fail --location --retry 3 https://services.gradle.org/distributions/gradle-4.9-bin.zip --output "$RUNNER_TEMP/gradle-4.9-bin.zip"
+          unzip -q "$RUNNER_TEMP/gradle-4.9-bin.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/gradle-4.9/bin" >> "$GITHUB_PATH"
+      - name: Verify toolchain
+        run: |
+          java -version
+          gradle --version
+      - name: Test and build Forge mod
+        run: gradle --no-daemon -p JavaLong-Convergence clean test build --stacktrace
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: JavaLong-Convergence-jar
+          path: JavaLong-Convergence/build/libs/*.jar
+          if-no-files-found: error
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: JavaLong-Convergence-test-reports
+          path: JavaLong-Convergence/build/reports/tests/test
+          if-no-files-found: ignore
