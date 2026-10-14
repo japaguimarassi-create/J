@@ -44,7 +44,7 @@ jobs:
       - name: Test and build Forge mod
         run: gradle --no-daemon -p JavaLong-Convergence clean test build --stacktrace
       - name: Package corrected source
-        run: zip -q -r "$RUNNER_TEMP/JavaLong-Convergence-Source-Corrected.zip" JavaLong-Convergence
+        run: zip -q -r "$RUNNER_TEMP/JavaLong-Convergence-Source-Corrected.zip" JavaLong-Convergence -x "JavaLong-Convergence/build/*" "JavaLong-Convergence/.gradle/*" "JavaLong-Convergence/run/*"
       - name: Upload JAR
         uses: actions/upload-artifact@v4
         with:
