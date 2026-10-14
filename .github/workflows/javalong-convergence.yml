@@ -24,7 +24,10 @@ jobs:
           unzip -t JavaLong-Convergence-Source.zip
           unzip -q JavaLong-Convergence-Source.zip -d .
           sed -i "s/version = '1.7.10-10.13.4.1614'/version = '1.7.10-10.13.4.1614-1.7.10'/" JavaLong-Convergence/build.gradle
-      - name: Patch Minecraft 1.7.10 API names
+          sed -i "s/version = '0.1.0-alpha'/version = '0.1.1-alpha'/" JavaLong-Convergence/build.gradle
+          sed -i 's/VERSION = "0.1.0-alpha"/VERSION = "0.1.1-alpha"/' JavaLong-Convergence/src/main/java/com/japaguimarassi/jldualfusion/JavaLongConvergence.java
+          sed -i 's/0.1.0-alpha/0.1.1-alpha/g' JavaLong-Convergence/README.md
+      - name: Correct Minecraft 1.7.10 compatibility and score priority
         shell: bash
         run: |
           python3 - <<'PY'
@@ -50,15 +53,72 @@ jobs:
           if source.count(old) != 2:
               raise SystemExit("Expected exactly two raw NBT key loops in RaceProbe.java")
           source = source.replace(old, new)
+          old = """        if (entity instanceof EntityPlayer) {
+            DualLong jrmScore = readJrmPlayerStats((EntityPlayer) entity);
+            if (!jrmScore.isZero()) {
+                return jrmScore;
+            }
+        }
+        DualLong savedPower = readPower(savedData);"""
+          new = """        if (entity instanceof EntityPlayer) {
+            DualLong nativeJrmPower = readJrmPlayerPower((EntityPlayer) entity);
+            if (!nativeJrmPower.isZero()) {
+                return nativeJrmPower;
+            }
+        }
+        DualLong savedPower = readPower(savedData);"""
+          if old not in source:
+              raise SystemExit("Could not find the old JRM score priority block.")
+          source = source.replace(old, new)
+          old = """        DualLong customPower = readPower(customData);
+        if (!customPower.isZero()) {
+            return customPower;
+        }
+        BigInteger statTotal = BigInteger.ZERO;"""
+          new = """        DualLong customPower = readPower(customData);
+        if (!customPower.isZero()) {
+            return customPower;
+        }
+        if (entity instanceof EntityPlayer) {
+            DualLong jrmStatEstimate = readJrmPlayerStats((EntityPlayer) entity);
+            if (!jrmStatEstimate.isZero()) {
+                return jrmStatEstimate;
+            }
+        }
+        BigInteger statTotal = BigInteger.ZERO;"""
+          if old not in source:
+              raise SystemExit("Could not find the JRM stat estimate block.")
+          source = source.replace(old, new)
+          anchor = "    private static DualLong readJrmPlayerStats(EntityPlayer player) {"
+          method = """    private static DualLong readJrmPlayerPower(EntityPlayer player) {
+            Number power = invokeJrmCoreNumber(player, "getInt", "jrmcPL");
+            if (power == null || power.longValue() <= 0L) {
+                power = invokeJrmCoreNumber(player, "getInt", "jrmcPwr");
+            }
+            if (power == null || power.longValue() <= 0L) {
+                return DualLong.ZERO;
+            }
+            return DualLong.fromUnsignedLong(power.longValue());
+        }
+
+"""
+          if anchor not in source:
+              raise SystemExit("Could not locate readJrmPlayerStats method.")
+          source = source.replace(anchor, method + anchor)
           race_probe.write_text(source)
 
           fusion = root / "fusion/FusionService.java"
           source = fusion.read_text()
-          old = "donor.getCustomNameTag()"
+          old = """        String donorName = donor.getCommandSenderName();
+        String customName = donor.getCustomNameTag();
+        if (customName != null && !customName.trim().isEmpty()) {
+            donorName = customName;
+        }
+"""
           if old not in source:
-              raise SystemExit("Expected legacy custom-name call not found in FusionService.java")
-          fusion.write_text(source.replace(old, "donor.getCommandSenderName()"))
-          print("Patched three Java files for the actual 1.7.10 mapped API.")
+              raise SystemExit("Could not locate legacy custom-name block.")
+          fusion.write_text(source.replace(old, "        String donorName = donor.getCommandSenderName();\n"))
+          print("Applied verified Minecraft 1.7.10 source fixes and JRMCore power-level priority.")
           PY
       - name: Set up Java 8
         uses: actions/setup-java@v4
@@ -78,11 +138,19 @@ jobs:
           gradle --version
       - name: Test and build Forge mod
         run: gradle --no-daemon -p JavaLong-Convergence clean test build --stacktrace
+      - name: Package corrected source
+        run: zip -q -r "$RUNNER_TEMP/JavaLong-Convergence-Source-Corrected.zip" JavaLong-Convergence
       - name: Upload JAR
         uses: actions/upload-artifact@v4
         with:
           name: JavaLong-Convergence-jar
           path: JavaLong-Convergence/build/libs/*.jar
+          if-no-files-found: error
+      - name: Upload corrected source
+        uses: actions/upload-artifact@v4
+        with:
+          name: JavaLong-Convergence-source
+          path: ${{ runner.temp }}/JavaLong-Convergence-Source-Corrected.zip
           if-no-files-found: error
       - name: Upload test report
         if: always()
