@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: rokalauncher-apk-build
+  group: rokalauncher-apk-build-final
   cancel-in-progress: true
 
 jobs:
