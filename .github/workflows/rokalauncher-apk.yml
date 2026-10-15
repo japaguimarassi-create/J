@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
   group: rokalauncher-apk-build
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   android-apk:
