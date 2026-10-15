@@ -71,6 +71,7 @@ jobs:
           file out/RokaLauncher.apk
           sha256sum out/RokaLauncher.apk | tee out/RokaLauncher.apk.sha256
           unzip -t out/RokaLauncher.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs out/RokaLauncher.apk
           test -s out/RokaLauncher.apk.sha256
 
       - name: Upload RokaLauncher APK
