@@ -65,9 +65,12 @@ def main() -> None:
     replace_required(gradle, "resValue 'string', 'application_package', 'git.artdeell.mjlaunch'", f"resValue 'string', 'application_package', '{APP_ID}'", "release application package")
 
     gradle_text = gradle.read_text(encoding="utf-8")
+    release_block = re.search(r"(?ms)^\s*release\s*\{.*?^\s*\}", gradle_text)
     target = "        release {\n            // Don't set to true or java.awt will be a.a or something similar.\n            minifyEnabled false"
     replacement = target + "\n            signingConfig signingConfigs.customDebug"
-    if "signingConfig signingConfigs.customDebug" not in gradle_text:
+    if release_block is None:
+        raise SystemExit("Unable to locate the release build type; upstream Gradle layout changed.")
+    if "signingConfig signingConfigs.customDebug" not in release_block.group(0):
         if target not in gradle_text:
             raise SystemExit("Unable to configure the release signing key; upstream Gradle layout changed.")
         gradle.write_text(gradle_text.replace(target, replacement, 1), encoding="utf-8")
