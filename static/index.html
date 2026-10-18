@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#10151b">
+<title>Enturma AI</title>
+<style>
+:root{color-scheme:dark;--bg:#10151b;--panel:#171e26;--panel2:#202a34;--text:#eef3f8;--muted:#9baaba;--line:#2e3b48;--accent:#78a9ff;--accent2:#173d65}*{box-sizing:border-box}body{margin:0;background:radial-gradient(1000px 500px at 50% -20%,#1d3852 0%,var(--bg) 65%);font:16px/1.45 system-ui,-apple-system,Segoe UI,sans-serif;color:var(--text);min-height:100vh}.app{max-width:1000px;margin:auto;padding:20px;display:grid;grid-template-columns:300px minmax(0,1fr);gap:16px;min-height:100vh}.sidebar,.chatbox{border:1px solid var(--line);background:color-mix(in srgb,var(--panel) 95%,transparent);border-radius:18px;overflow:hidden}.sidebar{padding:20px;align-self:start}.brand{display:flex;gap:12px;align-items:center;margin-bottom:8px}.logo{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(145deg,#315e8b,#1c344b);font-size:21px;font-weight:800}.brand h1{font-size:21px;margin:0}.subtitle{color:var(--muted);font-size:13px;margin:0 0 22px}.field{display:block;margin:15px 0}.field span{display:block;font-size:13px;color:#c0ccda;margin-bottom:7px}.field textarea,.field select,.composer textarea{font:inherit;width:100%;color:var(--text);background:#11171d;border:1px solid var(--line);border-radius:10px;padding:11px;outline:none}.field textarea{min-height:92px;resize:vertical}.field textarea:focus,.field select:focus,.composer textarea:focus{border-color:var(--accent)}.hint{font-size:12px;color:var(--muted);margin-top:18px}.chatbox{display:flex;flex-direction:column;min-height:calc(100vh - 40px)}.topbar{padding:17px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}.topbar strong{font-size:15px}.status{font-size:12px;color:var(--muted)}.messages{padding:20px;flex:1;overflow:auto;display:flex;flex-direction:column;gap:14px;max-height:calc(100vh - 230px);min-height:280px}.empty{margin:auto;max-width:400px;text-align:center;color:var(--muted);padding:25px}.empty h2{color:var(--text);font-size:23px;margin:0 0 8px}.bubble{white-space:pre-wrap;overflow-wrap:anywhere;max-width:88%;padding:12px 15px;border-radius:16px}.user{align-self:flex-end;background:var(--accent2);border-bottom-right-radius:5px}.assistant{align-self:flex-start;background:var(--panel2);border-bottom-left-radius:5px}.composer{padding:15px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:flex-end}.composer textarea{min-height:48px;max-height:160px;resize:vertical}.send{border:0;border-radius:11px;background:var(--accent);color:#071321;padding:13px 17px;font-weight:750;cursor:pointer;min-height:48px}.send:disabled{opacity:.5;cursor:wait}.actions{padding:0 15px 14px;display:flex;justify-content:space-between;gap:8px}.smallbtn{background:transparent;border:1px solid var(--line);border-radius:9px;color:var(--muted);padding:8px 11px;cursor:pointer}.error{color:#ffb4ab;background:#492a2b;padding:12px;border-radius:10px}@media(max-width:760px){.app{grid-template-columns:1fr;padding:10px;gap:10px}.sidebar{padding:15px}.field{margin:10px 0}.field textarea{min-height:65px}.subtitle{margin-bottom:12px}.chatbox{min-height:65vh}.messages{max-height:55vh;padding:14px}.bubble{max-width:94%}.topbar{padding:13px 15px}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+<div class="brand"><div class="logo">E</div><h1>Enturma AI</h1></div>
+<p class="subtitle">Conversa natural a partir do seu contexto.</p>
+<label class="field"><span>Modo</span><select id="mode"><option value="conversar">Conversar comigo</option><option value="enturmar">Me ajudar a me enturmar</option></select></label>
+<label class="field"><span>Contexto social</span><textarea id="context" placeholder="Ex.: estou chegando num grupo da escola que conversa sobre Minecraft..."></textarea></label>
+<label class="field"><span>O que você quer alcançar?</span><textarea id="goal" placeholder="Ex.: entrar no papo sem parecer forçado"></textarea></label>
+<label class="field"><span>Tom</span><select id="tone"><option value="natural">Natural</option><option value="casual">Casual</option><option value="calmo">Calmo</option><option value="direto">Direto e prático</option><option value="engracado">Humor leve</option></select></label>
+<p class="hint">O histórico fica neste servidor, em um arquivo SQLite local. O modelo pode demorar para responder na primeira vez enquanto baixa os pesos.</p>
+</aside>
+<main class="chatbox">
+<header class="topbar"><strong>Conversa</strong><span id="status" class="status">Verificando modelo…</span></header>
+<section id="messages" class="messages" aria-live="polite"><div class="empty" id="empty"><h2>Entre no contexto.</h2><p>Conte o que está acontecendo e comece a conversar. A IA usa o contexto para ajustar a resposta.</p></div></section>
+<form id="form" class="composer"><textarea id="message" placeholder="Escreva sua mensagem…" aria-label="Mensagem" required></textarea><button id="send" class="send" type="submit">Enviar</button></form>
+<div class="actions"><button class="smallbtn" id="clear" type="button">Limpar conversa</button><button class="smallbtn" id="new" type="button">Nova sessão</button></div>
+</main>
+</div>
+<script>
+const $=id=>document.getElementById(id);let sessionId=localStorage.getItem('enturma_session')||crypto.randomUUID();localStorage.setItem('enturma_session',sessionId);let shown=[];
+function addBubble(role,text){$('empty')?.remove();const el=document.createElement('div');el.className='bubble '+role;el.textContent=text;$('messages').appendChild(el);$('messages').scrollTop=$('messages').scrollHeight;shown.push({role,text});}
+async function loadHistory(){try{const r=await fetch('/api/history/'+encodeURIComponent(sessionId));if(!r.ok)return;const d=await r.json();for(const m of d.messages)addBubble(m.role,m.content);}catch(e){}}
+async function health(){try{const r=await fetch('/api/health');const d=await r.json();$('status').textContent=d.model.loaded?'Modelo carregado · '+d.model.model:'Modelo sob demanda · '+d.model.model;}catch(e){$('status').textContent='Servidor conectado';}}
+$('form').addEventListener('submit',async e=>{e.preventDefault();const message=$('message').value.trim();if(!message)return;const payload={session_id:sessionId,message,context:$('context').value,goal:$('goal').value,mode:$('mode').value,tone:$('tone').value};addBubble('user',message);$('message').value='';$('send').disabled=true;$('send').textContent='…';$('status').textContent='Pensando…';try{const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const data=await r.json();if(!r.ok)throw new Error(data.detail||'Erro ao gerar resposta');addBubble('assistant',data.reply);$('status').textContent='Resposta concluída';}catch(err){addBubble('assistant','Não consegui gerar uma resposta. '+err.message);$('status').textContent='Falha na inferência';}finally{$('send').disabled=false;$('send').textContent='Enviar';$('message').focus();}});
+$('message').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('form').requestSubmit();}});
+async function resetSession(){try{await fetch('/api/history/'+encodeURIComponent(sessionId),{method:'DELETE'});}catch(e){}sessionId=crypto.randomUUID();localStorage.setItem('enturma_session',sessionId);shown=[];$('messages').innerHTML='<div class="empty" id="empty"><h2>Entre no contexto.</h2><p>Conte o que está acontecendo e comece a conversar. A IA usa o contexto para ajustar a resposta.</p></div>';}
+$('clear').addEventListener('click',resetSession);$('new').addEventListener('click',resetSession);loadHistory().then(health);
+</script>
+</body>
+</html>
