@@ -10,6 +10,7 @@ on:
     branches:
       - kowork-android-app
       - kowork-universal-workspace
+      - kowork-assistant-apk-rescue
   workflow_dispatch:
 
 permissions:
@@ -35,7 +36,9 @@ jobs:
           gradle-version: '8.10.2'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
 
       - name: Install Android 35
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
