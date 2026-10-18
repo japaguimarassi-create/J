@@ -1,0 +1,45 @@
+name: Enturma AI CI
+on:
+  push:
+    branches:
+      - enturma-ai-minecraft-1.20.1
+  pull_request:
+    branches:
+      - enturma-ai-minecraft-1.20.1
+permissions:
+  contents: read
+jobs:
+  social-ai-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate Python source
+        run: python -m py_compile app.py train.py evaluate_dialogue.py validate_dataset.py socializer/*.py
+      - name: Run tests
+        run: PYTHONPATH=. python -m unittest discover -s ./tests -v
+      - name: Validate dialogue datasets
+        run: |
+          python validate_dataset.py data/social_dialogues.jsonl
+          python validate_dataset.py data/minecraft_dialogues.jsonl
+  forge-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.8"
+      - name: Build Minecraft Forge 1.20.1 mod
+        run: gradle -p minecraft-forge build --no-daemon
+      - name: Upload mod JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: enturma-ai-forge-1.20.1
+          path: minecraft-forge/build/libs/*.jar
+          if-no-files-found: error
