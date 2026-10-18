@@ -1,0 +1,53 @@
+name: Integrate Enturma AI source
+on:
+  push:
+    branches:
+      - enturma-ai-minecraft-1.20.1
+    paths:
+      - bootstrap-trigger
+permissions:
+  contents: write
+jobs:
+  validate-build-expand:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: enturma-ai-minecraft-1.20.1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.8"
+      - name: Reconstruct and extract source archive
+        run: |
+          cat .enturma-part-*.b64 | base64 -d > enturma-ai-source.tar.gz
+          mkdir -p .enturma-stage
+          tar -xzf enturma-ai-source.tar.gz -C .enturma-stage
+      - name: Test the social AI and build Forge 1.20.1
+        working-directory: .enturma-stage/enturma-ai
+        run: |
+          PYTHONPATH=. python -m unittest discover -s ./tests -v
+          python validate_dataset.py data/social_dialogues.jsonl
+          python validate_dataset.py data/minecraft_dialogues.jsonl
+          gradle -p minecraft-forge build --no-daemon
+      - name: Upload Forge mod JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: enturma-ai-forge-1.20.1
+          path: .enturma-stage/enturma-ai/minecraft-forge/build/libs/*.jar
+          if-no-files-found: error
+      - name: Publish the complete source tree to this branch
+        run: |
+          cp -a .enturma-stage/enturma-ai/. .
+          rm -rf .enturma-stage enturma-ai-source.tar.gz .enturma-part-*.b64 bootstrap-trigger .github/workflows/expand-source.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add integrated Enturma social AI and Minecraft Forge mod"
+          git push origin HEAD:enturma-ai-minecraft-1.20.1
