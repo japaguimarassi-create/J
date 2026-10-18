@@ -20,7 +20,7 @@ minecraft {
             workingDirectory project.file('run')
             property 'forge.logging.console.level', 'info'
             mods {
-                "\${mod_id}" {
+                "${mod_id}" {
                     source sourceSets.main
                 }
             }
@@ -33,7 +33,7 @@ minecraft {
 }
 
 dependencies {
-    minecraft "net.minecraftforge:forge:\${minecraft_version}-\${forge_version}"
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 }
 
 processResources {
