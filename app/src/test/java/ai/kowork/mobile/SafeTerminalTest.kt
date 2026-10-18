@@ -16,6 +16,6 @@ class SafeTerminalTest {
 
     @Test
     fun statusDoesNotClaimModelIsConnected() {
-        assertTrue(safeTerminalCommand("status").contains("não conectado"))
+        assertTrue(safeTerminalCommand("status").contains("Modelo local não importado"))
     }
 }
