@@ -29,6 +29,18 @@ jobs:
           cat .enturma-part-*.b64 | base64 -d > enturma-ai-source.tar.gz
           mkdir -p .enturma-stage
           tar -xzf enturma-ai-source.tar.gz -C .enturma-stage
+      - name: Correct Simple Voice Chat API package and level adapter
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path(".enturma-stage/enturma-ai/minecraft-forge/src/main/java/com/enturma/voice/VoicePlayback.java")
+          s = p.read_text()
+          s = s.replace("import de.maxhenkel.voicechat.api.audio.AudioPlayer;", "import de.maxhenkel.voicechat.api.audiochannel.AudioPlayer;")
+          s = s.replace("import de.maxhenkel.voicechat.api.audio.LocationalAudioChannel;", "import de.maxhenkel.voicechat.api.audiochannel.LocationalAudioChannel;")
+          s = s.replace("UUID.randomUUID(), level, api.createPosition(", "UUID.randomUUID(), api.fromServerLevel(level), api.createPosition(")
+          s = s.replace("channel.setDistance(18.0D);", "channel.setDistance(18.0F);")
+          p.write_text(s)
+          PY
       - name: Test the social AI and build Forge 1.20.1
         working-directory: .enturma-stage/enturma-ai
         run: |
