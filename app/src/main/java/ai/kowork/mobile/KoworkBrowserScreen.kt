@@ -35,7 +35,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Button
@@ -453,7 +452,7 @@ internal fun KoworkBrowserScreen(
                                 .show()
                         }
                     }
-                    setDownloadListener(DownloadListener { url, userAgent, contentDisposition, mimeType ->
+                    setDownloadListener(DownloadListener { url, userAgent, contentDisposition, mimeType, contentLength ->
                         if (KoworkBrowserPolicy.isWebUrl(url)) {
                             val name = URLUtil.guessFileName(url, contentDisposition, mimeType)
                                 .replace(Regex("[^A-Za-z0-9._-]"), "_")
