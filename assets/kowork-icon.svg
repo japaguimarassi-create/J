@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="48" y1="32" x2="466" y2="486" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#07172F"/>
+      <stop offset="1" stop-color="#030712"/>
+    </linearGradient>
+    <linearGradient id="mark" x1="112" y1="100" x2="395" y2="414" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#66E5FF"/>
+      <stop offset=".52" stop-color="#2F8CFF"/>
+      <stop offset="1" stop-color="#9A7BFF"/>
+    </linearGradient>
+    <filter id="glow" x="40" y="40" width="432" height="432" filterUnits="userSpaceOnUse">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="256" cy="254" r="150" fill="#176DFF" opacity=".12"/>
+  <path d="M126 175 256 100 386 175 386 337 256 412 126 337Z" fill="none" stroke="#2563EB" stroke-width="2" opacity=".55"/>
+  <path d="M156 190 256 132 356 190 356 322 256 380 156 322Z" fill="none" stroke="#3EA5FF" stroke-width="2" opacity=".4"/>
+  <path d="M163 166 163 346 256 400 349 346 349 166 256 112Z" fill="none" stroke="url(#mark)" stroke-width="12" stroke-linejoin="round" filter="url(#glow)" opacity=".85"/>
+  <path d="M163 166 163 346 256 400 349 346 349 166 256 112Z" fill="none" stroke="url(#mark)" stroke-width="12" stroke-linejoin="round"/>
+  <path d="M299 185H226L194 224 227 256 194 288 226 327H299L331 288 299 256 331 224Z" fill="none" stroke="url(#mark)" stroke-width="13" stroke-linejoin="round"/>
+  <path d="M231 224H291M222 288H290" stroke="#F1FAFF" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="12" fill="#F1FAFF"/>
+  <circle cx="256" cy="256" r="26" fill="none" stroke="#64D8FF" stroke-width="2" opacity=".6"/>
+</svg>

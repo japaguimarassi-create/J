@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "product": "Kowork Universal Workspace",
+  "principles": {
+    "model": "Run the Kowork checkpoint locally; no external AI inference API.",
+    "internet": "Direct browsing of public HTTPS sites through a real browser engine. Access is subject to site availability, login, robots, terms, DRM, and human verification.",
+    "permissions": "Request Android permissions only when a user enables the feature that needs them; no hidden background surveillance.",
+    "user_control": "Show the current browser URL, permission state, active workspace, and actions before destructive or external side effects.",
+    "truthfulness": "A feature is not considered available until its runtime is installed, permission granted, and integration tests pass."
+  },
+  "capabilities": [
+    {
+      "id": "web-browser",
+      "status": "prototype-source",
+      "engine": "Playwright Chromium",
+      "supports": [
+        "public HTTPS navigation",
+        "JavaScript-rendered pages",
+        "DOM text extraction",
+        "form filling",
+        "screenshots",
+        "browser search pages"
+      ],
+      "limits": [
+        "not all websites are reachable",
+        "login and CAPTCHA are user-controlled",
+        "no bypassing paywalls or access controls",
+        "download/upload and destructive actions require explicit confirmation"
+      ]
+    },
+    {
+      "id": "knowledge-base",
+      "status": "pipeline-source",
+      "supports": [
+        "licensed documentation collection",
+        "source attribution",
+        "local SQLite BM25 search",
+        "hash verification"
+      ],
+      "limits": [
+        "not all internet pages may be copied into training data",
+        "knowledge collection is separate from live browsing"
+      ]
+    },
+    {
+      "id": "android-runtime",
+      "status": "planned",
+      "supports": [
+        "floating HUD",
+        "Android file picker",
+        "notifications only if user enables them",
+        "share sheet",
+        "clipboard only after user action",
+        "microphone only after explicit permission and visible recording state"
+      ],
+      "limits": [
+        "Android sandbox and OS permission model remain enforced"
+      ]
+    },
+    {
+      "id": "linux-workspace",
+      "status": "planned",
+      "supports": [
+        "isolated project workspace",
+        "terminal",
+        "Git",
+        "language toolchains when installed",
+        "build/test jobs"
+      ],
+      "limits": [
+        "needs a Linux runtime or remote host; not provided merely by the Android app"
+      ]
+    },
+    {
+      "id": "windows-workspace",
+      "status": "planned",
+      "supports": [
+        "Windows desktop apps and Windows-only tools through a licensed Windows VM or user-owned Windows host"
+      ],
+      "limits": [
+        "Windows cannot be silently bundled as a full OS inside an Android APK; requires valid licensing and hardware or remote compute"
+      ]
+    },
+    {
+      "id": "roblox-studio",
+      "status": "planned",
+      "supports": [
+        "open Roblox Creator documentation in browser",
+        "edit Roblox project source files",
+        "Git workflows",
+        "connect to Roblox Studio only through a user-controlled Windows desktop/VM integration"
+      ],
+      "limits": [
+        "Roblox Studio is a desktop application; browser access alone does not run Studio and does not grant Roblox account access"
+      ]
+    },
+    {
+      "id": "cross-platform-workspace",
+      "status": "architecture",
+      "supports": [
+        "Android HUD as controller",
+        "Linux workspace for development",
+        "Windows VM/host for Windows-only software",
+        "shared project files through an explicit workspace sync service"
+      ],
+      "limits": [
+        "this is an orchestrated set of environments, not Android, Windows and Linux merged into one installable operating system"
+      ]
+    }
+  ],
+  "network_policy": {
+    "https_only": true,
+    "block_private_network_targets": true,
+    "block_localhost": true,
+    "no_external_ai_api": true,
+    "respect_site_access_controls": true,
+    "explicit_confirmation_for_side_effects": true
+  }
+}

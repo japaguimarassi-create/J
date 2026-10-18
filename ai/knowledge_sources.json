@@ -1,0 +1,587 @@
+{
+  "schema_version": 1,
+  "policy": {
+    "default_deny": true,
+    "https_only": true,
+    "robots_txt": "required; 401/403 means deny, 404 means no policy published; server/network errors fail closed",
+    "user_agent": "KoworkKnowledgeCollector/0.1 (+https://github.com/japaguimarassi-create/Z-do-Black-)",
+    "note": "Only explicitly enabled entries may be crawled. Never crawl paywalled, login-gated, personal, or license-unverified content. Limits and allowlists apply before redirects and on every discovered link."
+  },
+  "sources": [
+    {
+      "id": "python-docs",
+      "enabled": true,
+      "title": "Python official documentation",
+      "category": [
+        "programming",
+        "python",
+        "stdlib",
+        "algorithms"
+      ],
+      "license": "PSF-2.0",
+      "license_url": "https://docs.python.org/3/license.html",
+      "attribution": "Python Software Foundation and Python documentation contributors",
+      "hosts": [
+        "docs.python.org"
+      ],
+      "path_prefixes": [
+        "/3/tutorial/",
+        "/3/library/",
+        "/3/reference/"
+      ],
+      "seed_urls": [
+        "https://docs.python.org/3/tutorial/index.html",
+        "https://docs.python.org/3/tutorial/classes.html",
+        "https://docs.python.org/3/library/stdtypes.html",
+        "https://docs.python.org/3/library/pathlib.html",
+        "https://docs.python.org/3/library/asyncio.html",
+        "https://docs.python.org/3/library/json.html",
+        "https://docs.python.org/3/reference/compound_stmts.html"
+      ],
+      "max_pages": 120,
+      "max_page_bytes": 2500000
+    },
+    {
+      "id": "mdn-web",
+      "enabled": true,
+      "title": "MDN Web Docs",
+      "category": [
+        "programming",
+        "javascript",
+        "html",
+        "css",
+        "web",
+        "browser-api"
+      ],
+      "license": "CC-BY-SA-2.5",
+      "license_url": "https://developer.mozilla.org/en-US/docs/MDN/Writing_guidelines/Attrib_copyright_license",
+      "attribution": "MDN contributors; retain the source page URL and stated license",
+      "hosts": [
+        "developer.mozilla.org"
+      ],
+      "path_prefixes": [
+        "/en-US/docs/Web/JavaScript/Guide",
+        "/en-US/docs/Web/JavaScript/Reference",
+        "/en-US/docs/Web/HTML/",
+        "/en-US/docs/Web/CSS/",
+        "/en-US/docs/Web/API/"
+      ],
+      "seed_urls": [
+        "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide",
+        "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference",
+        "https://developer.mozilla.org/en-US/docs/Web/HTML",
+        "https://developer.mozilla.org/en-US/docs/Web/CSS",
+        "https://developer.mozilla.org/en-US/docs/Web/API"
+      ],
+      "max_pages": 100,
+      "max_page_bytes": 2500000
+    },
+    {
+      "id": "rust-book",
+      "enabled": true,
+      "title": "The Rust Programming Language book",
+      "category": [
+        "programming",
+        "rust",
+        "memory-safety",
+        "systems"
+      ],
+      "license": "MIT OR Apache-2.0",
+      "license_url": "https://github.com/rust-lang/book#license",
+      "attribution": "The Rust Project Developers",
+      "hosts": [
+        "raw.githubusercontent.com"
+      ],
+      "path_prefixes": [
+        "/rust-lang/book/main/src/"
+      ],
+      "seed_urls": [
+        "https://raw.githubusercontent.com/rust-lang/book/main/src/SUMMARY.md",
+        "https://raw.githubusercontent.com/rust-lang/book/main/src/ch01-00-getting-started.md",
+        "https://raw.githubusercontent.com/rust-lang/book/main/src/ch03-00-common-programming-concepts.md",
+        "https://raw.githubusercontent.com/rust-lang/book/main/src/ch04-00-understanding-ownership.md",
+        "https://raw.githubusercontent.com/rust-lang/book/main/src/ch05-00-structs.md",
+        "https://raw.githubusercontent.com/rust-lang/book/main/src/ch06-00-enums.md",
+        "https://raw.githubusercontent.com/rust-lang/book/main/src/ch08-00-common-collections.md",
+        "https://raw.githubusercontent.com/rust-lang/book/main/src/ch10-00-generics.md",
+        "https://raw.githubusercontent.com/rust-lang/book/main/src/ch13-00-functional-features.md",
+        "https://raw.githubusercontent.com/rust-lang/book/main/src/ch16-00-concurrency.md"
+      ],
+      "max_pages": 120,
+      "max_page_bytes": 1500000
+    },
+    {
+      "id": "godot-docs",
+      "enabled": true,
+      "title": "Godot Engine official documentation",
+      "category": [
+        "game-development",
+        "godot",
+        "gdscript",
+        "game-design",
+        "physics",
+        "2d",
+        "3d"
+      ],
+      "license": "CC-BY-3.0",
+      "license_url": "https://github.com/godotengine/godot-docs/blob/master/LICENSE.txt",
+      "attribution": "Juan Linietsky, Ariel Manzur, and the Godot community; class reference is excluded because it has separate licensing",
+      "hosts": [
+        "docs.godotengine.org"
+      ],
+      "path_prefixes": [
+        "/en/stable/getting_started/",
+        "/en/stable/tutorials/"
+      ],
+      "seed_urls": [
+        "https://docs.godotengine.org/en/stable/getting_started/first_2d_game/index.html",
+        "https://docs.godotengine.org/en/stable/getting_started/first_3d_game/index.html",
+        "https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_basics.html",
+        "https://docs.godotengine.org/en/stable/tutorials/physics/physics_introduction.html",
+        "https://docs.godotengine.org/en/stable/tutorials/2d/2d_movement.html",
+        "https://docs.godotengine.org/en/stable/tutorials/3d/introduction_to_3d.html"
+      ],
+      "max_pages": 100,
+      "max_page_bytes": 2500000
+    },
+    {
+      "id": "roblox-creator-docs",
+      "enabled": true,
+      "title": "Roblox Creator documentation",
+      "category": [
+        "game-development",
+        "roblox",
+        "luau",
+        "scripting",
+        "multiplayer",
+        "game-services"
+      ],
+      "license": "CC-BY-4.0",
+      "license_url": "https://github.com/Roblox/creator-docs/blob/main/LICENSE",
+      "attribution": "Roblox Corporation and Roblox Creator Docs contributors",
+      "hosts": [
+        "create.roblox.com"
+      ],
+      "path_prefixes": [
+        "/docs/scripting",
+        "/docs/tutorials",
+        "/docs/luau",
+        "/docs/reference/engine"
+      ],
+      "seed_urls": [
+        "https://create.roblox.com/docs/scripting",
+        "https://create.roblox.com/docs/luau",
+        "https://create.roblox.com/docs/tutorials",
+        "https://create.roblox.com/docs/reference/engine"
+      ],
+      "max_pages": 100,
+      "max_page_bytes": 2500000
+    },
+    {
+      "id": "typescript-handbook",
+      "enabled": true,
+      "title": "TypeScript Handbook",
+      "category": [
+        "programming",
+        "typescript",
+        "javascript",
+        "types",
+        "web-development"
+      ],
+      "license": "CC-BY-4.0",
+      "license_url": "https://github.com/microsoft/TypeScript-Website/blob/v2/LICENSE",
+      "attribution": "Microsoft and TypeScript documentation contributors",
+      "hosts": [
+        "www.typescriptlang.org",
+        "typescriptlang.org"
+      ],
+      "path_prefixes": [
+        "/docs/handbook/"
+      ],
+      "seed_urls": [
+        "https://www.typescriptlang.org/docs/handbook/intro.html",
+        "https://www.typescriptlang.org/docs/handbook/2/everyday-types.html",
+        "https://www.typescriptlang.org/docs/handbook/2/narrowing.html",
+        "https://www.typescriptlang.org/docs/handbook/2/functions.html",
+        "https://www.typescriptlang.org/docs/handbook/2/objects.html",
+        "https://www.typescriptlang.org/docs/handbook/2/generics.html",
+        "https://www.typescriptlang.org/docs/handbook/2/classes.html",
+        "https://www.typescriptlang.org/docs/handbook/modules/introduction.html"
+      ],
+      "max_pages": 100,
+      "max_page_bytes": 2500000
+    },
+    {
+      "id": "sqlite-docs",
+      "enabled": true,
+      "title": "SQLite language and SQL documentation",
+      "category": [
+        "programming",
+        "sql",
+        "database",
+        "data-modeling"
+      ],
+      "license": "Public-Domain",
+      "license_url": "https://www.sqlite.org/copyright.html",
+      "attribution": "SQLite Project (attribution retained even though SQLite documentation is public domain)",
+      "hosts": [
+        "www.sqlite.org",
+        "sqlite.org"
+      ],
+      "path_prefixes": [
+        "/lang",
+        "/c3ref/"
+      ],
+      "seed_urls": [
+        "https://www.sqlite.org/lang.html",
+        "https://www.sqlite.org/lang_select.html",
+        "https://www.sqlite.org/lang_expr.html",
+        "https://www.sqlite.org/lang_createtable.html",
+        "https://www.sqlite.org/lang_createindex.html",
+        "https://www.sqlite.org/lang_with.html"
+      ],
+      "max_pages": 80,
+      "max_page_bytes": 2000000
+    },
+    {
+      "id": "dotnet-csharp",
+      "enabled": true,
+      "title": "Microsoft C# documentation",
+      "category": [
+        "programming",
+        "csharp",
+        "dotnet",
+        "desktop",
+        "backend"
+      ],
+      "license": "CC-BY-4.0",
+      "license_url": "https://learn.microsoft.com/en-us/legal/termsofuse",
+      "attribution": "Microsoft Learn contributors; page-specific notices take precedence",
+      "hosts": [
+        "learn.microsoft.com"
+      ],
+      "path_prefixes": [
+        "/en-us/dotnet/csharp/"
+      ],
+      "seed_urls": [
+        "https://learn.microsoft.com/en-us/dotnet/csharp/tour-of-csharp/",
+        "https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/",
+        "https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/",
+        "https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/"
+      ],
+      "max_pages": 100,
+      "max_page_bytes": 2500000
+    },
+    {
+      "id": "android-developers",
+      "enabled": true,
+      "title": "Android Developers official documentation",
+      "category": [
+        "programming",
+        "android",
+        "kotlin",
+        "java",
+        "mobile-development",
+        "permissions",
+        "accessibility"
+      ],
+      "license": "Apache-2.0",
+      "license_url": "https://developer.android.com/legal",
+      "attribution": "Android Open Source Project and Android Developers documentation contributors",
+      "hosts": [
+        "developer.android.com"
+      ],
+      "path_prefixes": [
+        "/guide/",
+        "/training/",
+        "/jetpack/compose/",
+        "/reference/",
+        "/studio/"
+      ],
+      "seed_urls": [
+        "https://developer.android.com/guide",
+        "https://developer.android.com/training",
+        "https://developer.android.com/jetpack/compose",
+        "https://developer.android.com/reference",
+        "https://developer.android.com/studio"
+      ],
+      "max_pages": 100,
+      "max_page_bytes": 2500000
+    },
+    {
+      "id": "github-docs",
+      "enabled": true,
+      "title": "GitHub official documentation",
+      "category": [
+        "programming",
+        "git",
+        "github",
+        "ci-cd",
+        "codespaces",
+        "security",
+        "source-control"
+      ],
+      "license": "CC-BY-4.0",
+      "license_url": "https://github.com/github/docs/blob/main/LICENSE",
+      "attribution": "GitHub Docs contributors; documentation content is CC BY 4.0, code is separately licensed",
+      "hosts": [
+        "docs.github.com"
+      ],
+      "path_prefixes": [
+        "/en/"
+      ],
+      "seed_urls": [
+        "https://docs.github.com/en/get-started/quickstart",
+        "https://docs.github.com/en/repositories",
+        "https://docs.github.com/en/actions",
+        "https://docs.github.com/en/codespaces",
+        "https://docs.github.com/en/rest"
+      ],
+      "max_pages": 120,
+      "max_page_bytes": 2500000
+    },
+    {
+      "id": "blender-manual",
+      "enabled": true,
+      "title": "Blender Manual",
+      "category": [
+        "game-development",
+        "3d",
+        "blender",
+        "modeling",
+        "animation",
+        "rendering",
+        "python-scripting"
+      ],
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://docs.blender.org/manual/en/latest/about/license.html",
+      "attribution": "Blender Documentation Team",
+      "hosts": [
+        "docs.blender.org"
+      ],
+      "path_prefixes": [
+        "/manual/en/latest/"
+      ],
+      "seed_urls": [
+        "https://docs.blender.org/manual/en/latest/getting_started/index.html",
+        "https://docs.blender.org/manual/en/latest/modeling/index.html",
+        "https://docs.blender.org/manual/en/latest/animation/index.html",
+        "https://docs.blender.org/manual/en/latest/render/index.html",
+        "https://docs.blender.org/manual/en/latest/advanced/scripting/index.html"
+      ],
+      "max_pages": 90,
+      "max_page_bytes": 2500000
+    },
+    {
+      "id": "wikimedia-pt",
+      "enabled": true,
+      "title": "Wikipédia em português",
+      "category": [
+        "conhecimento-geral",
+        "ciência",
+        "programação",
+        "sistemas-operacionais",
+        "jogos",
+        "história",
+        "matemática",
+        "engenharia"
+      ],
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://pt.wikipedia.org/wiki/Wikip%C3%A9dia:Direitos_de_autor",
+      "attribution": "Wikimedia contributors; retain each article URL, author history link when available, and the applicable license",
+      "hosts": [
+        "pt.wikipedia.org"
+      ],
+      "path_prefixes": [
+        "/wiki/"
+      ],
+      "seed_urls": [
+        "https://pt.wikipedia.org/wiki/Algoritmo",
+        "https://pt.wikipedia.org/wiki/Programa%C3%A7%C3%A3o_de_computadores",
+        "https://pt.wikipedia.org/wiki/Linguagem_de_programa%C3%A7%C3%A3o",
+        "https://pt.wikipedia.org/wiki/Intelig%C3%AAncia_artificial",
+        "https://pt.wikipedia.org/wiki/Aprendizado_de_m%C3%A1quina",
+        "https://pt.wikipedia.org/wiki/Linux",
+        "https://pt.wikipedia.org/wiki/Microsoft_Windows",
+        "https://pt.wikipedia.org/wiki/Android_(sistema_operacional)",
+        "https://pt.wikipedia.org/wiki/Jogo_eletr%C3%B4nico",
+        "https://pt.wikipedia.org/wiki/F%C3%ADsica",
+        "https://pt.wikipedia.org/wiki/Matem%C3%A1tica",
+        "https://pt.wikipedia.org/wiki/Biologia",
+        "https://pt.wikipedia.org/wiki/Hist%C3%B3ria",
+        "https://pt.wikipedia.org/wiki/Internet",
+        "https://pt.wikipedia.org/wiki/Ciberseguran%C3%A7a",
+        "https://pt.wikipedia.org/wiki/Redes_de_computadores",
+        "https://pt.wikipedia.org/wiki/Banco_de_dados",
+        "https://pt.wikipedia.org/wiki/Computa%C3%A7%C3%A3o_gr%C3%A1fica",
+        "https://pt.wikipedia.org/wiki/Rob%C3%B3tica",
+        "https://pt.wikipedia.org/wiki/Software_livre"
+      ],
+      "max_pages": 80,
+      "max_page_bytes": 2500000,
+      "exclude_path_prefixes": [
+        "/wiki/Category:",
+        "/wiki/Special:",
+        "/wiki/Template:",
+        "/wiki/Help:",
+        "/wiki/Wikipedia:",
+        "/wiki/Talk:",
+        "/wiki/User:",
+        "/wiki/File:",
+        "/wiki/Portal:"
+      ]
+    },
+    {
+      "id": "wikimedia-en",
+      "enabled": true,
+      "title": "Wikipedia in English",
+      "category": [
+        "general-knowledge",
+        "science",
+        "programming",
+        "operating-systems",
+        "game-development",
+        "history",
+        "mathematics",
+        "engineering"
+      ],
+      "license": "CC-BY-SA-4.0",
+      "license_url": "https://en.wikipedia.org/wiki/Wikipedia:Copyrights",
+      "attribution": "Wikimedia contributors; retain each article URL, author history link when available, and the applicable license",
+      "hosts": [
+        "en.wikipedia.org"
+      ],
+      "path_prefixes": [
+        "/wiki/"
+      ],
+      "seed_urls": [
+        "https://en.wikipedia.org/wiki/Computer_programming",
+        "https://en.wikipedia.org/wiki/Programming_language",
+        "https://en.wikipedia.org/wiki/Artificial_intelligence",
+        "https://en.wikipedia.org/wiki/Machine_learning",
+        "https://en.wikipedia.org/wiki/Operating_system",
+        "https://en.wikipedia.org/wiki/Linux",
+        "https://en.wikipedia.org/wiki/Windows_11",
+        "https://en.wikipedia.org/wiki/Android_(operating_system)",
+        "https://en.wikipedia.org/wiki/Video_game",
+        "https://en.wikipedia.org/wiki/Game_engine",
+        "https://en.wikipedia.org/wiki/Computer_science",
+        "https://en.wikipedia.org/wiki/Mathematics",
+        "https://en.wikipedia.org/wiki/Physics",
+        "https://en.wikipedia.org/wiki/Biology",
+        "https://en.wikipedia.org/wiki/History",
+        "https://en.wikipedia.org/wiki/Internet",
+        "https://en.wikipedia.org/wiki/Cybersecurity",
+        "https://en.wikipedia.org/wiki/Database",
+        "https://en.wikipedia.org/wiki/Computer_graphics",
+        "https://en.wikipedia.org/wiki/Robotics"
+      ],
+      "max_pages": 80,
+      "max_page_bytes": 2500000,
+      "exclude_path_prefixes": [
+        "/wiki/Category:",
+        "/wiki/Special:",
+        "/wiki/Template:",
+        "/wiki/Help:",
+        "/wiki/Wikipedia:",
+        "/wiki/Talk:",
+        "/wiki/User:",
+        "/wiki/File:",
+        "/wiki/Portal:"
+      ]
+    },
+    {
+      "id": "go-docs",
+      "enabled": true,
+      "title": "The Go Programming Language documentation",
+      "category": [
+        "programming",
+        "go",
+        "golang",
+        "concurrency",
+        "backend",
+        "networking"
+      ],
+      "license": "CC-BY-4.0",
+      "license_url": "https://go.dev/copyright",
+      "attribution": "The Go Authors; documentation content is CC BY 4.0, code samples may be separately licensed",
+      "hosts": [
+        "go.dev"
+      ],
+      "path_prefixes": [
+        "/doc/",
+        "/tour/"
+      ],
+      "seed_urls": [
+        "https://go.dev/doc/",
+        "https://go.dev/doc/tutorial/getting-started",
+        "https://go.dev/doc/tutorial/create-module",
+        "https://go.dev/doc/effective_go",
+        "https://go.dev/doc/faq",
+        "https://go.dev/tour/list"
+      ],
+      "max_pages": 80,
+      "max_page_bytes": 2000000
+    },
+    {
+      "id": "lua-manual",
+      "enabled": true,
+      "title": "Lua 5.4 Reference Manual",
+      "category": [
+        "programming",
+        "lua",
+        "scripting",
+        "game-development",
+        "embedded-scripting"
+      ],
+      "license": "Lua license",
+      "license_url": "https://www.lua.org/license.html",
+      "attribution": "Roberto Ierusalimschy, Luiz Henrique de Figueiredo and Waldemar Celes; Lua.org",
+      "hosts": [
+        "www.lua.org",
+        "lua.org"
+      ],
+      "path_prefixes": [
+        "/manual/5.4/"
+      ],
+      "seed_urls": [
+        "https://www.lua.org/manual/5.4/",
+        "https://www.lua.org/manual/5.4/manual.html"
+      ],
+      "max_pages": 40,
+      "max_page_bytes": 1500000
+    },
+    {
+      "id": "cppreference-cpp",
+      "enabled": true,
+      "title": "cppreference C++ reference",
+      "category": [
+        "programming",
+        "cpp",
+        "c++",
+        "standard-library",
+        "algorithms",
+        "memory",
+        "concurrency"
+      ],
+      "license": "CC-BY-SA-3.0 AND GFDL",
+      "license_url": "https://en.cppreference.com/Cppreference:Copyrights",
+      "attribution": "cppreference.com contributors; preserve the source URL and applicable license notices",
+      "hosts": [
+        "en.cppreference.com"
+      ],
+      "path_prefixes": [
+        "/w/cpp/"
+      ],
+      "seed_urls": [
+        "https://en.cppreference.com/w/cpp/language.html",
+        "https://en.cppreference.com/w/cpp/container.html",
+        "https://en.cppreference.com/w/cpp/algorithm.html",
+        "https://en.cppreference.com/w/cpp/memory.html",
+        "https://en.cppreference.com/w/cpp/thread.html"
+      ],
+      "max_pages": 70,
+      "max_page_bytes": 2000000
+    }
+  ]
+}

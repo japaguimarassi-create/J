@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "description": "100 logical training queues, each assigned 400 million causal-language-model sequence-window sessions. These logical queues are scheduled across the physical distributed worker cluster; they are not 100 separate GPU clusters.",
+  "mesh_count": 100,
+  "sessions_per_mesh": 400000000,
+  "target_sessions": 40000000000,
+  "session_definition": "one sampled next-token training window of configured sequence length",
+  "assignment": "global session id modulo mesh_count",
+  "checkpoint_progress": true,
+  "session_generation_is_lazy": true,
+  "no_per_session_job_queue_allocation": true
+}
