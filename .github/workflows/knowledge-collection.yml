@@ -5,7 +5,6 @@ on:
     branches:
       - kowork-android-app
       - kowork-universal-workspace
-      - kowork-assistant-apk-rescue
       - kowork-internet-knowledge
       - kowork-assistant-apk-rescue
     paths:
@@ -19,6 +18,7 @@ on:
     branches:
       - kowork-android-app
       - kowork-universal-workspace
+      - kowork-assistant-apk-rescue
   schedule:
     - cron: "19 5 * * 1"
   workflow_dispatch:
@@ -39,25 +39,22 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "numpy>=1.26" "sentencepiece>=0.2.0"
+          python -m pip install "torch>=2.5.1" --index-url https://download.pytorch.org/whl/cpu
+
       - name: Validate collector and local search
         run: python -m unittest discover -s tests -v
 
       - name: Collect bounded public documentation from the internet
         run: |
-          python -m ai.collect_knowledge \
-            --manifest ai/knowledge_sources.json \
-            --output-dir data/knowledge \
-            --max-pages-per-source 24 \
-            --max-total-mib 48 \
-            --max-page-mib 2 \
-            --max-depth 2 \
-            --delay 0.5
+          python -m ai.collect_knowledge             --manifest ai/knowledge_sources.json             --output-dir data/knowledge             --max-pages-per-source 24             --max-total-mib 48             --max-page-mib 2             --max-depth 2             --delay 0.5
 
       - name: Build local searchable knowledge index
         run: |
-          python -m ai.knowledge_index build \
-            --documents data/knowledge/documents.jsonl \
-            --output data/knowledge/knowledge.sqlite3
+          python -m ai.knowledge_index build             --documents data/knowledge/documents.jsonl             --output data/knowledge/knowledge.sqlite3
 
       - name: Verify the index can retrieve programming and game-development knowledge
         run: |
