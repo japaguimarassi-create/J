@@ -301,7 +301,9 @@ def train_five_groups(
         model.load_state_dict(checkpoint["model_state_dict"], strict=True)
         training_lineage = {
             "parent_checkpoint_sha256": _sha256_file(initial_path),
-            "parent_training_steps": int(checkpoint.get("training_steps", 0)),
+            "parent_training_steps": int(
+                checkpoint.get("cumulative_training_steps", checkpoint.get("training_steps", 0))
+            ),
             "parent_dataset_sha256": str(checkpoint.get("dataset_sha256", "")),
             "parent_checkpoint_path": str(initial_path),
             "warm_start": True,
