@@ -45,9 +45,11 @@ RISK_PATTERNS = {
     "dynamic execution": re.compile(r"\b(?:eval|exec)\s*\("),
     "shell command execution": re.compile(r"\bshell\s*=\s*True\b"),
     "embedded credential": re.compile(
-        r"""(?i)\b(?:api[_-]?key|access[_-]?token|secret|password)\b\s*[:=]\s*["'][^"']{8,}["']"""
+        r"""(?i)\b(?:api[_-]?key|access[_-]?token|client[_-]?secret|password|passwd)\b\s*[:=]\s*["'][A-Za-z0-9/+=_-]{16,}["']"""
     ),
 }
+CREDENTIAL_NAMES = re.compile(r"(?:api[_-]?key|access[_-]?token|client[_-]?secret|password|passwd|secret|token)", re.I)
+PLACEHOLDER_VALUES = {"changeme", "example", "placeholder", "redacted", "replace_me", "your_api_key"}
 
 
 def collect_project_files(
@@ -99,20 +101,64 @@ def _python_and_json_syntax(files: Mapping[str, str]) -> list[str]:
     errors = []
     for path, content in files.items():
         try:
-            if Path(path).suffix.lower() == ".py":
+            suffix = Path(path).suffix.lower()
+            if suffix == ".py":
                 ast.parse(content, filename=path)
-            elif Path(path).suffix.lower() == ".json":
+            elif suffix == ".json":
                 json.loads(content)
-            elif Path(path).suffix.lower() == ".toml":
+            elif suffix == ".toml":
                 tomllib.loads(content)
         except (SyntaxError, ValueError) as exc:
             errors.append(f"{path}: {exc}")
     return errors
 
 
+def _assigned_names(target: ast.AST) -> set[str]:
+    names = set()
+    for node in ast.walk(target):
+        if isinstance(node, ast.Name):
+            names.add(node.id.lower())
+        elif isinstance(node, ast.Attribute):
+            names.add(node.attr.lower())
+    return names
+
+
+def _python_static_issues(path: str, content: str) -> list[str]:
+    issues = []
+    try:
+        tree = ast.parse(content, filename=path)
+    except SyntaxError:
+        return ["syntax error prevents reliable Python static analysis"]
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name) and node.func.id in {"eval", "exec"}:
+                issues.append(f"{path}: dynamic execution at line {node.lineno}")
+            if any(
+                keyword.arg == "shell"
+                and isinstance(keyword.value, ast.Constant)
+                and keyword.value.value is True
+                for keyword in node.keywords
+            ):
+                issues.append(f"{path}: shell command execution at line {node.lineno}")
+        if isinstance(node, (ast.Assign, ast.AnnAssign, ast.NamedExpr)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            value = node.value
+            if not isinstance(value, ast.Constant) or not isinstance(value.value, str):
+                continue
+            literal = value.value.strip()
+            if len(literal) >= 16 and literal.lower() not in PLACEHOLDER_VALUES:
+                if any(CREDENTIAL_NAMES.search(name) for target in targets for name in _assigned_names(target)):
+                    issues.append(f"{path}: possible embedded credential at line {node.lineno}")
+    return issues
+
+
 def _static_issues(files: Mapping[str, str]) -> list[str]:
     issues = []
     for path, content in files.items():
+        if Path(path).suffix.lower() == ".py":
+            issues.extend(_python_static_issues(path, content))
+            continue
         for label, pattern in RISK_PATTERNS.items():
             if pattern.search(content):
                 issues.append(f"{path}: {label}")
