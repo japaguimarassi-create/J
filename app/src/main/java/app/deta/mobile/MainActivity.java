@@ -19,6 +19,7 @@ import android.speech.RecognizerIntent;
 import android.text.Editable;
 import android.text.Html;
 import android.text.TextWatcher;
+import android.text.util.Linkify;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -121,6 +122,12 @@ public final class MainActivity extends Activity {
         if (android.os.Build.VERSION.SDK_INT >= 29) window.setNavigationBarContrastEnforced(false);
         loadConversations();
         buildScreen();
+    }
+
+    @Override
+    protected void onDestroy() {
+        background.shutdownNow();
+        super.onDestroy();
     }
 
     private int dp(float value) {
@@ -822,6 +829,9 @@ public final class MainActivity extends Activity {
                 TextView response = text(message.text, 15, Color.rgb(222, 222, 226), false);
                 response.setGravity(Gravity.TOP);
                 response.setLineSpacing(dp(3), 1f);
+                response.setAutoLinkMask(Linkify.WEB_URLS);
+                response.setLinkTextColor(ACCENT);
+                response.setTextIsSelectable(true);
                 row.addView(response, new LinearLayout.LayoutParams(0, -2, 1f));
             }
             transcript.addView(row, rowParams);
@@ -992,7 +1002,6 @@ public final class MainActivity extends Activity {
                             .setPositiveButton("Abrir biblioteca", (d, w) -> openLibrary())
                             .setNegativeButton("Fechar", null).show();
                 }).setNegativeButton("Cancelar", null).create();
-        dialog.getWindow();
         dialog.show();
         showKeyboard(nameInput);
     }
