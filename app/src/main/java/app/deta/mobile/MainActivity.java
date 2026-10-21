@@ -454,7 +454,7 @@ public final class MainActivity extends Activity {
         }
         if (lower.equals("ajuda") || lower.contains("o que você consegue fazer") || lower.contains("o que voce consegue fazer")
                 || lower.contains("suas funções") || lower.contains("suas funcoes") || lower.equals("help")) {
-            return "O que já funciona nesta versão:\n\n1. Pesquisar na web pública e mostrar links das fontes.\n2. Ler uma página HTTPS e salvar um resumo na base local.\n3. Criar projetos iniciais de jogos, sites e protótipos sociais.\n4. Guardar conversas e resultados localmente.\n5. Pesquisar novamente na base de conhecimento sem internet.\n\nO modelo neural treinado ainda não está embutido neste APK; não vou fingir que textos fixos são inferência neural.";
+            return "O que já funciona nesta versão:\n\n1. Pesquisar na web pública e abrir links das fontes.\n2. Ler páginas HTTPS e guardar trechos na base de conhecimento local.\n3. Criar jogos de navegador, sites e protótipos sociais que podem ser pré-visualizados.\n4. Gerar continuações de código com o modelo neural treinado, executado no próprio aparelho, usando #neural.\n5. Manter conversas, fontes e projetos neste dispositivo.\n\nA geração neural é experimental; resultados de pesquisa são apresentados com suas fontes, em vez de serem inventados pelo modelo.";
         }
         if (isProjectRequest(lower)) return createProjectFromPrompt(prompt, lower);
         if (lower.contains("base de conhecimento") || lower.contains("minha memória") || lower.contains("minha memoria")
@@ -1115,7 +1115,7 @@ public final class MainActivity extends Activity {
         org.json.JSONObject losses = metadata.optJSONObject("validation_losses");
         if (losses != null) {
             for (int index = 1; index <= 5; index++) {
-                String key = String.format(Locale.ROOT, "%02d", index);
+                String key = String.valueOf(index);
                 if (losses.has(key)) result.append("Grupo ").append(index).append(": ")
                         .append(String.format(Locale.ROOT, "%.4f", losses.optDouble(key))).append("\n");
             }
