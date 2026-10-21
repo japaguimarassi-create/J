@@ -24,7 +24,7 @@ BLOCKED_NAMES = {
     "secrets", "secret", "token", "private_key",
 }
 BLOCKED_DIRS = {".git", "node_modules", "vendor", "dist", "build", "target", "out"}
-SPDX_PATTERN = re.compile(r"(?im)^\s*(?:#|//|/\*|\*|<!--)?\s*SPDX-License-Identifier:\s*([^\s*<>]+)")
+SPDX_PATTERN = re.compile(r"(?im)^\s*(?:#|//|/\*|\*|<!--)?\s*SPDX-License-Identifier:\s*([^\r\n*<>]+)")
 SENSITIVE_CONTENT_PATTERNS = (
     re.compile(r"-----BEGIN (?:RSA |OPENSSH |EC |DSA |PGP )?PRIVATE KEY-----", re.IGNORECASE),
     re.compile(r"\b(?:gh[pousr]_[a-z0-9]{20,}|github_pat_[a-z0-9_]{20,}|AKIA[0-9A-Z]{16})\b"),
@@ -46,7 +46,7 @@ def _content_license(source_text: str, repository_license: str) -> str | None:
     match = SPDX_PATTERN.search(source_text[:4000])
     if not match:
         return repository_license
-    declared = match.group(1).strip().rstrip("*/")
+    declared = match.group(1).strip().rstrip("*/").strip()
     if re.search(r"\b(?:AND|OR|WITH)\b", declared, re.IGNORECASE):
         return None
     return declared
