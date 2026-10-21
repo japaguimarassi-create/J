@@ -9,7 +9,7 @@ from deta.config import DetaConfig
 from deta.data import write_jsonl
 from deta.github_catalog import GithubCatalog
 from deta.model import build_default_model
-from deta.training import train_checkpoint
+from deta.training import DEFAULT_MAX_TRAINING_BYTES, train_checkpoint
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -29,11 +29,14 @@ def build_parser() -> argparse.ArgumentParser:
     ingest.add_argument("--max-files", type=int, default=10)
     ingest.add_argument("--output", required=True)
 
-    train = commands.add_parser("train", help="Train the small byte-level baseline from licensed JSONL records")
+    train = commands.add_parser("train", help="Train or resume the byte-level baseline from licensed JSONL records")
     train.add_argument("--data", required=True)
     train.add_argument("--output", required=True)
     train.add_argument("--steps", type=int, default=1000)
     train.add_argument("--device", choices=["cpu", "cuda"], default=None)
+    train.add_argument("--resume-from", default=None)
+    train.add_argument("--seed", type=int, default=42)
+    train.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_TRAINING_BYTES)
 
     return parser
 
@@ -84,7 +87,15 @@ def main() -> None:
         return
 
     if args.command == "train":
-        result = train_checkpoint(args.data, args.output, args.steps, device=args.device)
+        result = train_checkpoint(
+            data_path=args.data,
+            output_path=args.output,
+            steps=args.steps,
+            device=args.device,
+            resume_from=args.resume_from,
+            seed=args.seed,
+            max_bytes=args.max_bytes,
+        )
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return
 
