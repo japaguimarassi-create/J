@@ -78,3 +78,28 @@ def test_search_web_uses_direct_html_without_api_key(monkeypatch):
 def test_search_web_rejects_invalid_result_count(limit):
     with pytest.raises(ValueError, match="limit"):
         web.search_web("hello", limit=limit)
+
+def test_redirect_handler_rejects_private_targets_before_following():
+    import urllib.request
+
+    handler = web._SafeRedirectHandler()
+    request = urllib.request.Request("https://public.example.org/page")
+    with pytest.raises(ValueError, match="HTTPS"):
+        handler.redirect_request(
+            request,
+            None,
+            302,
+            "Found",
+            {},
+            "http://127.0.0.1/admin",
+        )
+    with pytest.raises(ValueError, match="non-routable"):
+        handler.redirect_request(
+            request,
+            None,
+            302,
+            "Found",
+            {},
+            "https://127.0.0.1/admin",
+        )
+
