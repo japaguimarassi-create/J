@@ -811,6 +811,15 @@ public final class MainActivity extends Activity {
         return value.replace('\n', ' ').replace('\r', ' ');
     }
 
+    private String readUtf8(File file) throws IOException {
+        try (InputStream stream = new java.io.FileInputStream(file);
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[8192];
+            int count;
+            while ((count = stream.read(buffer)) != -1) output.write(buffer, 0, count);
+            return output.toString(StandardCharsets.UTF_8.name());
+        }
+    }
 
     private String createTitle(String value) {
         String result = value.replaceAll("\\s+", " ").trim();
