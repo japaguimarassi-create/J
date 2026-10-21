@@ -1,5 +1,7 @@
 import hashlib
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Any, Iterator
 from urllib.parse import urlparse
@@ -35,7 +37,12 @@ def allowed_license(license_id: str, source_type: str) -> bool:
 
 def valid_source_url(value: str) -> bool:
     parsed = urlparse(value or "")
-    return parsed.scheme == "https" and bool(parsed.netloc) and not parsed.username and not parsed.password
+    return (
+        parsed.scheme == "https"
+        and bool(parsed.hostname)
+        and not parsed.username
+        and not parsed.password
+    )
 
 
 def normalize_record(record: dict[str, Any]) -> dict[str, Any] | None:
@@ -83,12 +90,23 @@ def write_jsonl(records: Iterator[dict[str, Any]], path: str | Path) -> int:
     destination.parent.mkdir(parents=True, exist_ok=True)
     seen: set[str] = set()
     count = 0
-    with destination.open("w", encoding="utf-8") as stream:
-        for record in records:
-            normalized = normalize_record(record)
-            if normalized is None or normalized["content_sha256"] in seen:
-                continue
-            seen.add(normalized["content_sha256"])
-            stream.write(json.dumps(normalized, ensure_ascii=False) + "\n")
-            count += 1
+    file_descriptor, temporary_path = tempfile.mkstemp(
+        dir=destination.parent,
+        prefix=destination.name + ".",
+        suffix=".tmp",
+    )
+    os.close(file_descriptor)
+    try:
+        with open(temporary_path, "w", encoding="utf-8") as stream:
+            for record in records:
+                normalized = normalize_record(record)
+                if normalized is None or normalized["content_sha256"] in seen:
+                    continue
+                seen.add(normalized["content_sha256"])
+                stream.write(json.dumps(normalized, ensure_ascii=False) + "\n")
+                count += 1
+        os.replace(temporary_path, destination)
+    finally:
+        if os.path.exists(temporary_path):
+            os.unlink(temporary_path)
     return count
