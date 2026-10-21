@@ -90,6 +90,8 @@ public final class MainActivity extends Activity {
     private EditText drawerSearch;
     private long activeConversationId = -1L;
     private boolean searchOpen;
+    private volatile DetaLocalModel localModel;
+    private volatile String modelLoadError = "O modelo neural local ainda está sendo carregado.";
 
     private enum Icon { MENU, SPARKLE, NEW_CHAT, SEARCH, PLUS, MIC, WAVE, IMAGE, EDIT, CLOSE, HOME, WEB, PROJECT, LIBRARY, BRAIN }
 
@@ -123,6 +125,14 @@ public final class MainActivity extends Activity {
         if (android.os.Build.VERSION.SDK_INT >= 29) window.setNavigationBarContrastEnforced(false);
         loadConversations();
         buildScreen();
+        background.execute(() -> {
+            try {
+                localModel = DetaLocalModel.load(getAssets());
+                modelLoadError = "";
+            } catch (Exception exception) {
+                modelLoadError = "Os pesos do modelo local não foram carregados: " + safeError(exception);
+            }
+        });
     }
 
     @Override
@@ -222,8 +232,8 @@ public final class MainActivity extends Activity {
                 "Crie um jogo de navegador chamado Neon Target."));
         suggestions.addView(suggestionRow(Icon.LIBRARY, "Base de conhecimento",
                 "Mostre minha base de conhecimento local."));
-        suggestions.addView(suggestionRow(Icon.BRAIN, "Modelo neural local",
-                "Explique o estado do modelo neural da Deta."));
+        suggestions.addView(suggestionRow(Icon.BRAIN, "Gerar código local",
+                "#neural def main():"));
         page.addView(suggestions, lp(-1, -2));
         page.addView(buildComposer(), lp(-1, -2));
         setContentView(root);
@@ -453,8 +463,9 @@ public final class MainActivity extends Activity {
         }
         if (lower.contains("modelo neural") || lower.contains("parâmetros") || lower.contains("parametros")
                 || lower.contains("treinamento") || lower.contains("checkpoint")) {
-            return "Estado do modelo na interface Android:\n\nO núcleo Python da Deta tem um modelo experimental de 400.000 parâmetros dividido em cinco grupos. Este APK ainda não carrega o checkpoint PyTorch para inferência local, por isso não posso alegar que o modelo neural está respondendo aqui. A interface já pode pesquisar na web e criar projetos usando ferramentas locais, sem chave de API de IA.";
+            return modelStatusMessage();
         }
+        if (isNeuralPrompt(lower)) return generateNeuralResponse(prompt);
         Matcher urlMatcher = Pattern.compile("https://[^\\s]+", Pattern.CASE_INSENSITIVE).matcher(prompt);
         if (urlMatcher.find() && (lower.startsWith("https://") || lower.contains("leia ") || lower.contains("resuma ") || lower.contains("abra "))) {
             return readPublicPage(urlMatcher.group().replaceAll("[),.;]+$", ""));
@@ -1084,10 +1095,62 @@ public final class MainActivity extends Activity {
     }
 
     private void showModelStatus() {
-        String message = "Modelo experimental Deta: 400.000 parâmetros, divididos em cinco grupos no núcleo Python.\n\n"
-                + "Este APK não embute um runtime compatível com o checkpoint PyTorch. A pesquisa web e a criação local de projetos funcionam sem uma API de IA; inferência neural dentro do Android exige conversão e validação adicionais.";
-        new AlertDialog.Builder(this).setTitle("Modelo neural local").setMessage(message)
+        new AlertDialog.Builder(this).setTitle("Modelo neural local").setMessage(modelStatusMessage())
                 .setPositiveButton("Entendi", null).show();
+    }
+
+    private String modelStatusMessage() {
+        DetaLocalModel model = localModel;
+        if (model == null) {
+            return "Modelo neural local indisponível neste momento.\n\n" + modelLoadError
+                    + "\n\nA pesquisa web e a criação de projetos continuam disponíveis sem API de IA.";
+        }
+        org.json.JSONObject metadata = model.metadata();
+        StringBuilder result = new StringBuilder("Modelo neural carregado no próprio aparelho.\n\n")
+                .append("Parâmetros treináveis: ").append(model.parameterCount()).append("\n")
+                .append("Grupos ativos: ").append(metadata.optInt("groups_completed", 5)).append("\n")
+                .append("Atualizações acumuladas: ").append(model.trainingSteps()).append("\n")
+                .append("Formato: GRU por bytes, execução Java local\n\n")
+                .append("Perdas de validação por grupo (menor é melhor):\n");
+        org.json.JSONObject losses = metadata.optJSONObject("validation_losses");
+        if (losses != null) {
+            for (int index = 1; index <= 5; index++) {
+                String key = String.format(Locale.ROOT, "%02d", index);
+                if (losses.has(key)) result.append("Grupo ").append(index).append(": ")
+                        .append(String.format(Locale.ROOT, "%.4f", losses.optDouble(key))).append("\n");
+            }
+        }
+        result.append("\nA geração é experimental e pode produzir código incorreto. Pesquisas factuais usam fontes web separadamente; não há API de IA hospedada.");
+        return result.toString();
+    }
+
+    private boolean isNeuralPrompt(String lower) {
+        return lower.startsWith("#neural") || lower.contains("gere código") || lower.contains("gere codigo")
+                || lower.contains("complete este código") || lower.contains("complete este codigo")
+                || lower.contains("continue este código") || lower.contains("continue este codigo")
+                || lower.contains("complete o código") || lower.contains("complete o codigo")
+                || lower.contains("continue o código") || lower.contains("continue o codigo");
+    }
+
+    private String generateNeuralResponse(String original) {
+        DetaLocalModel model = localModel;
+        if (model == null) {
+            return "Ainda não posso executar a inferência neural local: " + modelLoadError
+                    + "\n\nA build final precisa incluir o arquivo de pesos exportado do checkpoint treinado. Nenhuma API de IA será usada como substituto.";
+        }
+        String prompt = original.replaceFirst("(?i)^#neural\\s*", "").trim();
+        if (prompt.isEmpty()) prompt = "def main():";
+        try {
+            String generated = model.generate(prompt, 96, 0.85f, 24, System.currentTimeMillis());
+            if (generated.trim().isEmpty()) generated = "(O modelo gerou bytes sem texto legível neste teste.)";
+            return "Continuação experimental pelo modelo neural local de " + model.parameterCount() + " parâmetros.\n"
+                    + "Entrada: " + prompt + "\n\n"
+                    + generated + "\n\n"
+                    + "Esta saída foi gerada pelos pesos treinados no aparelho, sem API de IA. Revise e teste o código antes de utilizá-lo.";
+        } catch (Exception exception) {
+            return "O modelo local falhou ao gerar a continuação: " + safeError(exception)
+                    + "\nTente um prompt de código mais curto.";
+        }
     }
 
     private void closeDrawer() {
