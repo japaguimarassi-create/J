@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pytest
 
 from deta.verification import collect_project_files, verify_bundle
