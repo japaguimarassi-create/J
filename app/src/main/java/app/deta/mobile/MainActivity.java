@@ -842,17 +842,17 @@ public final class MainActivity extends Activity {
         panel.setOnClickListener(view -> { });
 
         LinearLayout header = horizontal();
-        header.addView(text("Conversas", 25, WHITE, true), new LinearLayout.LayoutParams(0, dp(48), 1f));
+        header.addView(text("Deta", 25, WHITE, true), new LinearLayout.LayoutParams(0, dp(48), 1f));
         header.addView(iconButton(Icon.SEARCH, 46, SURFACE_LIGHT, WHITE, "Buscar conversas", this::toggleSearch), lp(46, 46));
         panel.addView(header, lp(-1, 50));
 
         drawerSearch = new EditText(this);
         drawerSearch.setSingleLine(true);
-        drawerSearch.setVisibility(searchOpen ? View.VISIBLE : View.GONE);
+        drawerSearch.setVisibility(View.VISIBLE);
         drawerSearch.setTextSize(15);
         drawerSearch.setTextColor(WHITE);
         drawerSearch.setHintTextColor(MUTED);
-        drawerSearch.setHint("Buscar conversas");
+        drawerSearch.setHint("Buscar projetos ou conversas");
         drawerSearch.setBackground(rounded(SURFACE_LIGHT, 16, 0));
         drawerSearch.setPadding(dp(12), 0, dp(12), 0);
         drawerSearch.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
@@ -865,21 +865,27 @@ public final class MainActivity extends Activity {
         margin(searchParams, 0, 12, 0, 0);
         panel.addView(drawerSearch, searchParams);
 
-        LinearLayout newConversation = horizontal();
-        newConversation.setPadding(dp(14), 0, dp(14), 0);
-        newConversation.setBackground(rounded(BLUE, 20, 0));
-        newConversation.addView(new IconView(this, Icon.NEW_CHAT, Color.WHITE), lp(22, 22));
-        TextView newLabel = text("Nova conversa", 15, Color.WHITE, true);
-        LinearLayout.LayoutParams newTextParams = lp(-1, -1);
-        margin(newTextParams, 11, 0, 0, 0);
-        newConversation.addView(newLabel, newTextParams);
-        newConversation.setClickable(true);
-        newConversation.setFocusable(true);
-        newConversation.setOnClickListener(view -> startNewConversation());
-        LinearLayout.LayoutParams newParams = lp(-1, 48);
-        margin(newParams, 0, 19, 0, 23);
-        panel.addView(newConversation, newParams);
+        LinearLayout.LayoutParams navParams = lp(-1, 46);
+        margin(navParams, 0, 12, 0, 0);
+        panel.addView(drawerActionRow(Icon.HOME, "Início", this::startNewConversation), navParams);
+        LinearLayout.LayoutParams nav2 = lp(-1, 46);
+        margin(nav2, 0, 6, 0, 0);
+        panel.addView(drawerActionRow(Icon.PROJECT, "Novo projeto", this::showCreateProjectDialog), nav2);
+        LinearLayout.LayoutParams nav3 = lp(-1, 46);
+        margin(nav3, 0, 6, 0, 0);
+        panel.addView(drawerActionRow(Icon.LIBRARY, "Biblioteca", this::openLibrary), nav3);
+        LinearLayout.LayoutParams nav4 = lp(-1, 46);
+        margin(nav4, 0, 6, 0, 0);
+        panel.addView(drawerActionRow(Icon.WEB, "Pesquisar na web", this::focusWebSearch), nav4);
+        LinearLayout.LayoutParams nav5 = lp(-1, 46);
+        margin(nav5, 0, 6, 0, 0);
+        panel.addView(drawerActionRow(Icon.BRAIN, "Modelo neural", this::showModelStatus), nav5);
 
+        View separator = new View(this);
+        separator.setBackgroundColor(OUTLINE);
+        LinearLayout.LayoutParams separatorParams = lp(-1, 1);
+        margin(separatorParams, 0, 17, 0, 13);
+        panel.addView(separator, separatorParams);
         panel.addView(text("Recentes", 16, WHITE, true), lp(-1, 30));
         ScrollView rowsScroll = new ScrollView(this);
         rowsScroll.setVerticalScrollBarEnabled(false);
@@ -915,10 +921,140 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private LinearLayout drawerActionRow(Icon icon, String title, Runnable action) {
+        LinearLayout row = horizontal();
+        row.setPadding(dp(13), 0, dp(13), 0);
+        row.setMinimumHeight(dp(46));
+        row.setBackground(rounded(SURFACE_LIGHT, 14, 0));
+        row.setClickable(true);
+        row.setFocusable(true);
+        row.addView(new IconView(this, icon, ACCENT), lp(23, 23));
+        TextView titleView = text(title, 15, WHITE, false);
+        LinearLayout.LayoutParams titleParams = lp(-1, -1);
+        margin(titleParams, 13, 0, 0, 0);
+        row.addView(titleView, titleParams);
+        row.setOnClickListener(view -> {
+            closeDrawer();
+            action.run();
+        });
+        return row;
+    }
+
     private void toggleSearch() {
-        searchOpen = !searchOpen;
-        closeDrawer();
-        openDrawer();
+        searchOpen = true;
+        if (drawerSearch != null) {
+            drawerSearch.requestFocus();
+            showKeyboard(drawerSearch);
+        }
+    }
+
+    private void focusWebSearch() {
+        composer.setText("Pesquise na web: ");
+        composer.setSelection(composer.length());
+        composer.requestFocus();
+        showKeyboard(composer);
+    }
+
+    private void showCreateProjectDialog() {
+        String[] kinds = {"Jogo de navegador", "Aplicativo social local", "Site ou ferramenta web"};
+        new AlertDialog.Builder(this).setTitle("Novo projeto").setItems(kinds, (dialog, which) -> {
+            String kind = which == 0 ? "game" : which == 1 ? "social" : "site";
+            showProjectNameDialog(kind);
+        }).setNegativeButton("Cancelar", null).show();
+    }
+
+    private void showProjectNameDialog(String kind) {
+        EditText nameInput = new EditText(this);
+        nameInput.setSingleLine(true);
+        nameInput.setTextSize(16);
+        nameInput.setTextColor(WHITE);
+        nameInput.setHintTextColor(MUTED);
+        nameInput.setHint(kind.equals("game") ? "Nome do jogo" : kind.equals("social") ? "Nome da comunidade" : "Nome do site");
+        nameInput.setPadding(dp(14), dp(12), dp(14), dp(12));
+        nameInput.setBackground(rounded(SURFACE_LIGHT, 14, OUTLINE));
+        LinearLayout body = vertical();
+        body.setPadding(dp(20), dp(8), dp(20), dp(4));
+        body.addView(nameInput, lp(-1, 52));
+        AlertDialog dialog = new AlertDialog.Builder(this).setTitle("Criar projeto")
+                .setView(body)
+                .setPositiveButton("Criar", (ignored, which) -> {
+                    String name = nameInput.getText().toString().trim();
+                    if (name.isEmpty()) name = kind.equals("game") ? "Jogo Deta" : kind.equals("social") ? "Comunidade Deta" : "Projeto Deta";
+                    String request = "Crie " + (kind.equals("game") ? "um jogo" : kind.equals("social") ? "uma rede social" : "um site")
+                            + " chamado " + name;
+                    String result;
+                    try {
+                        result = createProjectFromPrompt(request, request.toLowerCase(Locale.ROOT));
+                    } catch (Exception exception) {
+                        result = "Falha ao criar o projeto: " + safeError(exception);
+                    }
+                    new AlertDialog.Builder(this).setTitle("Deta").setMessage(result)
+                            .setPositiveButton("Abrir biblioteca", (d, w) -> openLibrary())
+                            .setNegativeButton("Fechar", null).show();
+                }).setNegativeButton("Cancelar", null).create();
+        dialog.getWindow();
+        dialog.show();
+        showKeyboard(nameInput);
+    }
+
+    private File projectsDirectory() {
+        File directory = new File(getFilesDir(), "projects");
+        if (!directory.exists()) directory.mkdirs();
+        return directory;
+    }
+
+    private void openLibrary() {
+        File[] directories = projectsDirectory().listFiles(File::isDirectory);
+        if (directories == null || directories.length == 0) {
+            new AlertDialog.Builder(this).setTitle("Biblioteca").setMessage("Ainda não há projetos. Use Novo projeto ou peça à Deta para criar um jogo, site ou protótipo social.")
+                    .setPositiveButton("Criar projeto", (dialog, which) -> showCreateProjectDialog())
+                    .setNegativeButton("Fechar", null).show();
+            return;
+        }
+        java.util.Arrays.sort(directories, Comparator.comparingLong(File::lastModified).reversed());
+        String[] names = new String[directories.length];
+        for (int index = 0; index < directories.length; index++) names[index] = directories[index].getName().replace('-', ' ');
+        new AlertDialog.Builder(this).setTitle("Biblioteca de projetos").setItems(names, (dialog, which) -> openProjectPreview(directories[which]))
+                .setNegativeButton("Fechar", null).show();
+    }
+
+    private void openProjectPreview(File directory) {
+        File page = new File(directory, "index.html");
+        if (!page.isFile()) {
+            Toast.makeText(this, "O projeto não contém index.html.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        WebView webView = new WebView(this);
+        webView.setBackgroundColor(BLACK);
+        WebSettings settings = webView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setAllowFileAccess(true);
+        settings.setAllowContentAccess(false);
+        webView.loadUrl(Uri.fromFile(page).toString());
+        AlertDialog dialog = new AlertDialog.Builder(this).setTitle(directory.getName().replace('-', ' '))
+                .setView(webView).setPositiveButton("Fechar", null)
+                .setNeutralButton("Compartilhar HTML", (d, which) -> {
+                    try {
+                        String html = new String(java.nio.file.Files.readAllBytes(page.toPath()), StandardCharsets.UTF_8);
+                        Intent share = new Intent(Intent.ACTION_SEND);
+                        share.setType("text/html");
+                        share.putExtra(Intent.EXTRA_SUBJECT, directory.getName() + " — Deta");
+                        share.putExtra(Intent.EXTRA_TEXT, html);
+                        startActivity(Intent.createChooser(share, "Compartilhar projeto HTML"));
+                    } catch (IOException exception) {
+                        Toast.makeText(this, "Não foi possível ler o arquivo do projeto.", Toast.LENGTH_SHORT).show();
+                    }
+                }).create();
+        dialog.show();
+        if (dialog.getWindow() != null) dialog.getWindow().setLayout(Math.min(dp(380), getResources().getDisplayMetrics().widthPixels - dp(24)), dp(560));
+    }
+
+    private void showModelStatus() {
+        String message = "Modelo experimental Deta: 400.000 parâmetros, divididos em cinco grupos no núcleo Python.\n\n"
+                + "Este APK não embute um runtime compatível com o checkpoint PyTorch. A pesquisa web e a criação local de projetos funcionam sem uma API de IA; inferência neural dentro do Android exige conversão e validação adicionais.";
+        new AlertDialog.Builder(this).setTitle("Modelo neural local").setMessage(message)
+                .setPositiveButton("Entendi", null).show();
     }
 
     private void closeDrawer() {
