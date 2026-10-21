@@ -124,7 +124,12 @@ def main() -> None:
     if args.command == "knowledge":
         store = KnowledgeStore()
         if args.query:
-            print(json.dumps(store.search(args.query, limit=args.limit), ensure_ascii=False, indent=2))
+            results = store.search(args.query, limit=args.limit)
+            public_results = [
+                {key: item[key] for key in ("title", "url", "score", "snippet", "source_type", "sha256") if key in item}
+                for item in results
+            ]
+            print(json.dumps(public_results, ensure_ascii=False, indent=2))
         else:
             print(json.dumps({"documents": store.count(), "path": str(store.path)}, ensure_ascii=False, indent=2))
         return
