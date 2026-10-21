@@ -6,10 +6,17 @@ import torch
 
 from deta import __version__
 from deta.config import DetaConfig
-from deta.data import write_jsonl
+from deta.data import read_licensed_jsonl, write_jsonl
 from deta.github_catalog import GithubCatalog
 from deta.model import build_default_model
 from deta.training import DEFAULT_MAX_TRAINING_BYTES, train_checkpoint
+from deta.verification import (
+    DEFAULT_MAX_PROJECT_BYTES,
+    DEFAULT_MAX_PROJECT_FILES,
+    collect_project_files,
+    run_pytest_in_current_project,
+    verify_bundle,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -37,6 +44,13 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--resume-from", default=None)
     train.add_argument("--seed", type=int, default=42)
     train.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_TRAINING_BYTES)
+
+    verify = commands.add_parser("verify", help="Run the four verification gates over a source project")
+    verify.add_argument("--project", default=".")
+    verify.add_argument("--references", default=None, help="Optional JSONL manifest of licensed code references")
+    verify.add_argument("--run-tests", action="store_true", help="Explicitly run pytest for this trusted project")
+    verify.add_argument("--max-files", type=int, default=DEFAULT_MAX_PROJECT_FILES)
+    verify.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_PROJECT_BYTES)
 
     return parser
 
@@ -97,6 +111,34 @@ def main() -> None:
             max_bytes=args.max_bytes,
         )
         print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
+
+    if args.command == "verify":
+        project_root = Path(args.project).expanduser().resolve()
+        try:
+            files = collect_project_files(
+                project_root,
+                max_files=args.max_files,
+                max_bytes=args.max_bytes,
+            )
+            references = list(read_licensed_jsonl(args.references)) if args.references else []
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+            return
+        test_runner = (lambda: run_pytest_in_current_project(project_root)) if args.run_tests else None
+        report = verify_bundle(files, references=references, test_runner=test_runner)
+        payload = {
+            "project": str(project_root),
+            "files_scanned": len(files),
+            "passed": report.passed,
+            "checks": [
+                {"name": check.name, "passed": check.passed, "details": check.details}
+                for check in report.checks
+            ],
+        }
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        if not report.passed:
+            raise SystemExit(1)
         return
 
     parser.error("Unknown command")
