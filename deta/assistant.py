@@ -161,6 +161,18 @@ def _extractive_summary(
         if len(selected) >= 6:
             break
 
+    if not selected and fresh_sources:
+        for source in fresh_sources:
+            url = source.get("url", "")
+            source_lookup[url] = source.get("title", url)
+            for sentence in re.split(r"(?<=[.!?])\\s+|\\n+", source.get("snippet", "")):
+                sentence = sentence.strip()
+                if len(sentence) >= 45:
+                    selected.append((0.0, sentence[:517].rsplit(" ", 1)[0] + ("..." if len(sentence) > 520 else ""), url))
+                    if len(selected) >= 3:
+                        break
+            if selected:
+                break
     if not selected:
         return ""
     response = ["Encontrei estas informações nas fontes consultadas:"]
