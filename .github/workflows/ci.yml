@@ -142,7 +142,7 @@ jobs:
           "$BUILD_TOOLS_DIR/zipalign" -c -v 4 "$APK"
           "$BUILD_TOOLS_DIR/apksigner" verify --verbose --print-certs "$APK"
           "$BUILD_TOOLS_DIR/aapt" dump badging "$APK" | tee /tmp/deta-apk-badging.txt
-          grep -F "package: name='app.deta.mobile.debug' versionCode='1' versionName='0.2.0-debug'" /tmp/deta-apk-badging.txt
+          grep -F "package: name='app.deta.mobile.debug' versionCode='2' versionName='0.2.0-debug'" /tmp/deta-apk-badging.txt
           unzip -t "$APK"
           sha256sum "$APK"
           ls -lh "$APK"
