@@ -293,6 +293,8 @@ def train_five_groups(
             raise ValueError("Initial weights must be a DetaFiveGroupModel checkpoint.")
         if checkpoint.get("config") != dict(cfg.__dict__):
             raise ValueError("Initial weights architecture/configuration does not match this run.")
+        if int(checkpoint.get("groups_completed", -1)) != 5:
+            raise ValueError("Initial weights must come from a completed five-group checkpoint.")
         if not isinstance(checkpoint.get("model_state_dict"), dict):
             raise ValueError("Initial checkpoint has no valid model state.")
         model.load_state_dict(checkpoint["model_state_dict"], strict=True)
