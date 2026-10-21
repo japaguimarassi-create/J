@@ -1,36 +1,47 @@
-# Deta architecture
+# Deta architecture 0.2.0
 
-## Current baseline
+## Parameter layout
 
-The current branch is a Python research foundation with a deliberately small byte-level GRU. Default dimensions are vocabulary=256, embedding=64 and hidden size=88, resulting in 79,824 trainable parameters. The 10,000 conceptual action units are a separate design abstraction and are not counted as model parameters.
+The default model contains exactly 400,000 trainable parameters in five groups. Each group uses a byte embedding, GRU, trainable hidden scale/bias and output projection, with 80,000 parameters per group. The earlier standalone byte-GRU baseline remains available with 79,824 parameters.
 
-## Subsystems
+Later groups start with zero-output residual heads so that the untrained groups do not perturb the active model. Training proceeds in order:
+1. Train group 1 against the approved byte corpus.
+2. Freeze groups already trained and train group 2 on the combined logits.
+3. Repeat for groups 3, 4 and 5.
+4. After each group, write an atomic checkpoint with model weights, configuration, dataset hash, group metrics and completed-group count.
 
-- **Source catalog:** public GitHub repository metadata search and selective source-file fetch.
-- **License gate:** rejects unknown or unsupported repository license identifiers before downloading code.
-- **Dataset manifest:** records source URL, license, repository/path and content SHA-256; exact duplicates are removed; manifest writes are atomic.
-- **Training:** corpus-size bound, deterministic seed, train/validation split, finite-loss check, gradient clipping, atomic checkpoint writes and optimizer-state resume.
-- **Verification:** supported-format syntax checks, static risky-pattern checks, explicitly supplied tests, and source/license/similarity checks.
-- **CI:** dependency consistency, bytecode compilation, focused static checks, parameter-count smoke test and unit tests.
+A checkpoint from group N is valid for starting group N+1 only when the architecture/configuration and full manifest SHA-256 match. Each group resets its optimizer rather than transferring optimizer moments between distinct parameter groups.
+
+## Components
+
+- **Public-source catalog:** searches public GitHub repository metadata and selectively fetches source files after repository license metadata checks.
+- **Source filter:** rejects unsupported licenses; honors file-level SPDX declarations when present; excludes likely private key/token/password content, common credential paths, generated/binary-like files and oversized files.
+- **Provenance manifest:** stores source URL, license identifier, repository/path and content digest; deduplicates exact content and writes manifests atomically.
+- **Five-group model:** sums the outputs of up to five independent experts. Each completed stage is frozen for subsequent training.
+- **Training engine:** bounded corpus loading, deterministic stage seeds, train/validation split, finite-loss checks, gradient clipping, validation metrics, stage-by-stage and final checkpoints, strict resume checks.
+- **Four-pass verifier:** supported-format syntax, static risky-pattern checks, explicit tests and source/license/similarity checks.
+- **CI and training workflow:** every change runs packaging/dependency checks and tests. The heavy training job runs only on the specially tagged commit, waits for CI to pass and uploads checkpoints as artifacts.
 
 ## Four independent verification gates
 
-1. Syntax and format parsing for Python, JSON and TOML.
-2. Configured static security patterns.
-3. Tests; this gate fails when no test runner is provided.
-4. Source URL/license validation and token-shingle similarity review.
+1. Parse Python, JSON and TOML syntax in a bounded project scan.
+2. Check configured static security patterns.
+3. Run tests only when explicitly requested against a trusted project.
+4. Validate reference URL/license metadata and token-shingle similarity.
 
-This is a useful engineering gate, not a proof of correctness, legal compliance or security. The static checks are pattern-based and can both miss flaws and produce false positives.
+Pattern-based checks can miss problems and produce false positives. A passing report is not a proof of correctness, security or copyright compliance.
 
-## Growth path
+## Data and model limits
 
-1. Stabilize the baseline and require passing CI.
-2. Add held-out coding/planning benchmarks and regression tracking.
-3. Add reviewed search connectors for approved dataset registries and documentation sources.
-4. Add a task planner and constrained tool interfaces with explicit permission policies.
-5. Add sandboxed project generation for games and social apps.
-6. Design Android packaging separately, and only after the user explicitly authorizes APK creation.
+The active training job gathers a finite, bounded sample from a curated list of public GitHub projects whose repository license metadata is on Deta's allowlist. It is not a universal web crawler and it does not download every AI dataset. Dataset catalog entries such as FineWeb and The Stack v2 have their own size, access, attribution, license and removal constraints.
 
-## Model and data limits
+A 400k-parameter byte-level model is a controlled experiment, not a modern general-purpose AI. Larger models, more compute, quality benchmarks, retrieval and safe tool interfaces are future work.
 
-The baseline is not a general-purpose language model. Larger-model training requires considerably more parameters, clean and representative data, compute, evaluation, and well-described dataset governance. Candidate sources in the registry are not automatically downloaded. Terms, attribution, access agreements, opt-outs and removal policies must be honored.
+## Next implementation phases
+
+1. Confirm test and training-run reproducibility.
+2. Add held-out coding/logic benchmarks and regression comparisons between groups.
+3. Add reviewed connectors for more public dataset indexes and documentation.
+4. Implement a task planner and tool adapters with narrow permissions.
+5. Generate complete game/app projects in disposable workspaces.
+6. Only after explicit user authorization, begin Android UI and APK packaging.
