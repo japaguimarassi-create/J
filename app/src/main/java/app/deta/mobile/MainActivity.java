@@ -332,12 +332,14 @@ public final class MainActivity extends Activity {
     }
 
     private void showAttachmentOptions() {
-        String[] options = {"Biblioteca local", "Imagem ou arquivo"};
-        new AlertDialog.Builder(this).setTitle("Adicionar conteúdo")
-                .setItems(options, (dialog, which) -> Toast.makeText(this,
-                        which == 0 ? "A biblioteca local será integrada em uma próxima etapa."
-                                : "O seletor de arquivos será integrado em uma próxima etapa.",
-                        Toast.LENGTH_SHORT).show())
+        String[] options = {"Novo projeto", "Biblioteca de projetos", "Pesquisar na web", "Modelo neural local"};
+        new AlertDialog.Builder(this).setTitle("Ferramentas da Deta")
+                .setItems(options, (dialog, which) -> {
+                    if (which == 0) showCreateProjectDialog();
+                    else if (which == 1) openLibrary();
+                    else if (which == 2) focusWebSearch();
+                    else showModelStatus();
+                })
                 .setNegativeButton("Fechar", null).show();
     }
 
