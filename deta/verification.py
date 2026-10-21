@@ -6,7 +6,7 @@ import sys
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable, Mapping, Any
+from typing import Any, Callable, Iterable, Mapping
 
 from deta.data import ALLOWED_CODE_LICENSES, valid_source_url
 
@@ -27,6 +27,20 @@ class VerificationReport:
         return len(self.checks) == 4 and all(check.passed for check in self.checks)
 
 
+PROJECT_SOURCE_SUFFIXES = {
+    ".c", ".cc", ".cpp", ".cs", ".css", ".gd", ".go", ".gradle", ".h",
+    ".hpp", ".html", ".java", ".js", ".jsx", ".json", ".kt", ".kts",
+    ".lua", ".php", ".py", ".rb", ".rs", ".scala", ".sh", ".swift",
+    ".toml", ".ts", ".tsx", ".vue", ".yaml", ".yml",
+}
+IGNORED_DIRS = {
+    ".git", ".mypy_cache", ".pytest_cache", ".ruff_cache", ".venv",
+    "build", "dist", "node_modules", "out", "target", "venv",
+}
+DEFAULT_MAX_PROJECT_FILES = 500
+DEFAULT_MAX_PROJECT_BYTES = 4 * 1024 * 1024
+
+
 RISK_PATTERNS = {
     "dynamic execution": re.compile(r"\b(?:eval|exec)\s*\("),
     "shell command execution": re.compile(r"\bshell\s*=\s*True\b"),
@@ -34,6 +48,51 @@ RISK_PATTERNS = {
         r"""(?i)\b(?:api[_-]?key|access[_-]?token|secret|password)\b\s*[:=]\s*["'][^"']{8,}["']"""
     ),
 }
+
+
+def collect_project_files(
+    project_root: str | Path,
+    max_files: int = DEFAULT_MAX_PROJECT_FILES,
+    max_bytes: int = DEFAULT_MAX_PROJECT_BYTES,
+) -> dict[str, str]:
+    root = Path(project_root).expanduser().resolve()
+    if not root.is_dir():
+        raise ValueError(f"Project path is not a directory: {root}")
+    if not 1 <= max_files <= 5000:
+        raise ValueError("max_files must be between 1 and 5000")
+    if not 1 <= max_bytes <= 64 * 1024 * 1024:
+        raise ValueError("max_bytes must be between 1 and 67108864")
+
+    files: dict[str, str] = {}
+    total_bytes = 0
+    for path in sorted(root.rglob("*")):
+        relative = path.relative_to(root)
+        if path.is_symlink() or any(part.lower() in IGNORED_DIRS for part in relative.parts):
+            continue
+        if not path.is_file() or path.suffix.lower() not in PROJECT_SOURCE_SUFFIXES:
+            continue
+        if len(files) >= max_files:
+            raise ValueError(
+                f"Project exceeds the {max_files}-file verification limit; narrow the project root."
+            )
+        try:
+            size = path.stat().st_size
+        except OSError as exc:
+            raise ValueError(f"Could not inspect {relative.as_posix()}: {exc}") from exc
+        if size > max_bytes or total_bytes + size > max_bytes:
+            raise ValueError(
+                f"Project source exceeds the {max_bytes}-byte verification budget at {relative.as_posix()}."
+            )
+        try:
+            content = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            raise ValueError(f"Could not read UTF-8 source file {relative.as_posix()}: {exc}") from exc
+        files[relative.as_posix()] = content
+        total_bytes += size
+
+    if not files:
+        raise ValueError(f"No supported source files were found under {root}.")
+    return files
 
 
 def _python_and_json_syntax(files: Mapping[str, str]) -> list[str]:
@@ -91,7 +150,7 @@ def verify_bundle(
     syntax_check = VerificationCheck(
         "syntax",
         not syntax_errors,
-        "No syntax/format issues found." if not syntax_errors else "; ".join(syntax_errors),
+        "No supported syntax/format issues found." if not syntax_errors else "; ".join(syntax_errors),
     )
 
     static_issues = _static_issues(files)
@@ -122,15 +181,20 @@ def verify_bundle(
     for index, reference in enumerate(list(references)):
         url = str(reference.get("source_url", ""))
         license_id = str(reference.get("license_id", ""))
+        source_type = str(reference.get("source_type", "code")).lower()
         if not valid_source_url(url):
             reference_issues.append(f"reference {index}: invalid or missing HTTPS source URL")
+        if source_type != "code":
+            reference_issues.append(f"reference {index}: expected code, found '{source_type}'")
         if license_id not in ALLOWED_CODE_LICENSES:
             reference_issues.append(f"reference {index}: license '{license_id or 'unknown'}' is not approved")
         sample = reference.get("content")
         if isinstance(sample, str) and sample.strip():
             for path, candidate in files.items():
+                if len(_tokens(candidate)) < 20:
+                    continue
                 score = _similarity(candidate, sample)
-                if score >= similarity_threshold and len(_tokens(candidate)) >= 20:
+                if score >= similarity_threshold:
                     reference_issues.append(f"{path}: similarity {score:.3f} with reference {index}")
     provenance_check = VerificationCheck(
         "provenance_similarity",
