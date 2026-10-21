@@ -5,6 +5,7 @@ import pytest
 
 from deta.github_catalog import (
     GithubCatalog,
+    GithubCatalogError,
     _content_license,
     _looks_sensitive,
     validate_repo_name,
@@ -131,7 +132,7 @@ def test_private_repository_is_rejected_before_source_fetch(monkeypatch):
         raise AssertionError("Source tree must not be requested for a private repository")
 
     monkeypatch.setattr(catalog, "_get_json", fake_get_json)
-    with pytest.raises(Exception, match="Only repositories explicitly marked public"):
+    with pytest.raises(GithubCatalogError, match="Only repositories explicitly marked public"):
         catalog.fetch_licensed_code("owner/private-repo", max_files=1)
     assert calls == ["https://api.github.com/repos/owner/private-repo"]
 
