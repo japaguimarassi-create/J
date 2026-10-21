@@ -37,11 +37,16 @@ The active training job gathers a finite, bounded sample from a curated list of 
 
 A 400k-parameter byte-level model is a controlled experiment, not a modern general-purpose AI. Larger models, more compute, quality benchmarks, retrieval and safe tool interfaces are future work.
 
-## Next implementation phases
+## Android interface and next implementation phases
 
-1. Confirm test and training-run reproducibility.
-2. Add held-out coding/logic benchmarks and regression comparisons between groups.
-3. Add reviewed connectors for more public dataset indexes and documentation.
-4. Implement a task planner and tool adapters with narrow permissions.
-5. Generate complete game/app projects in disposable workspaces.
-6. Only after explicit user authorization, begin Android UI and APK packaging.
+The native Java Android shell now exists in `app/` and an installable debug APK has been built by GitHub Actions. The interface has a dark original Deta identity, menu drawer, project navigation, empty recent-conversation state, prompt suggestions and message composer. It deliberately does not reproduce the user’s chat titles or include a pinned-chat section.
+
+The current Android app does not load the trained checkpoint or execute the full game/app-generation pipeline. The sample reply identifies that limitation. The build is a UI prototype, not a claim that the 400k-parameter baseline can autonomously create complete games.
+
+Next:
+1. Add fixed held-out coding/logic benchmarks and regression comparisons between groups.
+2. Connect a real inference backend to the Android chat flow with explicit error and offline states.
+3. Implement reviewed retrieval, a task planner and permission-scoped tool adapters.
+4. Generate game/app projects in disposable workspaces and use sandboxed builds/tests.
+5. Add persistent conversations only after local storage and deletion behavior are tested.
+6. Prepare a separately signed release build only after release configuration and device tests.
