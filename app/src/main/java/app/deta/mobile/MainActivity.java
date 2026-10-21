@@ -28,6 +28,7 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Space;
@@ -122,6 +123,15 @@ public final class MainActivity extends Activity {
         if (android.os.Build.VERSION.SDK_INT >= 29) window.setNavigationBarContrastEnforced(false);
         loadConversations();
         buildScreen();
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (drawerLayer != null) {
+            closeDrawer();
+            return;
+        }
+        super.onBackPressed();
     }
 
     @Override
@@ -228,7 +238,10 @@ public final class MainActivity extends Activity {
         LinearLayout brand = horizontal();
         brand.setPadding(dp(15), 0, dp(19), 0);
         brand.setBackground(rounded(SURFACE, 28, OUTLINE));
-        brand.addView(new IconView(this, Icon.SPARKLE, ACCENT), lp(23, 23));
+        ImageView brandIcon = new ImageView(this);
+        brandIcon.setImageResource(R.drawable.ic_deta_foreground);
+        brandIcon.setContentDescription("Símbolo da Deta");
+        brand.addView(brandIcon, lp(28, 28));
         TextView title = text("Deta", 19, ACCENT, true);
         LinearLayout.LayoutParams titleParams = lp(-2, -1);
         margin(titleParams, 8, 0, 0, 0);
@@ -495,7 +508,8 @@ public final class MainActivity extends Activity {
         }
         return "Projeto criado com arquivos reais neste dispositivo.\n\nNome: " + name
                 + "\nTipo: " + (kind.equals("game") ? "jogo de navegador" : kind.equals("social") ? "protótipo social local" : "site/aplicativo web")
-                + "\nArquivos: index.html e README.txt\n\nAbra o menu Deta → Biblioteca para executar a prévia. Os arquivos ficam no armazenamento privado do app; não é um APK ainda.";
+                + "\nArquivos: index.html e README.txt\nPasta interna: " + projectDir.getAbsolutePath()
+                + "\n\nAbra o menu Deta → Biblioteca para executar a prévia. Os arquivos ficam no armazenamento privado do app; não é um APK ainda.";
     }
 
     private String buildProjectHtml(String kind, String name, String brief) {
@@ -631,7 +645,8 @@ public final class MainActivity extends Activity {
         Uri uri = Uri.parse(address);
         String scheme = uri.getScheme();
         String host = uri.getHost();
-        if (!"https".equalsIgnoreCase(scheme) || host == null || host.isEmpty() || uri.getUserInfo() != null) {
+        if (!"https".equalsIgnoreCase(scheme) || host == null || host.isEmpty() || uri.getUserInfo() != null
+                || (uri.getPort() != -1 && uri.getPort() != 443)) {
             throw new IOException("Aceito apenas páginas HTTPS públicas, sem usuário ou senha no endereço.");
         }
         String lowerHost = host.toLowerCase(Locale.ROOT);
