@@ -33,18 +33,20 @@ def load_byte_corpus(
             corpus.extend(b"\n"[:max_bytes - len(corpus)])
     if len(corpus) < 4:
         raise ValueError("No eligible, licensed records with enough content were found.")
-    return torch.tensor(list(corpus), dtype=torch.long)
+    return torch.frombuffer(corpus, dtype=torch.uint8).to(dtype=torch.long)
 
 
 def _sample_batch(
     corpus: torch.Tensor,
     sequence_length: int,
     batch_size: int,
+    rng: random.Random | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     max_start = corpus.numel() - sequence_length - 1
     if max_start < 0:
         raise ValueError("Corpus segment is shorter than the configured sequence length.")
-    starts = [random.randrange(max_start + 1) for _ in range(batch_size)]
+    sampler = rng if rng is not None else random
+    starts = [sampler.randrange(max_start + 1) for _ in range(batch_size)]
     inputs = torch.stack([corpus[start:start + sequence_length] for start in starts])
     targets = torch.stack(
         [corpus[start + 1:start + sequence_length + 1] for start in starts]
@@ -301,6 +303,12 @@ def train_five_groups(
 
     loss_fn = nn.CrossEntropyLoss()
     group_results = []
+    validation_inputs, validation_targets = _sample_batch(
+        validation_corpus,
+        cfg.sequence_length,
+        cfg.batch_size,
+        rng=random.Random(20261021),
+    )
 
     for group_number in range(start_group, end_group + 1):
         group_index = group_number - 1
@@ -343,16 +351,13 @@ def train_five_groups(
                 )
 
         model.eval()
-        random.seed(seed + 1_000_000 + group_number)
         with torch.no_grad():
-            inputs, targets = _sample_batch(
-                validation_corpus,
-                cfg.sequence_length,
-                cfg.batch_size,
-            )
-            logits = model(inputs, active_groups=group_number)
+            logits = model(validation_inputs, active_groups=group_number)
             validation_loss = float(
-                loss_fn(logits.reshape(-1, cfg.vocab_size), targets.reshape(-1)).detach().cpu()
+                loss_fn(
+                    logits.reshape(-1, cfg.vocab_size),
+                    validation_targets.reshape(-1),
+                ).detach().cpu()
             )
 
         steps_by_group[str(group_number)] = steps_per_group
