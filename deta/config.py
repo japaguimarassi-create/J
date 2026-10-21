@@ -3,8 +3,10 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class DetaConfig:
-    target_parameters: int = 80_000
-    conceptual_action_units: int = 10_000
+    target_parameters: int = 400_000
+    conceptual_action_units: int = 50_000
+    groups: int = 5
+    group_parameters: int = 80_000
     vocab_size: int = 256
     embedding_dim: int = 64
     hidden_dim: int = 88
@@ -17,6 +19,10 @@ class DetaConfig:
             raise ValueError("target_parameters must be positive")
         if self.conceptual_action_units < 1:
             raise ValueError("conceptual_action_units must be positive")
+        if self.groups != 5:
+            raise ValueError("Deta v0.2 requires exactly five sequential training groups")
+        if self.group_parameters < 1:
+            raise ValueError("group_parameters must be positive")
         if self.vocab_size != 256:
             raise ValueError("The initial model uses UTF-8 bytes and requires vocab_size=256")
         if self.embedding_dim < 1 or self.hidden_dim < 1:
