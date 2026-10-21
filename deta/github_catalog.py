@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -23,6 +24,14 @@ BLOCKED_NAMES = {
     "secrets", "secret", "token", "private_key",
 }
 BLOCKED_DIRS = {".git", "node_modules", "vendor", "dist", "build", "target", "out"}
+SPDX_PATTERN = re.compile(r"(?im)^\s*(?:#|//|/\*|\*|<!--)?\s*SPDX-License-Identifier:\s*([^\s*<>]+)")
+SENSITIVE_CONTENT_PATTERNS = (
+    re.compile(r"-----BEGIN (?:RSA |OPENSSH |EC |DSA |PGP )?PRIVATE KEY-----", re.IGNORECASE),
+    re.compile(r"\b(?:gh[pousr]_[a-z0-9]{20,}|github_pat_[a-z0-9_]{20,}|AKIA[0-9A-Z]{16})\b"),
+    re.compile(
+        r"""(?i)\b(?:api[_-]?key|access[_-]?token|client[_-]?secret|password|passwd)\b\s*[:=]\s*["'][A-Za-z0-9/+=_-]{16,}["']"""
+    ),
+)
 
 
 def validate_repo_name(full_name: str) -> tuple[str, str]:
@@ -33,12 +42,30 @@ def validate_repo_name(full_name: str) -> tuple[str, str]:
     return match.group(1), match.group(2)
 
 
+def _content_license(source_text: str, repository_license: str) -> str | None:
+    match = SPDX_PATTERN.search(source_text[:4000])
+    if not match:
+        return repository_license
+    declared = match.group(1).strip().rstrip("*/")
+    if re.search(r"\b(?:AND|OR|WITH)\b", declared, re.IGNORECASE):
+        return None
+    return declared
+
+
+def _looks_sensitive(source_text: str) -> bool:
+    return any(pattern.search(source_text) for pattern in SENSITIVE_CONTENT_PATTERNS)
+
+
 class GithubCatalog:
-    def __init__(self, token: str | None = None, timeout: int = 20):
+    def __init__(self, token: str | None = None, timeout: int = 20, max_retries: int = 3):
         if timeout < 1 or timeout > 120:
             raise ValueError("timeout must be between 1 and 120 seconds")
+        if not 0 <= max_retries <= 5:
+            raise ValueError("max_retries must be between 0 and 5")
         self.token = token or os.getenv("DETA_GITHUB_TOKEN")
         self.timeout = timeout
+        self.max_retries = max_retries
+        self.max_retry_wait_seconds = 120
 
     def _get_json(self, url: str) -> dict[str, Any]:
         parsed = urllib.parse.urlparse(url)
@@ -46,30 +73,60 @@ class GithubCatalog:
             raise ValueError("Authenticated GitHub API requests must target https://api.github.com.")
         headers = {
             "Accept": "application/vnd.github+json",
-            "User-Agent": "Deta-AI-Research/0.1",
+            "User-Agent": "Deta-AI-Research/0.2",
             "X-GitHub-Api-Version": "2022-11-28",
         }
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
         request = urllib.request.Request(url, headers=headers)
-        try:
-            with urllib.request.urlopen(request, timeout=self.timeout) as response:
-                payload = json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as exc:
-            if exc.code in {401, 403, 429}:
-                retry_after = exc.headers.get("Retry-After") if exc.headers else None
-                suffix = f" Retry-After: {retry_after}." if retry_after else " Check the rate limit before retrying."
-                raise GithubCatalogError(
-                    f"GitHub API limit or permission error ({exc.code}).{suffix}"
-                ) from exc
-            raise GithubCatalogError(f"GitHub API returned HTTP {exc.code}.") from exc
-        except (urllib.error.URLError, TimeoutError) as exc:
-            raise GithubCatalogError(f"GitHub API connection failed: {exc}") from exc
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise GithubCatalogError("GitHub API returned invalid JSON.") from exc
-        if not isinstance(payload, dict):
-            raise GithubCatalogError("Unexpected GitHub API response.")
-        return payload
+        attempt = 0
+        while True:
+            try:
+                with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                if not isinstance(payload, dict):
+                    raise GithubCatalogError("Unexpected GitHub API response.")
+                return payload
+            except urllib.error.HTTPError as exc:
+                error_body = exc.read(2048).decode("utf-8", "replace").lower()
+                error_headers = exc.headers or {}
+                retry_after = error_headers.get("Retry-After")
+                remaining = error_headers.get("X-RateLimit-Remaining")
+                rate_limited = (
+                    exc.code == 429
+                    or bool(retry_after)
+                    or remaining == "0"
+                    or "rate limit" in error_body
+                )
+                if not rate_limited or attempt >= self.max_retries:
+                    raise GithubCatalogError(
+                        f"GitHub API returned HTTP {exc.code}: {error_body[:180].strip()}"
+                    ) from exc
+                try:
+                    delay = float(retry_after) if retry_after else None
+                except (TypeError, ValueError):
+                    delay = None
+                if delay is None and remaining == "0":
+                    try:
+                        reset_at = float(error_headers.get("X-RateLimit-Reset", "0"))
+                        delay = max(1.0, reset_at - time.time())
+                    except (TypeError, ValueError):
+                        delay = None
+                if delay is None:
+                    delay = min(60.0, 2.0 ** (attempt + 1))
+                if delay > self.max_retry_wait_seconds:
+                    raise GithubCatalogError(
+                        f"GitHub rate limit requires waiting {delay:.0f}s; stop now and retry later."
+                    ) from exc
+                time.sleep(max(1.0, delay))
+                attempt += 1
+            except (urllib.error.URLError, TimeoutError) as exc:
+                if attempt >= self.max_retries:
+                    raise GithubCatalogError(f"GitHub API connection failed after retries: {exc}") from exc
+                time.sleep(min(8.0, 2.0 ** attempt))
+                attempt += 1
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                raise GithubCatalogError("GitHub API returned invalid JSON.") from exc
 
     def search_repositories(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
         query = (query or "").strip()
@@ -147,7 +204,7 @@ class GithubCatalog:
                 continue
             request = urllib.request.Request(
                 raw_url,
-                headers={"User-Agent": "Deta-AI-Research/0.1"},
+                headers={"User-Agent": "Deta-AI-Research/0.2"},
             )
             try:
                 with urllib.request.urlopen(request, timeout=self.timeout) as response:
@@ -157,10 +214,15 @@ class GithubCatalog:
                 source_text = content.decode("utf-8")
             except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, UnicodeDecodeError):
                 continue
+            if _looks_sensitive(source_text):
+                continue
+            file_license = _content_license(source_text, license_id)
+            if file_license not in ALLOWED_CODE_LICENSES:
+                continue
             records.append({
                 "content": source_text,
                 "source_url": f"https://github.com/{owner}/{repo}/blob/{encoded_branch}/{encoded_path}",
-                "license_id": license_id,
+                "license_id": file_license,
                 "source_type": "code",
                 "source_name": f"{owner}/{repo}",
                 "path": path,
