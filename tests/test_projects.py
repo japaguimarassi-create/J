@@ -1,7 +1,5 @@
 import ast
 import json
-from pathlib import Path
-
 import pytest
 
 from deta.projects import create_project
