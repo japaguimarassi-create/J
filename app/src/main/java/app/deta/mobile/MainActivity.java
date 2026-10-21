@@ -91,7 +91,7 @@ public final class MainActivity extends Activity {
         Window window = getWindow();
         window.setStatusBarColor(BLACK);
         window.setNavigationBarColor(Color.rgb(9, 9, 9));
-        window.setSoftInputMode(Window.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         window.getDecorView().setSystemUiVisibility(0);
         if (android.os.Build.VERSION.SDK_INT >= 29) window.setNavigationBarContrastEnforced(false);
         loadConversations();
