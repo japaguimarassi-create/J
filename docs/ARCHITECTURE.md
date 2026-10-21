@@ -34,6 +34,8 @@ The longer workflow warm-starts the previous model and fine-tunes each group for
 
 The 400k model is still a compact byte-prediction research baseline. Retrieval/tools provide current factual coverage; the neural checkpoint is not a modern pretrained chat model.
 
+The deta.inference module loads a saved grouped checkpoint and samples the next UTF-8 bytes given a prompt. Generation is local and uses temperature/top-k sampling; it is explicitly experimental and may produce malformed code or incoherent text. The CLI does not route factual questions through this generator.
+
 ## 5. Source discovery and governance
 
 The GitHub collector uses a finite list of repositories; it is not a universal crawler. It checks repository-level license metadata before requesting source files, rejects unsupported licenses, observes file-level SPDX declarations when present, filters common secret patterns/private repositories and writes per-record URLs, licenses and hashes.
