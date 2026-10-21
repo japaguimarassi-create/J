@@ -52,9 +52,9 @@ jobs:
       - name: Install training dependencies
         run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
       - name: Collect an approved, bounded code corpus
-        run: python scripts/build_training_corpus.py --output data/approved.jsonl --max-files-per-repo 12 --min-records 8
+        run: python scripts/build_training_corpus.py --output data/approved.jsonl --max-files-per-repo 20 --min-records 150
       - name: Train five 80k groups sequentially
-        run: python -m deta.cli train --data data/approved.jsonl --output-dir checkpoints/deta-400k --steps-per-group 1000 --start-group 1 --end-group 5 --seed 42 --max-bytes 67108864
+        run: python -m deta.cli train --data data/approved.jsonl --output-dir checkpoints/deta-400k --steps-per-group 5000 --start-group 1 --end-group 5 --seed 42 --max-bytes 67108864
       - name: Upload per-group and final checkpoints
         if: always()
         uses: actions/upload-artifact@v4
