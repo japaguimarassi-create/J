@@ -220,6 +220,7 @@ def train_checkpoint(
     return {
         "parameters": model.parameter_count(),
         "steps": steps,
+        "training_steps": prior_steps + steps,
         "last_loss": last_loss,
         "validation_loss": validation_loss,
         "device": selected_device,
