@@ -43,7 +43,7 @@ def build_parser() -> argparse.ArgumentParser:
     train = commands.add_parser("train", help="Train the 400k model one 80k group at a time")
     train.add_argument("--data", required=True)
     train.add_argument("--output-dir", default="checkpoints/deta-400k")
-    train.add_argument("--steps-per-group", type=int, default=1000)
+    train.add_argument("--steps-per-group", type=int, default=5000)
     train.add_argument("--start-group", type=int, default=1)
     train.add_argument("--end-group", type=int, default=5)
     train.add_argument("--device", choices=["cpu", "cuda"], default=None)
