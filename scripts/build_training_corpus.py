@@ -19,6 +19,16 @@ DEFAULT_REPOSITORIES = [
     "pallets/markupsafe",
     "pydantic/pydantic",
     "encode/httpx",
+    "astral-sh/ruff",
+    "tiangolo/fastapi",
+    "encode/starlette",
+    "encode/uvicorn",
+    "pydantic/pydantic-core",
+    "django/django",
+    "numpy/numpy",
+    "sympy/sympy",
+    "scikit-learn/scikit-learn",
+    "google/gson",
 ]
 
 
@@ -27,8 +37,8 @@ def build_parser() -> argparse.ArgumentParser:
         description="Build a bounded, license-screened code manifest from public GitHub repositories."
     )
     parser.add_argument("--output", default="data/approved.jsonl")
-    parser.add_argument("--max-files-per-repo", type=int, default=12)
-    parser.add_argument("--min-records", type=int, default=8)
+    parser.add_argument("--max-files-per-repo", type=int, default=20)
+    parser.add_argument("--min-records", type=int, default=150)
     parser.add_argument("--repos", nargs="+", default=DEFAULT_REPOSITORIES)
     return parser
 
