@@ -88,7 +88,10 @@ class GithubCatalog:
                     raise GithubCatalogError("Unexpected GitHub API response.")
                 return payload
             except urllib.error.HTTPError as exc:
-                error_body = exc.read(2048).decode("utf-8", "replace").lower()
+                try:
+                    error_body = exc.read(2048).decode("utf-8", "replace").lower()
+                except (AttributeError, OSError):
+                    error_body = ""
                 error_headers = exc.headers or {}
                 retry_after = error_headers.get("Retry-After")
                 remaining = error_headers.get("X-RateLimit-Remaining")
