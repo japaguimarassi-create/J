@@ -191,28 +191,28 @@ def train_checkpoint(
         )
 
     destination = Path(output_path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
     file_descriptor, temporary_path = tempfile.mkstemp(
-        dir=destination.parent if destination.parent.exists() else Path("."),
+        dir=destination.parent,
         prefix=destination.name + ".",
         suffix=".tmp",
     )
-    os.close(file_descriptor)
-    destination.parent.mkdir(parents=True, exist_ok=True)
     try:
-        torch.save(
-            {
-                "model_state_dict": model.state_dict(),
-                "model_parameters": model.parameter_count(),
-                "config": cfg.__dict__,
-                "training_steps": prior_steps + steps,
-                "run_steps": steps,
-                "seed": seed,
-                "last_loss": last_loss,
-                "validation_loss": validation_loss,
-                "dataset_path": str(Path(data_path)),
-            },
-            temporary_path,
-        )
+        with os.fdopen(file_descriptor, "wb") as stream:
+            torch.save(
+                {
+                    "model_state_dict": model.state_dict(),
+                    "model_parameters": model.parameter_count(),
+                    "config": cfg.__dict__,
+                    "training_steps": prior_steps + steps,
+                    "run_steps": steps,
+                    "seed": seed,
+                    "last_loss": last_loss,
+                    "validation_loss": validation_loss,
+                    "dataset_path": str(Path(data_path)),
+                },
+                stream,
+            )
         os.replace(temporary_path, destination)
     finally:
         if os.path.exists(temporary_path):
