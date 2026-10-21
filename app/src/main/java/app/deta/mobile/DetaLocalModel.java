@@ -36,6 +36,10 @@ final class DetaLocalModel {
         final float[] outputWeight;
         final float[] outputBias;
         final float[] hidden = new float[HIDDEN_SIZE];
+        final float[] inputGate = new float[GATE_SIZE];
+        final float[] hiddenGate = new float[GATE_SIZE];
+        final float[] nextHidden = new float[HIDDEN_SIZE];
+        final float[] adjustedHidden = new float[HIDDEN_SIZE];
 
         Group(ByteBuffer buffer) throws IOException {
             embedding = readFloats(buffer, VOCAB_SIZE * EMBEDDING_SIZE);
@@ -51,9 +55,6 @@ final class DetaLocalModel {
 
         void step(int token) {
             int embeddingOffset = token * EMBEDDING_SIZE;
-            float[] inputGate = new float[GATE_SIZE];
-            float[] hiddenGate = new float[GATE_SIZE];
-
             for (int row = 0; row < GATE_SIZE; row++) {
                 int inputOffset = row * EMBEDDING_SIZE;
                 float inputSum = biasInput[row];
@@ -70,7 +71,6 @@ final class DetaLocalModel {
                 hiddenGate[row] = hiddenSum;
             }
 
-            float[] nextHidden = new float[HIDDEN_SIZE];
             for (int index = 0; index < HIDDEN_SIZE; index++) {
                 float reset = sigmoid(inputGate[index] + hiddenGate[index]);
                 float update = sigmoid(inputGate[HIDDEN_SIZE + index] + hiddenGate[HIDDEN_SIZE + index]);
@@ -84,12 +84,14 @@ final class DetaLocalModel {
         }
 
         void addLogits(float[] sum) {
+            for (int index = 0; index < HIDDEN_SIZE; index++) {
+                adjustedHidden[index] = hidden[index] * (1.0f + (float) Math.tanh(hiddenScale[index])) + hiddenBias[index];
+            }
             for (int token = 0; token < VOCAB_SIZE; token++) {
                 int offset = token * HIDDEN_SIZE;
                 float value = outputBias[token];
                 for (int index = 0; index < HIDDEN_SIZE; index++) {
-                    float adjusted = hidden[index] * (1.0f + (float) Math.tanh(hiddenScale[index])) + hiddenBias[index];
-                    value += outputWeight[offset + index] * adjusted;
+                    value += outputWeight[offset + index] * adjustedHidden[index];
                 }
                 sum[token] += value;
             }
@@ -166,7 +168,7 @@ final class DetaLocalModel {
             output.write(nextToken);
             stepAll(nextToken);
         }
-        return output.toString(StandardCharsets.UTF_8);
+        return new String(output.toByteArray(), StandardCharsets.UTF_8);
     }
 
     private void stepAll(int token) {
