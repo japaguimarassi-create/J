@@ -119,7 +119,7 @@ def _extractive_summary(
         url = source.get("url", "")
         source_lookup[url] = source.get("title", url)
         snippet = source.get("snippet", "")
-        for sentence in re.split(r"(?<=[.!?])\\s+|\\n+", snippet):
+        for sentence in re.split(r"(?<=[.!?])\s+|\n+", snippet):
             sentence = sentence.strip()
             if len(sentence) < 40:
                 continue
