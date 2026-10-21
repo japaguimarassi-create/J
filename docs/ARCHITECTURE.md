@@ -1,4 +1,4 @@
-# Deta architecture 0.3.0
+# Deta architecture 0.3.1
 
 ## 1. Public web research
 
@@ -51,6 +51,14 @@ Web-retrieved pages belong to the local knowledge index and are not automaticall
 
 Pattern-based checks can miss issues and produce false positives. Passing this gate is not proof of correctness, security or legal compliance.
 
-## 7. Mobile status
+## 7. Android integration
 
-The Android HUD was not changed or rebuilt during the 0.3.0 core update. Web research, local knowledge, project generation and model training commands are exposed through the Python CLI. Wiring these capabilities into Android and connecting an effective on-device inference runtime are separate future tasks.
+The Android implementation has four execution paths:
+- Public-web retrieval uses a background executor, direct HTTPS requests, safe redirect validation, HTML extraction and a local SharedPreferences source index.
+- Project templates are written under the app-private files/projects directory. The Library previews them through WebView and can share the HTML source.
+- DetaLocalModel loads binary model assets from the APK and checks the fixed DTA400K1 format, weight length, finite values and SHA-256 digest before inference.
+- The Java inference engine implements the trained five-group GRU: byte embedding, reset/update/new gates, group hidden scale/bias, output projection and summed logits. It performs top-k/temperature sampling without sending prompts to an AI service.
+
+The build workflow downloads the successful training artifact, validates/exports the 400k checkpoint, builds the Android app and runs instrumentation on an emulator. APK upload is blocked until Python tests, Android source compilation and the model-generation smoke test succeed. It then verifies ZIP integrity, alignment, signature and package identity.
+
+This runtime provides experimental byte-level continuation, not general factual reasoning. Factual web retrieval remains separate and source-attributed. Local starter projects are not yet compiled into independent APKs.
