@@ -74,6 +74,9 @@ class DetaFiveGroupModel(nn.Module):
                 for _ in range(groups)
             ]
         )
+        for group in self.groups[1:]:
+            nn.init.zeros_(group.output.weight)
+            nn.init.zeros_(group.output.bias)
 
     def forward(
         self,
