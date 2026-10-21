@@ -11,9 +11,13 @@ import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.speech.RecognizerIntent;
 import android.text.Editable;
+import android.text.Html;
 import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -28,6 +32,8 @@ import android.widget.ScrollView;
 import android.widget.Space;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -36,7 +42,21 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.InetAddress;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class MainActivity extends Activity {
     private static final int BLACK = Color.BLACK;
@@ -50,9 +70,14 @@ public final class MainActivity extends Activity {
     private static final int BLUE = Color.rgb(55, 101, 246);
     private static final String PREFS_NAME = "deta_local_ui";
     private static final String PREFS_CONVERSATIONS = "conversations";
+    private static final String PREFS_KNOWLEDGE = "local_web_knowledge";
     private static final int VOICE_REQUEST = 712;
+    private static final int MAX_WEB_BYTES = 1_200_000;
+    private static final int MAX_RESULTS = 5;
 
     private final ArrayList<Conversation> conversations = new ArrayList<>();
+    private final ExecutorService background = Executors.newSingleThreadExecutor();
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private FrameLayout root;
     private FrameLayout drawerLayer;
     private ScrollView transcriptScroll;
@@ -64,11 +89,11 @@ public final class MainActivity extends Activity {
     private long activeConversationId = -1L;
     private boolean searchOpen;
 
-    private enum Icon { MENU, SPARKLE, NEW_CHAT, SEARCH, PLUS, MIC, WAVE, IMAGE, EDIT, CLOSE }
+    private enum Icon { MENU, SPARKLE, NEW_CHAT, SEARCH, PLUS, MIC, WAVE, IMAGE, EDIT, CLOSE, HOME, WEB, PROJECT, LIBRARY, BRAIN }
 
     private static final class ChatMessage {
         final boolean fromUser;
-        final String text;
+        String text;
         ChatMessage(boolean fromUser, String text) {
             this.fromUser = fromUser;
             this.text = text;
@@ -174,10 +199,14 @@ public final class MainActivity extends Activity {
 
         suggestions = vertical();
         suggestions.setPadding(dp(25), dp(2), dp(22), dp(7));
-        suggestions.addView(suggestionRow(Icon.IMAGE, "Criar uma imagem ou visual",
-                "Ajude-me a planejar um visual original."));
-        suggestions.addView(suggestionRow(Icon.EDIT, "Escrever ou editar",
-                "Ajude-me a escrever ou revisar um texto."));
+        suggestions.addView(suggestionRow(Icon.WEB, "Pesquisar na web",
+                "Pesquise na web: "));
+        suggestions.addView(suggestionRow(Icon.PROJECT, "Criar projeto",
+                "Crie um jogo de navegador chamado Neon Target."));
+        suggestions.addView(suggestionRow(Icon.LIBRARY, "Base de conhecimento",
+                "Mostre minha base de conhecimento local."));
+        suggestions.addView(suggestionRow(Icon.BRAIN, "Modelo neural local",
+                "Explique o estado do modelo neural da Deta."));
         page.addView(suggestions, lp(-1, -2));
         page.addView(buildComposer(), lp(-1, -2));
         setContentView(root);
@@ -243,7 +272,7 @@ public final class MainActivity extends Activity {
         composer.setTextSize(17);
         composer.setTextColor(WHITE);
         composer.setHintTextColor(MUTED);
-        composer.setHint("Mensagem para Deta");
+        composer.setHint("Descreva sua ideia para a Deta");
         composer.setPadding(dp(7), dp(7), dp(5), dp(7));
         composer.setBackgroundColor(Color.TRANSPARENT);
         composer.setInputType(android.text.InputType.TYPE_CLASS_TEXT
@@ -264,7 +293,7 @@ public final class MainActivity extends Activity {
         box.addView(iconButton(Icon.WAVE, 42, Color.WHITE, BLACK, "Enviar mensagem", this::sendMessage), lp(42, 42));
 
         outer.addView(box, lp(-1, -2));
-        TextView privacyHint = text("As conversas ficam salvas neste dispositivo.", 11, Color.rgb(120, 120, 126), false);
+        TextView privacyHint = text("Pesquisa web sem API de IA · histórico e projetos locais", 11, Color.rgb(120, 120, 126), false);
         privacyHint.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams hintParams = lp(-1, 19);
         margin(hintParams, 0, 5, 0, 0);
