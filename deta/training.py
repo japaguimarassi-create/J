@@ -101,6 +101,7 @@ def _checkpoint_payload(
     completed_groups: int,
     steps_by_group: dict[str, int],
     metrics_by_group: dict[str, dict[str, float]],
+    training_lineage: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "format_version": 2,
@@ -117,6 +118,7 @@ def _checkpoint_payload(
         "dataset_path": str(Path(dataset_path)),
         "dataset_sha256": dataset_sha256,
         "max_bytes": max_bytes,
+        "training_lineage": dict(training_lineage or {}),
     }
 
 
@@ -241,6 +243,7 @@ def train_five_groups(
     resume_from: str | Path | None = None,
     seed: int = 42,
     max_bytes: int = DEFAULT_MAX_TRAINING_BYTES,
+    initial_weights: str | Path | None = None,
 ) -> dict[str, Any]:
     cfg = config or DetaConfig()
     cfg.validate()
@@ -254,6 +257,8 @@ def train_five_groups(
         raise ValueError("A fresh run starts at group 1 and must not use --resume-from.")
     if start_group > 1 and resume_from is None:
         raise ValueError("Resuming at group 2-5 requires --resume-from with the prior group's checkpoint.")
+    if initial_weights is not None and (start_group != 1 or resume_from is not None):
+        raise ValueError("--initial-weights is only valid for a new sequential run starting at group 1.")
 
     selected_device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     if selected_device == "cuda" and not torch.cuda.is_available():
@@ -275,10 +280,30 @@ def train_five_groups(
     model = build_grouped_model(cfg).to(selected_device)
     steps_by_group: dict[str, int] = {}
     metrics_by_group: dict[str, dict[str, float]] = {}
+    training_lineage: dict[str, Any] = {}
     output_directory = Path(output_dir)
     output_directory.mkdir(parents=True, exist_ok=True)
 
-    if resume_from is not None:
+    if initial_weights is not None:
+        initial_path = Path(initial_weights)
+        if not initial_path.is_file():
+            raise FileNotFoundError(f"Initial weights checkpoint does not exist: {initial_path}")
+        checkpoint = torch.load(initial_path, map_location=selected_device, weights_only=True)
+        if not isinstance(checkpoint, dict) or checkpoint.get("model_type") != "DetaFiveGroupModel":
+            raise ValueError("Initial weights must be a DetaFiveGroupModel checkpoint.")
+        if checkpoint.get("config") != dict(cfg.__dict__):
+            raise ValueError("Initial weights architecture/configuration does not match this run.")
+        if not isinstance(checkpoint.get("model_state_dict"), dict):
+            raise ValueError("Initial checkpoint has no valid model state.")
+        model.load_state_dict(checkpoint["model_state_dict"], strict=True)
+        training_lineage = {
+            "parent_checkpoint_sha256": _sha256_file(initial_path),
+            "parent_training_steps": int(checkpoint.get("training_steps", 0)),
+            "parent_dataset_sha256": str(checkpoint.get("dataset_sha256", "")),
+            "parent_checkpoint_path": str(initial_path),
+            "warm_start": True,
+        }
+    elif resume_from is not None:
         checkpoint_path = Path(resume_from)
         if not checkpoint_path.is_file():
             raise FileNotFoundError(f"Resume checkpoint does not exist: {checkpoint_path}")
@@ -300,6 +325,7 @@ def train_five_groups(
         model.load_state_dict(checkpoint["model_state_dict"], strict=True)
         steps_by_group = dict(checkpoint.get("steps_by_group", {}))
         metrics_by_group = dict(checkpoint.get("metrics_by_group", {}))
+        training_lineage = dict(checkpoint.get("training_lineage", {}))
 
     loss_fn = nn.CrossEntropyLoss()
     group_results = []
@@ -375,6 +401,7 @@ def train_five_groups(
             completed_groups=group_number,
             steps_by_group=steps_by_group,
             metrics_by_group=metrics_by_group,
+            training_lineage=training_lineage,
         )
         group_checkpoint = output_directory / f"group-{group_number:02d}.pt"
         _atomic_save(payload, group_checkpoint)
@@ -407,6 +434,7 @@ def train_five_groups(
         "device": selected_device,
         "seed": seed,
         "dataset_sha256": dataset_sha256,
+        "training_lineage": training_lineage,
         "groups": group_results,
         "final_checkpoint": str(output_directory / ("final.pt" if end_group == 5 else f"group-{end_group:02d}.pt")),
     }
