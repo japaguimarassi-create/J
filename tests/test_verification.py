@@ -84,3 +84,12 @@ def test_project_scanner_rejects_non_directory(tmp_path):
     candidate.write_text("print(1)\n", encoding="utf-8")
     with pytest.raises(ValueError, match="not a directory"):
         collect_project_files(candidate)
+
+def test_static_analysis_does_not_flag_example_code_inside_a_string():
+    report = verify_bundle(
+        {"example.py": 'def test_example():\n    sample = "eval(user_input)"\n    return sample\n'},
+        test_runner=passing_runner,
+    )
+    assert report.checks[0].passed
+    assert report.checks[1].passed
+
