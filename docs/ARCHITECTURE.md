@@ -1,52 +1,54 @@
-# Deta architecture 0.2.0
+# Deta architecture 0.3.0
 
-## Parameter layout
+## 1. Public web research
 
-The default model contains exactly 400,000 trainable parameters in five groups. Each group uses a byte embedding, GRU, trainable hidden scale/bias and output projection, with 80,000 parameters per group. The earlier standalone byte-GRU baseline remains available with 79,824 parameters.
+The deta.web module performs public HTML search and page retrieval using direct HTTPS requests without a hosted generative-AI API key. It rejects non-HTTPS URLs, URL credentials, local hostnames, non-public IP addresses, and DNS results containing non-public addresses. Download sizes and timeouts are bounded. Results include titles, snippets and source URLs.
 
-Later groups start with zero-output residual heads so that the untrained groups do not perturb the active model. Training proceeds in order:
-1. Train group 1 against the approved byte corpus.
-2. Freeze groups already trained and train group 2 on the combined logits.
-3. Repeat for groups 3, 4 and 5.
-4. After each group, write an atomic checkpoint with model weights, configuration, dataset hash, group metrics and completed-group count.
+The deta.assistant module coordinates search, bounded page reads, local indexing, passage ranking and source citations. It is a retrieval assistant rather than a generative LLM. Pages that reject automation or have no extractable text are skipped; Deta does not sign in or bypass access controls.
 
-A checkpoint from group N is valid for starting group N+1 only when the architecture/configuration and full manifest SHA-256 match. Each group resets its optimizer rather than transferring optimizer moments between distinct parameter groups.
+## 2. Local knowledge index
 
-## Components
+The deta.knowledge module stores page text, title, source URL, source type and SHA-256 content digest in a local JSON database. The index is deduplicated by URL+content digest and bounded by document count, per-document size and total database size. Queries use lexical weighting and title boosts; results remain linked to their original sources. The index is not automatically copied into neural training data.
 
-- **Public-source catalog:** searches public GitHub repository metadata and selectively fetches source files after repository license metadata checks.
-- **Source filter:** rejects unsupported licenses; honors file-level SPDX declarations when present; excludes likely private key/token/password content, common credential paths, generated/binary-like files and oversized files.
-- **Provenance manifest:** stores source URL, license identifier, repository/path and content digest; deduplicates exact content and writes manifests atomically.
-- **Five-group model:** sums the outputs of up to five independent experts. Each completed stage is frozen for subsequent training.
-- **Training engine:** bounded corpus loading, deterministic stage seeds, train/validation split, finite-loss checks, gradient clipping, validation metrics, stage-by-stage and final checkpoints, strict resume checks.
-- **Four-pass verifier:** supported-format syntax, static risky-pattern checks, explicit tests and source/license/similarity checks.
-- **CI and training workflow:** every change runs packaging/dependency checks and tests. The heavy training job runs only on the specially tagged commit, waits for CI to pass and uploads checkpoints as artifacts.
+## 3. Offline project builder
 
-## Four independent verification gates
+The deta.projects module can generate:
+- A touch-friendly browser game with timer, score, restart and a locally saved record.
+- A local social feed with creation, filtering, likes, comments, deletion and browser storage.
+- A Python CLI task manager with add/list/done/remove commands.
 
-1. Parse Python, JSON and TOML syntax in a bounded project scan.
-2. Check configured static security patterns.
-3. Run tests only when explicitly requested against a trusted project.
-4. Validate reference URL/license metadata and token-shingle similarity.
+Templates are written into a staging directory then atomically moved into the requested output path. Non-empty destinations are rejected. These are functional starter projects, not full applications with remote accounts, multiplayer servers or production authentication.
 
-Pattern-based checks can miss problems and produce false positives. A passing report is not a proof of correctness, security or copyright compliance.
+## 4. Neural model and training
 
-## Data and model limits
+The default DetaFiveGroupModel has exactly 400,000 trainable parameters: five byte-language experts with 80,000 parameters each. The earlier 79,824-parameter GRU baseline remains available. Later group output heads start at zero so inactive experts initially contribute no logits.
 
-The active training job gathers a finite, bounded sample from a curated list of public GitHub projects whose repository license metadata is on Deta's allowlist. It is not a universal web crawler and it does not download every AI dataset. Dataset catalog entries such as FineWeb and The Stack v2 have their own size, access, attribution, license and removal constraints.
+Training proceeds group 1 through group 5. At each stage, only the current group's parameters are optimized; earlier groups do not receive gradients. Each group produces a checkpoint. Evaluation batches are sampled once from the held-out tail segment and reused across groups.
 
-A 400k-parameter byte-level model is a controlled experiment, not a modern general-purpose AI. Larger models, more compute, quality benchmarks, retrieval and safe tool interfaces are future work.
+The longer workflow warm-starts the previous model and fine-tunes each group for 5,000 steps on a broader, bounded code manifest. Checkpoints store:
+- Architecture/configuration and actual parameter counts
+- Current dataset SHA-256 and corpus budget
+- Per-group updates and validation metrics
+- Parent checkpoint hash, previous step count and previous dataset hash
+- Completed group number for safe restart
 
-## Android interface and next implementation phases
+The 400k model is still a compact byte-prediction research baseline. Retrieval/tools provide current factual coverage; the neural checkpoint is not a modern pretrained chat model.
 
-The native Java Android shell now exists in `app/` and an installable debug APK has been built by GitHub Actions. The interface has a dark original Deta identity, menu drawer, project navigation, empty recent-conversation state, prompt suggestions and message composer. It deliberately does not reproduce the user’s chat titles or include a pinned-chat section.
+## 5. Source discovery and governance
 
-The current Android app does not load the trained checkpoint or execute the full game/app-generation pipeline. The sample reply identifies that limitation. The build is a UI prototype, not a claim that the 400k-parameter baseline can autonomously create complete games.
+The GitHub collector uses a finite list of repositories; it is not a universal crawler. It checks repository-level license metadata before requesting source files, rejects unsupported licenses, observes file-level SPDX declarations when present, filters common secret patterns/private repositories and writes per-record URLs, licenses and hashes.
 
-Next:
-1. Add fixed held-out coding/logic benchmarks and regression comparisons between groups.
-2. Connect a real inference backend to the Android chat flow with explicit error and offline states.
-3. Implement reviewed retrieval, a task planner and permission-scoped tool adapters.
-4. Generate game/app projects in disposable workspaces and use sandboxed builds/tests.
-5. Add persistent conversations only after local storage and deletion behavior are tested.
-6. Prepare a separately signed release build only after release configuration and device tests.
+Web-retrieved pages belong to the local knowledge index and are not automatically used for training. Training records still require an allowlisted license and provenance. Dataset agreements, attribution, privacy, opt-outs and removal requests must be honored.
+
+## 6. Four-pass verification
+
+1. Parse supported Python, JSON and TOML syntax/formats.
+2. Run configured static checks for selected risky constructs and likely embedded credentials.
+3. Require an explicitly executed test runner.
+4. Check source URLs/licenses and token-shingle similarity against supplied references.
+
+Pattern-based checks can miss issues and produce false positives. Passing this gate is not proof of correctness, security or legal compliance.
+
+## 7. Mobile status
+
+The Android HUD was not changed or rebuilt during the 0.3.0 core update. Web research, local knowledge, project generation and model training commands are exposed through the Python CLI. Wiring these capabilities into Android and connecting an effective on-device inference runtime are separate future tasks.
