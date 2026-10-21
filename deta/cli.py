@@ -9,6 +9,7 @@ from deta.assistant import DetaAssistant
 from deta.config import DetaConfig
 from deta.data import read_licensed_jsonl, write_jsonl
 from deta.github_catalog import GithubCatalog
+from deta.inference import generate_completion
 from deta.knowledge import KnowledgeStore
 from deta.model import build_default_model, build_grouped_model
 from deta.projects import create_project
@@ -95,6 +96,15 @@ def build_parser() -> argparse.ArgumentParser:
     project.add_argument("--output", required=True)
     project.add_argument("--brief", default="")
 
+    complete = commands.add_parser("model-complete", help="Generate an experimental local completion from a trained checkpoint")
+    complete.add_argument("--checkpoint", required=True)
+    complete.add_argument("--prompt", required=True)
+    complete.add_argument("--tokens", type=int, default=160)
+    complete.add_argument("--temperature", type=float, default=0.8)
+    complete.add_argument("--top-k", type=int, default=24)
+    complete.add_argument("--seed", type=int, default=42)
+    complete.add_argument("--device", choices=["cpu", "cuda"], default=None)
+
     return parser
 
 
@@ -142,6 +152,19 @@ def main() -> None:
 
     if args.command == "create-project":
         result = create_project(args.kind, args.name, args.output, args.brief)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
+
+    if args.command == "model-complete":
+        result = generate_completion(
+            checkpoint_path=args.checkpoint,
+            prompt=args.prompt,
+            max_new_tokens=args.tokens,
+            temperature=args.temperature,
+            top_k=args.top_k,
+            seed=args.seed,
+            device=args.device,
+        )
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return
 
