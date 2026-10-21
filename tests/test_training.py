@@ -161,3 +161,51 @@ def test_group_training_rejects_a_changed_manifest_on_resume(tmp_path):
         assert False, "Expected dataset digest validation to reject changed data"
     except ValueError as exc:
         assert "Dataset manifest differs" in str(exc)
+
+def test_warm_start_preserves_previous_weights_and_tracks_new_dataset(tmp_path):
+    manifest = tmp_path / "approved.jsonl"
+    create_manifest(manifest)
+    old_output = tmp_path / "old-checkpoints"
+    config = small_config()
+
+    train_five_groups(
+        data_path=manifest,
+        output_dir=old_output,
+        steps_per_group=1,
+        start_group=1,
+        end_group=5,
+        config=config,
+        seed=123,
+        max_bytes=4096,
+        device="cpu",
+    )
+    old_checkpoint = torch.load(old_output / "final.pt", map_location="cpu", weights_only=True)
+    old_hash = old_checkpoint["dataset_sha256"]
+    old_steps = old_checkpoint["training_steps"]
+
+    record = json.loads(manifest.read_text(encoding="utf-8"))
+    record["content"] += "\n# additional approved training sample\n"
+    manifest.write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+    new_output = tmp_path / "continued-checkpoints"
+    result = train_five_groups(
+        data_path=manifest,
+        output_dir=new_output,
+        steps_per_group=1,
+        start_group=1,
+        end_group=5,
+        config=config,
+        initial_weights=old_output / "final.pt",
+        seed=123,
+        max_bytes=4096,
+        device="cpu",
+    )
+    new_checkpoint = torch.load(new_output / "final.pt", map_location="cpu", weights_only=True)
+
+    assert result["training_lineage"]["warm_start"] is True
+    assert result["training_lineage"]["parent_training_steps"] == old_steps
+    assert result["training_lineage"]["parent_dataset_sha256"] == old_hash
+    assert new_checkpoint["dataset_sha256"] != old_hash
+    assert new_checkpoint["groups_completed"] == 5
+    assert new_checkpoint["training_lineage"]["parent_checkpoint_sha256"]
+
