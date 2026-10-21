@@ -76,6 +76,54 @@ jobs:
           test -f app/src/main/java/app/deta/mobile/MainActivity.java
           gradle --no-daemon --stacktrace :app:compileDebugJavaWithJavac
 
+  android-build:
+    if: github.ref == 'refs/heads/deta-mobile-integrated'
+    needs: [tests, android-compile-test]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Verify Android files
+        run: |
+          test -f settings.gradle
+          test -f build.gradle
+          test -f app/build.gradle
+          test -f app/src/main/AndroidManifest.xml
+          test -f app/src/main/res/drawable/ic_deta_foreground.xml
+      - name: Package the tested Deta APK
+        run: gradle --no-daemon --stacktrace clean assembleDebug
+      - name: Verify alignment, signature, ZIP integrity, and package identity
+        run: |
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          BUILD_TOOLS_DIR="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          test -x "$BUILD_TOOLS_DIR/apksigner"
+          test -x "$BUILD_TOOLS_DIR/aapt"
+          test -x "$BUILD_TOOLS_DIR/zipalign"
+          "$BUILD_TOOLS_DIR/zipalign" -c -v 4 "$APK"
+          "$BUILD_TOOLS_DIR/apksigner" verify --verbose --print-certs "$APK"
+          "$BUILD_TOOLS_DIR/aapt" dump badging "$APK" | tee /tmp/deta-apk-badging.txt
+          grep -F "package: name='app.deta.mobile.debug' versionCode='1' versionName='0.1.0-debug'" /tmp/deta-apk-badging.txt
+          unzip -t "$APK"
+          sha256sum "$APK"
+          ls -lh "$APK"
+      - name: Upload final installable debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: deta-android-debug-apk-final
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
+
   train-groups:
     if: github.event_name == 'push' && github.ref == 'refs/heads/deta-ai-foundation' && contains(github.event.head_commit.message, '[train-deta]')
     needs: tests
