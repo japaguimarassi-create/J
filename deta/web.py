@@ -67,6 +67,15 @@ def _safe_response_url(url: str) -> str:
     return validate_public_url(url, resolve_dns=True)
 
 
+class _SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, response, code, message, headers, new_url):
+        destination = urllib.parse.urljoin(request.full_url, new_url)
+        safe_destination = validate_public_url(destination, resolve_dns=True)
+        return super().redirect_request(
+            request, response, code, message, headers, safe_destination
+        )
+
+
 class _PageParser(HTMLParser):
     BLOCK_TAGS = {
         "article", "br", "dd", "div", "dl", "dt", "h1", "h2", "h3", "h4",
@@ -220,7 +229,8 @@ def _http_get(url: str, max_bytes: int, timeout: int) -> tuple[str, str, bytes]:
         method="GET",
     )
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        opener = urllib.request.build_opener(_SafeRedirectHandler())
+        with opener.open(request, timeout=timeout) as response:
             final_url = _safe_response_url(response.geturl())
             content_type = response.headers.get_content_type().lower()
             if content_type not in {"text/html", "text/plain", "application/json", "application/xhtml+xml"}:
