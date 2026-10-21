@@ -469,7 +469,7 @@ public final class MainActivity extends Activity {
                     .replaceFirst("(?i)^(um|uma|o|a|meu|minha)\\s+", "").trim();
             name = name.replaceFirst("(?i)^(jogo|game|aplicativo|app|site|página|pagina|projeto|rede social)\\s+(de|do|da|para|sobre)\\s+", "");
         }
-        name = name.replaceAll("[^\\\\p{L}\\\\p{N} _.-]", "").trim();
+        name = name.replaceAll("[^\\p{L}\\p{N} _.-]", "").trim();
         if (name.length() > 48) name = name.substring(0, 48).trim();
         if (name.isEmpty() || name.matches("(?i)(jogo|app|site|projeto|aplicativo)")) name = kind.equals("game") ? "Jogo Deta" : kind.equals("social") ? "Comunidade Deta" : "Projeto Deta";
         String slug = name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", "");
@@ -559,13 +559,13 @@ public final class MainActivity extends Activity {
             if (titleMatcher.find()) title = htmlToText(titleMatcher.group(1)).trim();
             String body = htmlToText(page);
             if (body.length() > 4000) body = body.substring(0, 4000) + "...";
-            JSONArray records = new JSONArray();
             JSONObject item = new JSONObject();
             item.put("title", title.isEmpty() ? address : title);
             item.put("url", address);
             item.put("snippet", body.substring(0, Math.min(body.length(), 1200)));
-            records.put(item);
-            saveKnowledge(new ArrayList<JSONObject>() {{ add(item); }});
+            ArrayList<JSONObject> records = new ArrayList<>();
+            records.add(item);
+            saveKnowledge(records);
             return "Página consultada e adicionada à base local.\n\n" + title + "\n" + address + "\n\n" + body;
         } catch (Exception exception) {
             return "Não consegui ler esta página: " + safeError(exception)
@@ -1036,7 +1036,7 @@ public final class MainActivity extends Activity {
                 .setView(webView).setPositiveButton("Fechar", null)
                 .setNeutralButton("Compartilhar HTML", (d, which) -> {
                     try {
-                        String html = new String(java.nio.file.Files.readAllBytes(page.toPath()), StandardCharsets.UTF_8);
+                        String html = readUtf8(page);
                         Intent share = new Intent(Intent.ACTION_SEND);
                         share.setType("text/html");
                         share.putExtra(Intent.EXTRA_SUBJECT, directory.getName() + " — Deta");
@@ -1071,12 +1071,14 @@ public final class MainActivity extends Activity {
         Collections.sort(sorted, Comparator.comparingLong((Conversation item) -> item.id).reversed());
         String query = drawerSearch == null ? "" : drawerSearch.getText().toString().trim().toLowerCase(Locale.ROOT);
         int visibleCount = 0;
+        int conversationCount = 0;
         for (Conversation conversation : sorted) {
             if (!query.isEmpty() && !conversation.title.toLowerCase(Locale.ROOT).contains(query)) continue;
+            conversationCount++;
             visibleCount++;
             LinearLayout row = horizontal();
             row.setPadding(dp(11), dp(10), dp(11), dp(10));
-            row.setMinimumHeight(dp(48));
+            row.setMinimumHeight(dp(46));
             row.setBackgroundResource(android.R.drawable.list_selector_background);
             row.setClickable(true);
             row.setFocusable(true);
@@ -1094,8 +1096,52 @@ public final class MainActivity extends Activity {
             margin(rowParams, 0, 2, 0, 2);
             drawerRows.addView(row, rowParams);
         }
+        if (conversationCount == 0 && query.isEmpty()) {
+            TextView empty = text("Suas conversas aparecerão aqui quando você começar.", 14, MUTED, false);
+            empty.setPadding(dp(11), dp(8), dp(11), dp(14));
+            drawerRows.addView(empty, lp(-1, -2));
+        }
+
+        File[] projects = projectsDirectory().listFiles(File::isDirectory);
+        ArrayList<File> matchingProjects = new ArrayList<>();
+        if (projects != null) {
+            for (File project : projects) {
+                String displayName = project.getName().replace('-', ' ');
+                if (query.isEmpty() || displayName.toLowerCase(Locale.ROOT).contains(query)) matchingProjects.add(project);
+            }
+        }
+        Collections.sort(matchingProjects, Comparator.comparingLong(File::lastModified).reversed());
+        if (!matchingProjects.isEmpty()) {
+            TextView sectionTitle = text("Projetos", 15, WHITE, true);
+            LinearLayout.LayoutParams sectionParams = lp(-1, 31);
+            margin(sectionParams, 0, 10, 0, 2);
+            drawerRows.addView(sectionTitle, sectionParams);
+            for (File project : matchingProjects) {
+                visibleCount++;
+                LinearLayout row = horizontal();
+                row.setPadding(dp(11), dp(10), dp(11), dp(10));
+                row.setMinimumHeight(dp(46));
+                row.setBackgroundResource(android.R.drawable.list_selector_background);
+                row.setClickable(true);
+                row.setFocusable(true);
+                row.addView(new IconView(this, Icon.PROJECT, ACCENT), lp(20, 20));
+                TextView title = text(project.getName().replace('-', ' '), 15, Color.rgb(223, 223, 227), false);
+                title.setSingleLine(true);
+                title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                LinearLayout.LayoutParams titleParams = lp(-1, -2);
+                margin(titleParams, 10, 0, 0, 0);
+                row.addView(title, titleParams);
+                row.setOnClickListener(view -> {
+                    closeDrawer();
+                    openProjectPreview(project);
+                });
+                LinearLayout.LayoutParams rowParams = lp(-1, -2);
+                margin(rowParams, 0, 2, 0, 2);
+                drawerRows.addView(row, rowParams);
+            }
+        }
         if (visibleCount == 0) {
-            TextView empty = text(query.isEmpty() ? "Nenhuma conversa ainda." : "Nenhum resultado.", 14, MUTED, false);
+            TextView empty = text(query.isEmpty() ? "Nenhuma conversa ou projeto ainda." : "Nenhum resultado.", 14, MUTED, false);
             empty.setPadding(dp(11), dp(14), dp(11), dp(14));
             drawerRows.addView(empty, lp(-1, -2));
         }
@@ -1209,6 +1255,35 @@ public final class MainActivity extends Activity {
                     line(canvas, 15.6f, 6.1f, 17.9f, 8.4f); break;
                 case CLOSE:
                     line(canvas, 6, 6, 18, 18); line(canvas, 18, 6, 6, 18); break;
+                case HOME:
+                    path(canvas, 3, 11, 12, 3, 21, 11);
+                    path(canvas, 5, 10, 5, 21, 19, 21, 19, 10);
+                    break;
+                case WEB:
+                    canvas.drawCircle(12, 12, 9, paint);
+                    canvas.drawOval(new RectF(7, 3, 17, 21), paint);
+                    line(canvas, 3, 12, 21, 12);
+                    line(canvas, 5, 7, 19, 7);
+                    line(canvas, 5, 17, 19, 17);
+                    break;
+                case PROJECT:
+                    line(canvas, 12, 3, 12, 21);
+                    line(canvas, 3, 12, 21, 12);
+                    break;
+                case LIBRARY:
+                    canvas.drawRect(new RectF(3, 3, 21, 21), paint);
+                    line(canvas, 9, 3, 9, 21);
+                    line(canvas, 15, 3, 15, 21);
+                    line(canvas, 3, 9, 21, 9);
+                    line(canvas, 3, 15, 21, 15);
+                    break;
+                case BRAIN:
+                    canvas.drawArc(new RectF(3, 3, 12, 20), 105, 250, false, paint);
+                    canvas.drawArc(new RectF(12, 3, 21, 20), 185, 250, false, paint);
+                    line(canvas, 12, 4, 12, 21);
+                    path(canvas, 7, 7, 9, 10, 6, 13);
+                    path(canvas, 17, 7, 15, 10, 18, 13);
+                    break;
             }
             canvas.restoreToCount(saved);
         }
