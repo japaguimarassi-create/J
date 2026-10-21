@@ -1,6 +1,5 @@
 import re
 import urllib.parse
-from pathlib import Path
 from typing import Any
 
 from deta.knowledge import KnowledgeStore, _tokens
@@ -120,8 +119,13 @@ def _extractive_summary(
         url = source.get("url", "")
         source_lookup[url] = source.get("title", url)
         snippet = source.get("snippet", "")
-        if snippet:
-            candidates.append((_sentence_score(snippet, query_tokens) + 0.25, snippet.strip(), url))
+        for sentence in re.split(r"(?<=[.!?])\\s+|\\n+", snippet):
+            sentence = sentence.strip()
+            if len(sentence) < 40:
+                continue
+            score = _sentence_score(sentence, query_tokens)
+            if score > 0:
+                candidates.append((score + 0.25, sentence, url))
 
     for document in indexed:
         url = document.get("url", "")
