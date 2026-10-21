@@ -287,6 +287,12 @@ def train_five_groups(
             raise ValueError("Resume checkpoint architecture/configuration does not match this run.")
         if checkpoint.get("dataset_sha256") != dataset_sha256:
             raise ValueError("Dataset manifest differs from the checkpoint; refusing mixed-data training.")
+        if checkpoint.get("max_bytes") != max_bytes:
+            raise ValueError("Corpus byte limit differs from the checkpoint; refusing inconsistent training.")
+        if checkpoint.get("seed") != seed:
+            raise ValueError("Training seed differs from the checkpoint; use the same seed to resume.")
+        if not isinstance(checkpoint.get("model_state_dict"), dict):
+            raise ValueError("Resume checkpoint has no valid model state.")
         if int(checkpoint.get("groups_completed", -1)) != start_group - 1:
             raise ValueError("Resume checkpoint must be from exactly the group before start_group.")
         model.load_state_dict(checkpoint["model_state_dict"], strict=True)
