@@ -58,6 +58,7 @@ jobs:
           name: deta-400k-five-group-checkpoints
           path: |
             checkpoints/deta-400k/
+            data/approved.jsonl
             data/approved.report.json
           if-no-files-found: warn
           retention-days: 30
