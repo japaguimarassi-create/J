@@ -99,11 +99,11 @@ def _python_and_json_syntax(files: Mapping[str, str]) -> list[str]:
     errors = []
     for path, content in files.items():
         try:
-            if path.endswith(".py"):
+            if Path(path).suffix.lower() == ".py":
                 ast.parse(content, filename=path)
-            elif path.endswith(".json"):
+            elif Path(path).suffix.lower() == ".json":
                 json.loads(content)
-            elif path.endswith(".toml"):
+            elif Path(path).suffix.lower() == ".toml":
                 tomllib.loads(content)
         except (SyntaxError, ValueError) as exc:
             errors.append(f"{path}: {exc}")
