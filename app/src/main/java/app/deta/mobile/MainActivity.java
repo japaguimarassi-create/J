@@ -15,6 +15,8 @@ import android.os.Bundle;
 import android.speech.RecognizerIntent;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.text.method.LinkMovementMethod;
+import android.text.util.Linkify;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -68,7 +70,7 @@ public final class MainActivity extends Activity {
 
     private static final class ChatMessage {
         final boolean fromUser;
-        final String text;
+        String text;
         ChatMessage(boolean fromUser, String text) {
             this.fromUser = fromUser;
             this.text = text;
@@ -273,12 +275,24 @@ public final class MainActivity extends Activity {
     }
 
     private void showAttachmentOptions() {
-        String[] options = {"Biblioteca local", "Imagem ou arquivo"};
-        new AlertDialog.Builder(this).setTitle("Adicionar conteúdo")
-                .setItems(options, (dialog, which) -> Toast.makeText(this,
-                        which == 0 ? "A biblioteca local será integrada em uma próxima etapa."
-                                : "O seletor de arquivos será integrado em uma próxima etapa.",
-                        Toast.LENGTH_SHORT).show())
+        String[] options = {"Pesquisar na web", "Ajuda e funções", "Limpar mensagem", "Nova conversa"};
+        new AlertDialog.Builder(this).setTitle("Ações da Deta")
+                .setItems(options, (dialog, which) -> {
+                    if (which == 0) {
+                        composer.setText("Pesquisar na web: ");
+                        composer.setSelection(composer.length());
+                        composer.requestFocus();
+                        showKeyboard(composer);
+                    } else if (which == 1) {
+                        composer.setText("/ajuda");
+                        composer.setSelection(composer.length());
+                    } else if (which == 2) {
+                        composer.setText("");
+                        composer.requestFocus();
+                    } else {
+                        startNewConversation();
+                    }
+                })
                 .setNegativeButton("Fechar", null).show();
     }
 
@@ -343,7 +357,7 @@ public final class MainActivity extends Activity {
     private void sendMessage() {
         String value = composer.getText().toString().trim();
         if (value.isEmpty()) {
-            Toast.makeText(this, "Escreva uma mensagem para começar.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Escreva uma pergunta ou consulta.", Toast.LENGTH_SHORT).show();
             return;
         }
         Conversation conversation = activeConversation();
@@ -354,16 +368,32 @@ public final class MainActivity extends Activity {
         }
         if (conversation.messages.isEmpty()) conversation.title = createTitle(value);
         conversation.messages.add(new ChatMessage(true, value));
-        conversation.messages.add(new ChatMessage(false,
-                "Recebi sua mensagem e a salvei neste dispositivo. O mecanismo de respostas da Deta ainda não está conectado a esta interface."));
+        ChatMessage response = new ChatMessage(false, "Consultando a web pública...");
+        conversation.messages.add(response);
+        Conversation responseConversation = conversation;
         composer.setText("");
         persistConversations();
         renderTranscript();
-        if (drawerLayer != null && drawerLayer.getVisibility() == View.VISIBLE) renderDrawerRows();
+        if (drawerLayer != null) renderDrawerRows();
         InputMethodManager manager = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
         if (manager != null) manager.hideSoftInputFromWindow(composer.getWindowToken(), 0);
         composer.clearFocus();
         transcriptScroll.post(() -> transcriptScroll.fullScroll(View.FOCUS_DOWN));
+
+        Thread worker = new Thread(() -> {
+            String answer = WebSearch.answer(value);
+            runOnUiThread(() -> {
+                response.text = answer;
+                persistConversations();
+                if (activeConversationId == responseConversation.id) {
+                    renderTranscript();
+                    transcriptScroll.post(() -> transcriptScroll.fullScroll(View.FOCUS_DOWN));
+                }
+                if (drawerLayer != null) renderDrawerRows();
+            });
+        }, "deta-public-web-search");
+        worker.setDaemon(true);
+        worker.start();
     }
 
     private String createTitle(String value) {
@@ -398,6 +428,9 @@ public final class MainActivity extends Activity {
                 TextView response = text(message.text, 15, Color.rgb(222, 222, 226), false);
                 response.setGravity(Gravity.TOP);
                 response.setLineSpacing(dp(3), 1f);
+                response.setAutoLinkMask(Linkify.WEB_URLS);
+                response.setLinkTextColor(ACCENT);
+                response.setMovementMethod(LinkMovementMethod.getInstance());
                 row.addView(response, new LinearLayout.LayoutParams(0, -2, 1f));
             }
             transcript.addView(row, rowParams);

@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:allowBackup="false"
+        android:icon="@drawable/ic_deta_app_icon"
+        android:roundIcon="@drawable/ic_deta_app_icon"
         android:label="Deta"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
