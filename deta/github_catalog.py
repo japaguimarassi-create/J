@@ -22,6 +22,7 @@ BLOCKED_NAMES = {
     ".env", ".npmrc", ".pypirc", "credentials", "id_rsa", "id_ed25519",
     "secrets", "secret", "token", "private_key",
 }
+BLOCKED_DIRS = {".git", "node_modules", "vendor", "dist", "build", "target", "out"}
 
 
 def validate_repo_name(full_name: str) -> tuple[str, str]:
@@ -34,10 +35,15 @@ def validate_repo_name(full_name: str) -> tuple[str, str]:
 
 class GithubCatalog:
     def __init__(self, token: str | None = None, timeout: int = 20):
+        if timeout < 1 or timeout > 120:
+            raise ValueError("timeout must be between 1 and 120 seconds")
         self.token = token or os.getenv("DETA_GITHUB_TOKEN")
         self.timeout = timeout
 
     def _get_json(self, url: str) -> dict[str, Any]:
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme != "https" or parsed.hostname != "api.github.com":
+            raise ValueError("Authenticated GitHub API requests must target https://api.github.com.")
         headers = {
             "Accept": "application/vnd.github+json",
             "User-Agent": "Deta-AI-Research/0.1",
@@ -51,8 +57,10 @@ class GithubCatalog:
                 payload = json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             if exc.code in {401, 403, 429}:
+                retry_after = exc.headers.get("Retry-After") if exc.headers else None
+                suffix = f" Retry-After: {retry_after}." if retry_after else " Check the rate limit before retrying."
                 raise GithubCatalogError(
-                    f"GitHub API limit or permission error ({exc.code}); wait or configure DETA_GITHUB_TOKEN."
+                    f"GitHub API limit or permission error ({exc.code}).{suffix}"
                 ) from exc
             raise GithubCatalogError(f"GitHub API returned HTTP {exc.code}.") from exc
         except (urllib.error.URLError, TimeoutError) as exc:
@@ -74,6 +82,8 @@ class GithubCatalog:
         )
         payload = self._get_json(url)
         items = payload.get("items", [])
+        if not isinstance(items, list):
+            raise GithubCatalogError("GitHub search returned an invalid items collection.")
         return [
             {
                 "full_name": item.get("full_name", ""),
@@ -102,8 +112,11 @@ class GithubCatalog:
         tree = self._get_json(f"{base}/git/trees/{encoded_branch}?recursive=1")
         if tree.get("truncated"):
             raise GithubCatalogError("Repository tree is truncated; ingest smaller repositories selectively.")
+        entries = tree.get("tree", [])
+        if not isinstance(entries, list):
+            raise GithubCatalogError("GitHub repository tree is invalid.")
         selected = []
-        for entry in tree.get("tree", []):
+        for entry in entries:
             if not isinstance(entry, dict) or entry.get("type") != "blob":
                 continue
             path = str(entry.get("path", ""))
@@ -112,33 +125,40 @@ class GithubCatalog:
                 continue
             if any(part.startswith(".env") for part in parts):
                 continue
+            if any(part in BLOCKED_DIRS for part in parts[:-1]):
+                continue
             if path.lower().endswith((".min.js", ".map", ".lock")):
                 continue
-            if any(path.lower().endswith(ext) for ext in CODE_EXTENSIONS) and 0 < int(entry.get("size", 0)) <= 100_000:
+            try:
+                size = int(entry.get("size", 0))
+            except (TypeError, ValueError):
+                continue
+            if any(path.lower().endswith(ext) for ext in CODE_EXTENSIONS) and 0 < size <= 100_000:
                 selected.append(path)
             if len(selected) >= max_files:
                 break
+
         records = []
         for path in selected:
             encoded_path = urllib.parse.quote(path, safe="/")
             raw_url = f"https://raw.githubusercontent.com/{owner}/{repo}/{encoded_branch}/{encoded_path}"
+            parsed_raw = urllib.parse.urlparse(raw_url)
+            if parsed_raw.scheme != "https" or parsed_raw.hostname != "raw.githubusercontent.com":
+                continue
             request = urllib.request.Request(
                 raw_url,
-                headers={
-                    "User-Agent": "Deta-AI-Research/0.1",
-                    **({"Authorization": f"Bearer {self.token}"} if self.token else {}),
-                },
+                headers={"User-Agent": "Deta-AI-Research/0.1"},
             )
             try:
                 with urllib.request.urlopen(request, timeout=self.timeout) as response:
                     content = response.read(100_001)
                 if len(content) > 100_000:
                     continue
-                text = content.decode("utf-8")
+                source_text = content.decode("utf-8")
             except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, UnicodeDecodeError):
                 continue
             records.append({
-                "content": text,
+                "content": source_text,
                 "source_url": f"https://github.com/{owner}/{repo}/blob/{encoded_branch}/{encoded_path}",
                 "license_id": license_id,
                 "source_type": "code",
