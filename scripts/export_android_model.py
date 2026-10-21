@@ -97,7 +97,7 @@ def export_checkpoint(checkpoint_path: str | Path, weights_path: str | Path, met
         with os.fdopen(weights_fd, "wb") as output:
             output.write(MAGIC)
             for _, tensor in tensors:
-                output.write(bytes(tensor.view(torch.uint8).tolist()))
+                output.write(bytes(tensor.view(-1).view(torch.uint8).tolist()))
             output.flush()
             os.fsync(output.fileno())
         expected_size = len(MAGIC) + EXPECTED_PARAMETERS * 4
