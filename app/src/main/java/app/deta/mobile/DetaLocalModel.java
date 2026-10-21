@@ -11,6 +11,8 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Random;
 
@@ -133,6 +135,9 @@ final class DetaLocalModel {
                 || !"DTA400K1".equals(metadata.optString("format", ""))) {
             throw new IOException("Os metadados não correspondem ao modelo Deta 400k.");
         }
+        if (!sha256(weights).equalsIgnoreCase(metadata.optString("weights_sha256", ""))) {
+            throw new IOException("A soma SHA-256 dos pesos não confere.");
+        }
         return new DetaLocalModel(groups, metadata);
     }
 
@@ -241,6 +246,17 @@ final class DetaLocalModel {
                 output.write(buffer, 0, count);
             }
             return output.toByteArray();
+        }
+    }
+
+    private static String sha256(byte[] value) throws IOException {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(value);
+            StringBuilder result = new StringBuilder(digest.length * 2);
+            for (byte item : digest) result.append(String.format(java.util.Locale.ROOT, "%02x", item & 0xFF));
+            return result.toString();
+        } catch (NoSuchAlgorithmException exception) {
+            throw new IOException("SHA-256 não está disponível neste Android.", exception);
         }
     }
 
