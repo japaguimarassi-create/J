@@ -48,6 +48,7 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--end-group", type=int, default=5)
     train.add_argument("--device", choices=["cpu", "cuda"], default=None)
     train.add_argument("--resume-from", default=None)
+    train.add_argument("--initial-weights", default=None, help="Warm-start all five sequential groups from an earlier trained model")
     train.add_argument("--seed", type=int, default=42)
     train.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_TRAINING_BYTES)
 
@@ -200,6 +201,7 @@ def main() -> None:
             resume_from=args.resume_from,
             seed=args.seed,
             max_bytes=args.max_bytes,
+            initial_weights=args.initial_weights,
         )
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return
