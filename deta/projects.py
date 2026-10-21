@@ -1,6 +1,9 @@
 import html
 import json
+import os
 import re
+import shutil
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -383,9 +386,7 @@ def create_project(
         raise ValueError("Refusing to create a project in the filesystem root.")
     if target.exists() and (not target.is_dir() or any(target.iterdir())):
         raise FileExistsError(f"Output directory already exists and is not empty: {target}")
-    target.mkdir(parents=True, exist_ok=True)
 
-    title_html = html.escape(project_name, quote=True)
     description = " ".join((brief or "Starter project generated locally by Deta.").split())
     if len(description) > 2000:
         description = description[:2000]
@@ -404,22 +405,46 @@ def create_project(
     else:
         templates = _python_cli()
 
+    replacements = {
+        "__TITLE__": html.escape(project_name, quote=True),
+        "__SLUG__": slug,
+        "__BRIEF__": description,
+    }
+    if selected_kind == "python-cli":
+        replacements["__TITLE__"] = project_name.replace("\\", "\\\\").replace('"', '\\"')
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    stage = Path(tempfile.mkdtemp(prefix="." + target.name + ".deta-", dir=target.parent))
     written = []
-    for relative_path, template in templates.items():
-        destination = target / relative_path
-        if destination.exists():
-            raise FileExistsError(f"Refusing to overwrite existing file: {destination}")
-        if relative_path == "project.json":
-            content = json.dumps(metadata, ensure_ascii=False, indent=2) + "\n"
-        else:
-            content = template.replace("__TITLE__", title_html)
-            content = content.replace("__SLUG__", slug)
-            content = content.replace("__BRIEF__", description)
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_text(content, encoding="utf-8")
-        written.append(relative_path)
-    (target / "project.json").write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    written.append("project.json")
+    try:
+        for relative_path, template in templates.items():
+            destination = stage / relative_path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            if relative_path.endswith(".md"):
+                path_replacements = dict(replacements)
+                path_replacements["__TITLE__"] = project_name
+            else:
+                path_replacements = replacements
+            content = re.sub(
+                r"__(?:TITLE|SLUG|BRIEF)__",
+                lambda match: path_replacements[match.group(0)],
+                template,
+            )
+            destination.write_text(content, encoding="utf-8")
+            written.append(relative_path)
+
+        (stage / "project.json").write_text(
+            json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        written.append("project.json")
+        if target.exists():
+            target.rmdir()
+        os.replace(stage, target)
+    except Exception:
+        shutil.rmtree(stage, ignore_errors=True)
+        raise
+
     return {
         "name": project_name,
         "kind": selected_kind,
