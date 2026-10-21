@@ -1,3 +1,6 @@
+import io
+import urllib.error
+
 import pytest
 
 from deta.github_catalog import (
@@ -95,12 +98,12 @@ def test_rate_limit_retry_waits_before_retrying(monkeypatch):
     def fake_urlopen(request, timeout):
         calls.append(request)
         if len(calls) == 1:
-            raise __import__("urllib.error").error.HTTPError(
+            raise urllib.error.HTTPError(
                 request.full_url,
                 429,
                 "Too Many Requests",
                 {"Retry-After": "1"},
-                None,
+                io.BytesIO(b"rate limit exceeded"),
             )
         return FakeResponse()
 
