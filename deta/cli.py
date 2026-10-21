@@ -5,11 +5,15 @@ from pathlib import Path
 import torch
 
 from deta import __version__
+from deta.assistant import DetaAssistant
 from deta.config import DetaConfig
 from deta.data import read_licensed_jsonl, write_jsonl
 from deta.github_catalog import GithubCatalog
+from deta.knowledge import KnowledgeStore
 from deta.model import build_default_model, build_grouped_model
+from deta.projects import create_project
 from deta.training import DEFAULT_MAX_TRAINING_BYTES, train_checkpoint, train_five_groups
+from deta.web import read_web_page, search_web
 from deta.verification import (
     DEFAULT_MAX_PROJECT_BYTES,
     DEFAULT_MAX_PROJECT_FILES,
@@ -63,12 +67,77 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("--max-files", type=int, default=DEFAULT_MAX_PROJECT_FILES)
     verify.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_PROJECT_BYTES)
 
+    ask = commands.add_parser("ask", help="Answer using public internet retrieval and the local knowledge index")
+    ask.add_argument("question", nargs="+")
+    ask.add_argument("--offline", action="store_true", help="Use only the local knowledge index")
+    ask.add_argument("--results", type=int, default=5)
+    ask.add_argument("--read-pages", type=int, default=3)
+
+    web_search = commands.add_parser("web-search", help="Search the public web without an AI API key")
+    web_search.add_argument("query", nargs="+")
+    web_search.add_argument("--limit", type=int, default=5)
+
+    read_url = commands.add_parser("read-url", help="Read and extract text from a public HTTPS page")
+    read_url.add_argument("url")
+    read_url.add_argument("--max-chars", type=int, default=20000)
+
+    knowledge = commands.add_parser("knowledge", help="Inspect or search the local knowledge index")
+    knowledge.add_argument("--query", default=None)
+    knowledge.add_argument("--limit", type=int, default=8)
+
+    clear_knowledge = commands.add_parser("clear-knowledge", help="Clear the local knowledge index")
+    clear_knowledge.add_argument("--yes", action="store_true", help="Confirm removal of all indexed documents")
+
+    project = commands.add_parser("create-project", help="Generate a local game, social prototype, or Python tool")
+    project.add_argument("--kind", required=True, choices=["browser-game", "social-app", "python-cli"])
+    project.add_argument("--name", required=True)
+    project.add_argument("--output", required=True)
+    project.add_argument("--brief", default="")
+
     return parser
 
 
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+
+    if args.command == "ask":
+        result = DetaAssistant().ask(
+            " ".join(args.question),
+            web=not args.offline,
+            max_results=args.results,
+            pages_to_read=args.read_pages,
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
+
+    if args.command == "web-search":
+        print(json.dumps(search_web(" ".join(args.query), limit=args.limit), ensure_ascii=False, indent=2))
+        return
+
+    if args.command == "read-url":
+        page = read_web_page(args.url, max_chars=args.max_chars)
+        print(json.dumps(page, ensure_ascii=False, indent=2))
+        return
+
+    if args.command == "knowledge":
+        store = KnowledgeStore()
+        if args.query:
+            print(json.dumps(store.search(args.query, limit=args.limit), ensure_ascii=False, indent=2))
+        else:
+            print(json.dumps({"documents": store.count(), "path": str(store.path)}, ensure_ascii=False, indent=2))
+        return
+
+    if args.command == "clear-knowledge":
+        if not args.yes:
+            parser.error("Pass --yes to confirm clearing the local knowledge index.")
+        print(json.dumps({"removed_documents": KnowledgeStore().clear()}, indent=2))
+        return
+
+    if args.command == "create-project":
+        result = create_project(args.kind, args.name, args.output, args.brief)
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
 
     if args.command == "doctor":
         config = DetaConfig()
