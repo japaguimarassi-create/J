@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "policy": {
+    "public_access_is_not_automatic_permission": true,
+    "unknown_license_default": "reject",
+    "per_sample_provenance_required": true,
+    "deduplication_required": true,
+    "secrets_and_credentials": "exclude",
+    "respect_dataset_terms_and_opt_outs": true
+  },
+  "sources": [
+    {
+      "id": "fineweb",
+      "kind": "text",
+      "url": "https://huggingface.co/datasets/HuggingFaceFW/fineweb",
+      "declared_license": "ODC-BY-1.0",
+      "access": "dataset-managed",
+      "notes": "Large English web corpus. Review current dataset card, attribution terms, privacy considerations and access details before use."
+    },
+    {
+      "id": "fineweb-2",
+      "kind": "text",
+      "url": "https://huggingface.co/datasets/HuggingFaceFW/fineweb-2",
+      "declared_license": "ODC-BY-1.0",
+      "access": "dataset-managed",
+      "notes": "Multilingual corpus. Select explicit language/config subsets and review the current dataset card before download."
+    },
+    {
+      "id": "the-stack",
+      "kind": "code",
+      "url": "https://www.bigcode-project.org/docs/about/the-stack/",
+      "declared_license": "per-file",
+      "access": "dataset-managed",
+      "notes": "Use only files with an approved per-file license and respect opt-out/removal updates."
+    },
+    {
+      "id": "the-stack-v2",
+      "kind": "code",
+      "url": "https://huggingface.co/datasets/bigcode/the-stack-v2",
+      "declared_license": "per-file",
+      "access": "agreement-required-for-bulk-content",
+      "notes": "Bulk content access requires an agreement with Software Heritage and INRIA; comply with the dataset terms and each source license."
+    },
+    {
+      "id": "github-public-repositories",
+      "kind": "code",
+      "url": "https://docs.github.com/en/rest",
+      "declared_license": "per-repository",
+      "access": "metadata-search-plus-selective-fetch",
+      "notes": "Deta checks repository license metadata before downloading selected source files; unknown/unsupported licenses are rejected."
+    }
+  ]
+}
