@@ -83,6 +83,16 @@ python -m deta.cli create-project --kind python-cli --name "Task Organizer" --ou
 
 The generated command-line program has add/list/done/remove task commands and stores task data locally. Supported kinds are browser-game, social-app and python-cli. Existing non-empty output directories are rejected to prevent accidental overwrites.
 
+## Use the trained model locally
+
+After downloading a Deta checkpoint, you can run experimental byte-level completion with no hosted model API:
+
+~~~bash
+python -m deta.cli model-complete --checkpoint checkpoints/deta-400k/final.pt --prompt "def add(a, b):" --tokens 120 --temperature 0.8 --top-k 24
+~~~
+
+This invokes the trained neural weights and produces a continuation from the supplied prompt. It is a small byte-prediction model, so generated output may be malformed or incoherent. Use it as an experimental code-completion tool, not as a source of factual answers or a replacement for code review. For researched factual answers, use the ask command and inspect its cited sources.
+
 ## Neural model and extended training
 
 The model has **400,000 actual trainable parameters**, divided into five groups of 80,000. The original 79,824-parameter baseline remains available. Each group is trained in sequence and receives its own checkpoint; a completed run writes final.pt.
