@@ -38,6 +38,17 @@ jobs:
         run: python -m deta.cli count-params
       - name: Run unit tests
         run: python -m pytest -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Smoke-test generated project files
+        run: |
+          python -m deta.cli create-project --kind browser-game --name "CI Browser Game" --output "$RUNNER_TEMP/deta-browser-game"
+          python -m deta.cli create-project --kind social-app --name "CI Social App" --output "$RUNNER_TEMP/deta-social-app"
+          python -m deta.cli create-project --kind python-cli --name "CI Task CLI" --output "$RUNNER_TEMP/deta-python-cli"
+          node --check "$RUNNER_TEMP/deta-browser-game/game.js"
+          node --check "$RUNNER_TEMP/deta-social-app/app.js"
+          python -m compileall -q "$RUNNER_TEMP/deta-python-cli"
 
   train-groups:
     if: github.event_name == 'push' && github.ref == 'refs/heads/deta-ai-foundation' && contains(github.event.head_commit.message, '[train-deta]')
