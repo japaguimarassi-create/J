@@ -383,17 +383,412 @@ public final class MainActivity extends Activity {
         }
         if (conversation.messages.isEmpty()) conversation.title = createTitle(value);
         conversation.messages.add(new ChatMessage(true, value));
-        conversation.messages.add(new ChatMessage(false,
-                "Recebi sua mensagem e a salvei neste dispositivo. O mecanismo de respostas da Deta ainda não está conectado a esta interface."));
+        ChatMessage pending = new ChatMessage(false, "Analisando seu pedido...");
+        conversation.messages.add(pending);
+        long conversationId = conversation.id;
         composer.setText("");
         persistConversations();
         renderTranscript();
-        if (drawerLayer != null && drawerLayer.getVisibility() == View.VISIBLE) renderDrawerRows();
+        if (drawerLayer != null) renderDrawerRows();
         InputMethodManager manager = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
         if (manager != null) manager.hideSoftInputFromWindow(composer.getWindowToken(), 0);
         composer.clearFocus();
         transcriptScroll.post(() -> transcriptScroll.fullScroll(View.FOCUS_DOWN));
+        background.execute(() -> {
+            String answer;
+            try {
+                answer = processMessage(value);
+            } catch (Exception exception) {
+                answer = "Não consegui concluir esta tarefa: " + safeError(exception)
+                        + "\n\nTente novamente ou use \"Pesquisar na web\" para consultar fontes públicas.";
+            }
+            String finalAnswer = answer;
+            mainHandler.post(() -> {
+                pending.text = finalAnswer;
+                persistConversations();
+                if (activeConversationId == conversationId) {
+                    renderTranscript();
+                    transcriptScroll.post(() -> transcriptScroll.fullScroll(View.FOCUS_DOWN));
+                }
+                if (drawerLayer != null) renderDrawerRows();
+            });
+        });
     }
+
+    private String processMessage(String original) {
+        String prompt = original == null ? "" : original.trim();
+        String lower = prompt.toLowerCase(Locale.ROOT);
+        if (prompt.isEmpty()) return "Escreva uma pergunta, peça uma pesquisa web ou solicite a criação de um projeto.";
+        if (isGreeting(lower)) {
+            return "Olá! Sou a Deta. Posso pesquisar páginas públicas, guardar fontes neste dispositivo e criar projetos iniciais de jogos, sites e protótipos sociais. Não uso API de IA hospedada; as respostas de pesquisa vêm das fontes encontradas.";
+        }
+        if (lower.equals("ajuda") || lower.contains("o que você consegue fazer") || lower.contains("o que voce consegue fazer")
+                || lower.contains("suas funções") || lower.contains("suas funcoes") || lower.equals("help")) {
+            return "O que já funciona nesta versão:\n\n1. Pesquisar na web pública e mostrar links das fontes.\n2. Ler uma página HTTPS e salvar um resumo na base local.\n3. Criar projetos iniciais de jogos, sites e protótipos sociais.\n4. Guardar conversas e resultados localmente.\n5. Pesquisar novamente na base de conhecimento sem internet.\n\nO modelo neural treinado ainda não está embutido neste APK; não vou fingir que textos fixos são inferência neural.";
+        }
+        if (isProjectRequest(lower)) return createProjectFromPrompt(prompt, lower);
+        if (lower.contains("base de conhecimento") || lower.contains("minha memória") || lower.contains("minha memoria")
+                || lower.contains("fontes salvas") || lower.contains("fontes salvas")) {
+            return summarizeLocalKnowledge(lower);
+        }
+        if (lower.contains("modelo neural") || lower.contains("parâmetros") || lower.contains("parametros")
+                || lower.contains("treinamento") || lower.contains("checkpoint")) {
+            return "Estado do modelo na interface Android:\n\nO núcleo Python da Deta tem um modelo experimental de 400.000 parâmetros dividido em cinco grupos. Este APK ainda não carrega o checkpoint PyTorch para inferência local, por isso não posso alegar que o modelo neural está respondendo aqui. A interface já pode pesquisar na web e criar projetos usando ferramentas locais, sem chave de API de IA.";
+        }
+        Matcher urlMatcher = Pattern.compile("https://[^\\s]+", Pattern.CASE_INSENSITIVE).matcher(prompt);
+        if (urlMatcher.find() && (lower.startsWith("https://") || lower.contains("leia ") || lower.contains("resuma ") || lower.contains("abra "))) {
+            return readPublicPage(urlMatcher.group().replaceAll("[),.;]+$", ""));
+        }
+        String query = prompt.replaceFirst("(?i)^(pesquise na web|pesquisar na web|buscar na web|pesquise|pesquisar|procure na internet|buscar na internet)\\s*[:,-]?\\s*", "").trim();
+        if (query.isEmpty()) query = prompt;
+        return searchPublicWeb(query);
+    }
+
+    private boolean isGreeting(String lower) {
+        return lower.matches("^(oi|olá|ola|olá deta|ola deta|bom dia|boa tarde|boa noite|obrigado|obrigada|valeu)[!.? ]*$");
+    }
+
+    private boolean isProjectRequest(String lower) {
+        boolean action = lower.matches("(?s)^(crie|criar|gere|gerar|desenvolva|construa|monte|montar|faca|faça|faz|create|build|generate|novo projeto)\\b.*");
+        boolean subject = lower.contains("jogo") || lower.contains("game") || lower.contains("aplicativo")
+                || lower.contains(" aplicativo") || lower.contains(" app") || lower.contains("site")
+                || lower.contains("página") || lower.contains("pagina") || lower.contains("rede social")
+                || lower.contains("projeto");
+        return action && subject;
+    }
+
+    private String createProjectFromPrompt(String prompt, String lower) {
+        String kind = lower.contains("rede social") || lower.contains("social") ? "social"
+                : lower.contains("jogo") || lower.contains("game") ? "game" : "site";
+        Matcher named = Pattern.compile("(?i)(?:chamado|chamada|nomeado|nomeada|com nome)\\s+(.+)$").matcher(prompt);
+        String name;
+        if (named.find()) {
+            name = named.group(1).trim();
+        } else {
+            name = prompt.replaceFirst("(?i)^(crie|criar|gere|gerar|desenvolva|construa|monte|montar|faca|faça|faz|create|build|generate|novo projeto)\\s*", "")
+                    .replaceFirst("(?i)^(um|uma|o|a|meu|minha)\\s+", "").trim();
+            name = name.replaceFirst("(?i)^(jogo|game|aplicativo|app|site|página|pagina|projeto|rede social)\\s+(de|do|da|para|sobre)\\s+", "");
+        }
+        name = name.replaceAll("[^\\\\p{L}\\\\p{N} _.-]", "").trim();
+        if (name.length() > 48) name = name.substring(0, 48).trim();
+        if (name.isEmpty() || name.matches("(?i)(jogo|app|site|projeto|aplicativo)")) name = kind.equals("game") ? "Jogo Deta" : kind.equals("social") ? "Comunidade Deta" : "Projeto Deta";
+        String slug = name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", "");
+        if (slug.isEmpty()) slug = "projeto-deta";
+        File rootDir = new File(getFilesDir(), "projects");
+        File projectDir = new File(rootDir, slug);
+        if (projectDir.exists()) projectDir = new File(rootDir, slug + "-" + (System.currentTimeMillis() % 1_000_000L));
+        if (!projectDir.mkdirs()) throw new IllegalStateException("Não foi possível criar a pasta do projeto.");
+        String html = buildProjectHtml(kind, name, prompt);
+        try {
+            writeUtf8(new File(projectDir, "index.html"), html);
+            writeUtf8(new File(projectDir, "README.txt"),
+                    "Projeto criado pela Deta. Tipo: " + kind + "\nNome: " + name + "\nCriado localmente, sem API de IA.\n");
+        } catch (IOException exception) {
+            throw new IllegalStateException("Falha ao gravar os arquivos do projeto.", exception);
+        }
+        return "Projeto criado com arquivos reais neste dispositivo.\n\nNome: " + name
+                + "\nTipo: " + (kind.equals("game") ? "jogo de navegador" : kind.equals("social") ? "protótipo social local" : "site/aplicativo web")
+                + "\nArquivos: index.html e README.txt\n\nAbra o menu Deta → Biblioteca para executar a prévia. Os arquivos ficam no armazenamento privado do app; não é um APK ainda.";
+    }
+
+    private String buildProjectHtml(String kind, String name, String brief) {
+        String title = escapeHtml(name);
+        String description = escapeHtml(brief);
+        String style = "body{margin:0;background:#090b16;color:#f2f4ff;font-family:system-ui,sans-serif;padding:22px}main{max-width:760px;margin:auto}section{background:#171b2c;border:1px solid #2d3658;border-radius:18px;padding:18px;margin:14px 0}h1{font-size:clamp(25px,6vw,40px)}p{line-height:1.55;color:#bfc8e8}button{background:#aaa4ff;border:0;border-radius:12px;padding:12px 16px;font-weight:700;color:#090b16}input,textarea{width:100%;box-sizing:border-box;padding:12px;border-radius:10px;border:1px solid #374262;background:#0d1020;color:white;margin:8px 0}button{cursor:pointer}";
+        if (kind.equals("game")) {
+            return "<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>" + title
+                    + "</title><style>" + style + "#target{width:100%;min-height:190px;font-size:24px;background:linear-gradient(135deg,#5c66ff,#61d9ff)}strong{font-size:28px}</style></head><body><main><section><small>JOGO CRIADO PELA DETA</small><h1>"
+                    + title + "</h1><p>" + description + "</p><p>Toque no alvo o máximo que conseguir.</p><p>Pontos: <strong id='score'>0</strong></p><button id='target'>TOQUE AQUI</button><p id='message'>Pronto para começar.</p></section></main><script>let score=0;const target=document.getElementById('target');target.addEventListener('click',()=>{score++;document.getElementById('score').textContent=score;target.textContent=['BOM!','MAIS UMA!','CONTINUE!','INCRÍVEL!'][score%4];document.getElementById('message').textContent='Pontuação atualizada: '+score;});</script></body></html>";
+        }
+        if (kind.equals("social")) {
+            return "<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>" + title
+                    + "</title><style>" + style + ".post{white-space:pre-wrap}</style></head><body><main><section><small>COMUNIDADE LOCAL</small><h1>"
+                    + title + "</h1><p>" + description + "</p><form id='form'><textarea id='input' placeholder='Compartilhe uma ideia' required></textarea><button>Publicar</button></form></section><section><h2>Publicações</h2><div id='feed'></div></section></main><script>const form=document.getElementById('form'),input=document.getElementById('input'),feed=document.getElementById('feed'),key='deta-social-" + escapeJs(name) + "';let posts=[];try{posts=JSON.parse(localStorage.getItem(key)||'[]')}catch(e){}function render(){feed.replaceChildren();posts.forEach((post,index)=>{const row=document.createElement('section');row.className='post';const text=document.createElement('p');text.textContent=post;const del=document.createElement('button');del.textContent='Excluir';del.onclick=()=>{posts.splice(index,1);save()};row.append(text,del);feed.append(row)})}function save(){localStorage.setItem(key,JSON.stringify(posts));render()}form.addEventListener('submit',e=>{e.preventDefault();if(input.value.trim()){posts.unshift(input.value.trim());input.value='';save()}});render();</script></body></html>";
+        }
+        return "<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>" + title
+                + "</title><style>" + style + "</style></head><body><main><section><small>PROJETO DETA</small><h1>" + title
+                + "</h1><p>" + description + "</p><label for='idea'>Experimente a interface</label><input id='idea' placeholder='Digite alguma coisa'><button id='run'>Executar ação</button><p id='output'>Seu projeto está funcionando.</p></section></main><script>document.getElementById('run').addEventListener('click',()=>{document.getElementById('output').textContent='Resultado: '+document.getElementById('idea').value;});</script></body></html>";
+    }
+
+    private String escapeHtml(String value) {
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;");
+    }
+
+    private String escapeJs(String value) {
+        return value.replace("\\\\", "\\\\\\\\").replace("'", "\\\\'").replace("\\n", " ");
+    }
+
+    private void writeUtf8(File file, String value) throws IOException {
+        try (FileOutputStream stream = new FileOutputStream(file)) {
+            stream.write(value.getBytes(StandardCharsets.UTF_8));
+            stream.flush();
+        }
+    }
+
+    private String searchPublicWeb(String query) {
+        String cleaned = query == null ? "" : query.trim();
+        if (cleaned.isEmpty()) return "Digite o assunto que deseja pesquisar.";
+        try {
+            String endpoint = "https://html.duckduckgo.com/html/?q=" + URLEncoder.encode(cleaned, "UTF-8");
+            String page = fetchPublicHttps(endpoint);
+            ArrayList<JSONObject> results = extractSearchResults(page);
+            if (results.isEmpty()) return "A pesquisa não devolveu resultados legíveis para \"" + cleaned
+                    + "\". O site de busca pode estar temporariamente indisponível ou ter alterado o HTML. Tente uma frase mais específica.";
+            saveKnowledge(results);
+            StringBuilder answer = new StringBuilder("Pesquisa na web: ").append(cleaned).append("\n\n");
+            for (int index = 0; index < results.size(); index++) {
+                JSONObject item = results.get(index);
+                answer.append(index + 1).append(". ").append(item.optString("title", "Fonte pública")).append("\n")
+                        .append(item.optString("snippet", "Sem resumo disponível.")).append("\n")
+                        .append(item.optString("url", "")).append("\n\n");
+                if (answer.length() > 5200) break;
+            }
+            answer.append("As informações acima são trechos do buscador, não uma validação independente. Abra as fontes para confirmar detalhes.");
+            return answer.toString();
+        } catch (Exception exception) {
+            return "Não consegui acessar a pesquisa pública agora: " + safeError(exception)
+                    + "\n\nA Deta não usa chave de API de IA, mas precisa de internet para pesquisar. Tente novamente ou envie uma página HTTPS pública.";
+        }
+    }
+
+    private String readPublicPage(String address) {
+        try {
+            String page = fetchPublicHttps(address);
+            String title = "Página pública";
+            Matcher titleMatcher = Pattern.compile("(?is)<title[^>]*>(.*?)</title>").matcher(page);
+            if (titleMatcher.find()) title = htmlToText(titleMatcher.group(1)).trim();
+            String body = htmlToText(page);
+            if (body.length() > 4000) body = body.substring(0, 4000) + "...";
+            JSONArray records = new JSONArray();
+            JSONObject item = new JSONObject();
+            item.put("title", title.isEmpty() ? address : title);
+            item.put("url", address);
+            item.put("snippet", body.substring(0, Math.min(body.length(), 1200)));
+            records.put(item);
+            saveKnowledge(new ArrayList<JSONObject>() {{ add(item); }});
+            return "Página consultada e adicionada à base local.\n\n" + title + "\n" + address + "\n\n" + body;
+        } catch (Exception exception) {
+            return "Não consegui ler esta página: " + safeError(exception)
+                    + "\nUse um endereço HTTPS público que permita acesso sem login.";
+        }
+    }
+
+    private String fetchPublicHttps(String requested) throws IOException {
+        String current = requested;
+        for (int redirects = 0; redirects <= 4; redirects++) {
+            validatePublicUrl(current);
+            URL url = new URL(current);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setConnectTimeout(12000);
+            connection.setReadTimeout(15000);
+            connection.setInstanceFollowRedirects(false);
+            connection.setRequestMethod("GET");
+            connection.setRequestProperty("User-Agent", "Deta-Android/0.3 public-web-research");
+            connection.setRequestProperty("Accept", "text/html,text/plain,application/xhtml+xml");
+            int status = connection.getResponseCode();
+            if (status >= 300 && status < 400) {
+                String location = connection.getHeaderField("Location");
+                connection.disconnect();
+                if (location == null || redirects == 4) throw new IOException("Redirecionamento web excessivo ou sem destino.");
+                current = new URL(url, location).toString();
+                continue;
+            }
+            if (status < 200 || status >= 300) {
+                connection.disconnect();
+                throw new IOException("O site respondeu HTTP " + status + ".");
+            }
+            String contentType = connection.getContentType();
+            if (contentType != null && !(contentType.contains("text/html") || contentType.contains("text/plain")
+                    || contentType.contains("application/xhtml+xml"))) {
+                connection.disconnect();
+                throw new IOException("Formato de página não suportado: " + contentType);
+            }
+            try (InputStream stream = connection.getInputStream(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                byte[] buffer = new byte[8192];
+                int total = 0;
+                int count;
+                while ((count = stream.read(buffer)) != -1) {
+                    total += count;
+                    if (total > MAX_WEB_BYTES) throw new IOException("A página ultrapassa o limite de leitura de 1,2 MB.");
+                    output.write(buffer, 0, count);
+                }
+                return output.toString(StandardCharsets.UTF_8.name());
+            } finally {
+                connection.disconnect();
+            }
+        }
+        throw new IOException("Não foi possível seguir o endereço web.");
+    }
+
+    private void validatePublicUrl(String address) throws IOException {
+        Uri uri = Uri.parse(address);
+        String scheme = uri.getScheme();
+        String host = uri.getHost();
+        if (!"https".equalsIgnoreCase(scheme) || host == null || host.isEmpty() || uri.getUserInfo() != null) {
+            throw new IOException("Aceito apenas páginas HTTPS públicas, sem usuário ou senha no endereço.");
+        }
+        String lowerHost = host.toLowerCase(Locale.ROOT);
+        if (lowerHost.equals("localhost") || lowerHost.endsWith(".localhost") || lowerHost.endsWith(".local")
+                || lowerHost.endsWith(".internal") || lowerHost.equals("metadata.google.internal")) {
+            throw new IOException("Endereços locais e internos não são permitidos.");
+        }
+        try {
+            for (InetAddress addressResult : InetAddress.getAllByName(host)) {
+                if (addressResult.isAnyLocalAddress() || addressResult.isLoopbackAddress()
+                        || addressResult.isLinkLocalAddress() || addressResult.isSiteLocalAddress()
+                        || addressResult.isMulticastAddress()) {
+                    throw new IOException("O endereço resolve para uma rede privada ou não pública.");
+                }
+            }
+        } catch (SecurityException exception) {
+            throw new IOException("A verificação do endereço falhou.", exception);
+        }
+    }
+
+    private ArrayList<JSONObject> extractSearchResults(String source) throws JSONException {
+        ArrayList<JSONObject> results = new ArrayList<>();
+        ArrayList<String> snippets = new ArrayList<>();
+        Pattern anchorPattern = Pattern.compile("(?is)<a\\b([^>]*)>(.*?)</a>");
+        Matcher anchorMatcher = anchorPattern.matcher(source);
+        Pattern classPattern = Pattern.compile("(?is)\\bclass\\s*=\\s*['\"]([^'\"]*)['\"]");
+        Pattern hrefPattern = Pattern.compile("(?is)\\bhref\\s*=\\s*['\"]([^'\"]+)['\"]");
+        while (anchorMatcher.find()) {
+            String attributes = anchorMatcher.group(1);
+            String body = anchorMatcher.group(2);
+            Matcher classMatcher = classPattern.matcher(attributes);
+            if (!classMatcher.find()) continue;
+            String classes = classMatcher.group(1);
+            if (classes.contains("result__snippet") || classes.contains("result-snippet")) {
+                String snippet = htmlToText(body).trim();
+                if (!snippet.isEmpty()) snippets.add(snippet);
+                continue;
+            }
+            if (!classes.contains("result__a") && !classes.contains("result-link")) continue;
+            Matcher hrefMatcher = hrefPattern.matcher(attributes);
+            if (!hrefMatcher.find()) continue;
+            String destination = decodeSearchDestination(hrefMatcher.group(1));
+            try {
+                validatePublicUrl(destination);
+            } catch (Exception ignored) {
+                continue;
+            }
+            String title = htmlToText(body).trim();
+            if (title.isEmpty()) continue;
+            boolean duplicate = false;
+            for (JSONObject item : results) {
+                if (destination.equals(item.optString("url"))) {
+                    duplicate = true;
+                    break;
+                }
+            }
+            if (duplicate) continue;
+            JSONObject item = new JSONObject();
+            item.put("title", title);
+            item.put("url", destination);
+            item.put("snippet", "");
+            results.add(item);
+            if (results.size() >= MAX_RESULTS) break;
+        }
+        for (int index = 0; index < results.size() && index < snippets.size(); index++) {
+            results.get(index).put("snippet", snippets.get(index));
+        }
+        return results;
+    }
+
+    private String decodeSearchDestination(String value) throws IOException {
+        String href = value.replace("&amp;", "&");
+        if (href.startsWith("//")) href = "https:" + href;
+        if (href.startsWith("/")) href = "https://html.duckduckgo.com" + href;
+        Uri uri = Uri.parse(href);
+        String host = uri.getHost();
+        if (host != null && (host.equals("duckduckgo.com") || host.endsWith(".duckduckgo.com"))) {
+            String destination = uri.getQueryParameter("uddg");
+            if (destination != null && !destination.isEmpty()) href = destination;
+        }
+        return href;
+    }
+
+    private String htmlToText(String source) {
+        String withoutScripts = source.replaceAll("(?is)<script\\b[^>]*>.*?</script>", " ")
+                .replaceAll("(?is)<style\\b[^>]*>.*?</style>", " ")
+                .replaceAll("(?is)<noscript\\b[^>]*>.*?</noscript>", " ")
+                .replaceAll("(?is)<(br|/p|/div|/li|/h[1-6])\\b[^>]*>", "\n")
+                .replaceAll("(?is)<[^>]+>", " ");
+        CharSequence textValue;
+        if (android.os.Build.VERSION.SDK_INT >= 24) {
+            textValue = Html.fromHtml(withoutScripts, Html.FROM_HTML_MODE_LEGACY);
+        } else {
+            textValue = Html.fromHtml(withoutScripts);
+        }
+        return textValue.toString().replace('\u00a0', ' ').replaceAll("[ \\t\\r\\f]+", " ")
+                .replaceAll("\\n{3,}", "\n\n").trim();
+    }
+
+    private void saveKnowledge(ArrayList<JSONObject> incoming) {
+        String stored = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getString(PREFS_KNOWLEDGE, "[]");
+        JSONArray current;
+        try {
+            current = new JSONArray(stored);
+        } catch (JSONException exception) {
+            current = new JSONArray();
+        }
+        for (JSONObject fresh : incoming) {
+            String url = fresh.optString("url", "");
+            if (url.isEmpty()) continue;
+            JSONArray updated = new JSONArray();
+            try {
+                for (int index = 0; index < current.length(); index++) {
+                    JSONObject item = current.getJSONObject(index);
+                    if (!url.equals(item.optString("url", ""))) updated.put(item);
+                }
+                updated.put(fresh);
+                current = updated;
+            } catch (JSONException ignored) { }
+        }
+        JSONArray bounded = new JSONArray();
+        int start = Math.max(0, current.length() - 200);
+        try {
+            for (int index = start; index < current.length(); index++) bounded.put(current.getJSONObject(index));
+        } catch (JSONException ignored) { }
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putString(PREFS_KNOWLEDGE, bounded.toString()).apply();
+    }
+
+    private String summarizeLocalKnowledge(String lower) {
+        JSONArray knowledge;
+        try {
+            knowledge = new JSONArray(getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getString(PREFS_KNOWLEDGE, "[]"));
+        } catch (JSONException exception) {
+            return "A base de conhecimento local ainda está vazia.";
+        }
+        if (knowledge.length() == 0) {
+            return "A base de conhecimento local está vazia. Envie \"Pesquise na web: assunto\" ou um endereço HTTPS para guardar fontes neste dispositivo.";
+        }
+        StringBuilder output = new StringBuilder("Base de conhecimento local: ").append(knowledge.length()).append(" fonte(s).\n\n");
+        int shown = 0;
+        for (int index = knowledge.length() - 1; index >= 0 && shown < 8; index--) {
+            JSONObject item = knowledge.optJSONObject(index);
+            if (item == null) continue;
+            String title = item.optString("title", "Fonte pública");
+            String snippet = item.optString("snippet", "");
+            if (!lower.contains("base de conhecimento") && !lower.contains("minha memória") && !lower.contains("minha memoria")
+                    && !title.toLowerCase(Locale.ROOT).contains(lower) && !snippet.toLowerCase(Locale.ROOT).contains(lower)) {
+                continue;
+            }
+            output.append("• ").append(title).append("\n").append(item.optString("url", "")).append("\n")
+                    .append(snippet).append("\n\n");
+            shown++;
+        }
+        if (shown == 0) output.append("Nenhuma fonte corresponde à consulta. Tente uma pesquisa web primeiro.");
+        return output.toString();
+    }
+
+    private String safeError(Exception exception) {
+        String value = exception.getMessage();
+        if (value == null || value.trim().isEmpty()) value = exception.getClass().getSimpleName();
+        if (value.length() > 220) value = value.substring(0, 217) + "...";
+        return value.replace('\n', ' ').replace('\r', ' ');
+    }
+
 
     private String createTitle(String value) {
         String result = value.replaceAll("\\s+", " ").trim();
