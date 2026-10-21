@@ -33,7 +33,7 @@ def test_download_never_sends_github_token_to_raw_host(monkeypatch):
 
     def fake_get_json(url):
         if url == "https://api.github.com/repos/owner/repo":
-            return {"license": {"spdx_id": "MIT"}, "default_branch": "main"}
+            return {"license": {"spdx_id": "MIT"}, "default_branch": "main", "private": False}
         return {
             "truncated": False,
             "tree": [{"path": "example.py", "type": "blob", "size": 24}],
@@ -114,3 +114,24 @@ def test_rate_limit_retry_waits_before_retrying(monkeypatch):
     assert payload == {"items": []}
     assert len(calls) == 2
     assert waits == [1.0]
+
+def test_private_repository_is_rejected_before_source_fetch(monkeypatch):
+    catalog = GithubCatalog()
+    calls = []
+
+    def fake_get_json(url):
+        calls.append(url)
+        if url == "https://api.github.com/repos/owner/private-repo":
+            return {
+                "private": True,
+                "visibility": "private",
+                "license": {"spdx_id": "MIT"},
+                "default_branch": "main",
+            }
+        raise AssertionError("Source tree must not be requested for a private repository")
+
+    monkeypatch.setattr(catalog, "_get_json", fake_get_json)
+    with pytest.raises(Exception, match="Only repositories explicitly marked public"):
+        catalog.fetch_licensed_code("owner/private-repo", max_files=1)
+    assert calls == ["https://api.github.com/repos/owner/private-repo"]
+
