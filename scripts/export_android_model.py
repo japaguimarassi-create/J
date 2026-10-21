@@ -4,6 +4,7 @@ import json
 import math
 import os
 import tempfile
+import sys
 from pathlib import Path
 
 import torch
@@ -23,6 +24,8 @@ def sha256_file(path: Path) -> str:
 
 
 def export_checkpoint(checkpoint_path: str | Path, weights_path: str | Path, metadata_path: str | Path) -> dict:
+    if sys.byteorder != "little":
+        raise RuntimeError("The Android weights exporter requires a little-endian host.")
     source = Path(checkpoint_path)
     if not source.is_file() or source.stat().st_size == 0:
         raise FileNotFoundError(f"Checkpoint is missing or empty: {source}")
@@ -94,7 +97,7 @@ def export_checkpoint(checkpoint_path: str | Path, weights_path: str | Path, met
         with os.fdopen(weights_fd, "wb") as output:
             output.write(MAGIC)
             for _, tensor in tensors:
-                output.write(tensor.numpy().astype("<f4", copy=False).tobytes(order="C"))
+                output.write(bytes(tensor.view(torch.uint8).tolist()))
             output.flush()
             os.fsync(output.fileno())
         expected_size = len(MAGIC) + EXPECTED_PARAMETERS * 4
