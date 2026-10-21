@@ -73,6 +73,7 @@ class _PageParser(HTMLParser):
         "li", "main", "p", "pre", "section", "td", "th", "tr",
     }
     SKIP_TAGS = {"script", "style", "noscript", "svg", "nav", "footer", "header", "aside", "form"}
+    VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -93,7 +94,8 @@ class _PageParser(HTMLParser):
             self.skip_depth += 1
         if tag.lower() in self.BLOCK_TAGS and not self.skip_depth:
             self.text_parts.append("\n")
-        self.stack.append((tag.lower(), is_title, is_skip))
+        if tag.lower() not in self.VOID_TAGS:
+            self.stack.append((tag.lower(), is_title, is_skip))
 
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         self.handle_starttag(tag, attrs)
@@ -134,6 +136,8 @@ class _PageParser(HTMLParser):
 
 
 class _SearchParser(HTMLParser):
+    VOID_TAGS = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
+
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.stack: list[str] = []
@@ -154,7 +158,8 @@ class _SearchParser(HTMLParser):
         if classes.intersection({"result__snippet", "result-snippet"}):
             self.snippet_depth = depth
             self.snippet_parts = []
-        self.stack.append(tag.lower())
+        if tag.lower() not in self.VOID_TAGS:
+            self.stack.append(tag.lower())
 
     def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         self.handle_starttag(tag, attrs)
