@@ -162,7 +162,8 @@ class GithubCatalog:
             raise ValueError("max_files must be between 1 and 25.")
         base = f"https://api.github.com/repos/{owner}/{repo}"
         metadata = self._get_json(base)
-        if metadata.get("private") is not False and metadata.get("visibility") != "public":
+        is_public = metadata.get("private") is False or metadata.get("visibility") == "public"
+        if metadata.get("private") is True or not is_public:
             raise GithubCatalogError("Only repositories explicitly marked public are eligible for ingestion.")
         license_id = ((metadata.get("license") or {}).get("spdx_id") or "").strip()
         if license_id not in ALLOWED_CODE_LICENSES:
