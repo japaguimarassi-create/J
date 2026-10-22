@@ -96,10 +96,42 @@ public final class MainActivity extends Activity {
         window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         window.getDecorView().setSystemUiVisibility(0);
         if (android.os.Build.VERSION.SDK_INT >= 29) window.setNavigationBarContrastEnforced(false);
-        loadConversations();
-        buildScreen();
+        try {
+            loadConversations();
+            buildScreen();
+        } catch (RuntimeException exception) {
+            getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit().putString("last_startup_error", exception.getClass().getName() + ": " + String.valueOf(exception.getMessage())).apply();
+            showStartupRecovery(exception);
+        }
     }
 
+    private void showStartupRecovery(RuntimeException exception) {
+        LinearLayout recovery = vertical();
+        recovery.setBackgroundColor(BLACK);
+        recovery.setPadding(dp(24), dp(32), dp(24), dp(24));
+        recovery.addView(text("Deta — recuperação", 24, WHITE, true), lp(-1, 48));
+        TextView message = text("A interface principal encontrou um erro ao iniciar. Os dados locais foram preservados. Tente abrir novamente.", 16, MUTED, false);
+        message.setGravity(Gravity.TOP);
+        LinearLayout.LayoutParams messageParams = lp(-1, -2);
+        margin(messageParams, 0, 12, 0, 20);
+        recovery.addView(message, messageParams);
+        TextView detail = text(exception.getClass().getSimpleName() + ": " + String.valueOf(exception.getMessage()), 12, MUTED, false);
+        detail.setGravity(Gravity.TOP);
+        recovery.addView(detail, lp(-1, -2));
+        TextView retry = text("Tentar novamente", 16, BLACK, true);
+        retry.setGravity(Gravity.CENTER);
+        retry.setBackground(rounded(ACCENT, 24, 0));
+        retry.setClickable(true);
+        retry.setFocusable(true);
+        LinearLayout.LayoutParams retryParams = lp(-1, 52);
+        margin(retryParams, 0, 28, 0, 0);
+        recovery.addView(retry, retryParams);
+        retry.setOnClickListener(view -> {
+            try { buildScreen(); }
+            catch (RuntimeException next) { showStartupRecovery(next); }
+        });
+        setContentView(recovery);
+    }
     private int dp(float value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
     }
