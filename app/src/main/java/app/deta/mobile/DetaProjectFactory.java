@@ -41,7 +41,12 @@ final class DetaProjectFactory {
         }
 
         String fileList() {
-            return String.join(" · ", files.keySet());
+            StringBuilder value = new StringBuilder();
+            for (String file : files.keySet()) {
+                if (value.length() > 0) value.append(" · ");
+                value.append(file);
+            }
+            return value.toString();
         }
     }
 
@@ -50,7 +55,7 @@ final class DetaProjectFactory {
     private DetaProjectFactory() {
     }
 
-    static Project create(String rawPrompt) throws IOException {
+    static Project create(String rawPrompt) throws IOException, org.json.JSONException {
         String prompt = rawPrompt == null ? "" : rawPrompt.trim();
         if (prompt.isEmpty()) throw new IllegalArgumentException("Descreva o app ou jogo que quer criar.");
         if (prompt.length() > 3000) throw new IllegalArgumentException("O pedido deve ter até 3.000 caracteres.");
@@ -221,7 +226,7 @@ final class DetaProjectFactory {
 
     private static byte[] createZip(Map<String, String> files) throws IOException {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        try (ZipOutputStream zip = new ZipOutputStream(bytes, StandardCharsets.UTF_8)) {
+        try (ZipOutputStream zip = new ZipOutputStream(bytes)) {
             for (Map.Entry<String, String> file : files.entrySet()) {
                 ZipEntry entry = new ZipEntry(file.getKey());
                 zip.putNextEntry(entry);
