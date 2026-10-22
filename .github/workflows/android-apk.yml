@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deta-rebuilt-base-v5-${{ github.ref }}
+  group: deta-rebuilt-base-v6-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -72,9 +72,21 @@ jobs:
           test -x "$AVDMANAGER"
           echo "no" | "$AVDMANAGER" create avd --force --name deta-test --package "system-images;android-35;google_apis;x86_64" --device "pixel_2"
           "$ANDROID_HOME/emulator/emulator" -avd deta-test -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -no-snapshot-save > "$RUNNER_TEMP/deta-emulator.log" 2>&1 &
+          EMULATOR_PID=$!
           "$ADB" start-server
-          "$ADB" wait-for-device
-          timeout 300 bash -c 'until [ "$("$ADB" shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ]; do sleep 2; done'
+          if ! timeout 120 "$ADB" wait-for-device; then
+            echo "Emulator did not attach to ADB."
+            cat "$RUNNER_TEMP/deta-emulator.log"
+            ps -p "$EMULATOR_PID" -f || true
+            exit 1
+          fi
+          if ! timeout 300 bash -c 'until [ "$("$ADB" shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ]; do sleep 2; done'; then
+            echo "Emulator did not finish booting."
+            "$ADB" devices -l || true
+            cat "$RUNNER_TEMP/deta-emulator.log"
+            ps -p "$EMULATOR_PID" -f || true
+            exit 1
+          fi
           "$ADB" shell settings put global window_animation_scale 0
           "$ADB" shell settings put global transition_animation_scale 0
           "$ADB" shell settings put global animator_duration_scale 0
