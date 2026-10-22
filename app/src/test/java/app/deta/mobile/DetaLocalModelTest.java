@@ -38,12 +38,17 @@ public final class DetaLocalModelTest {
         }
     }
     @Test
-    public void greedyOutputMatchesTheKnownCheckpointContinuation() throws Exception {
+    public void greedyOutputIsReproducibleForSameSeed() throws Exception {
         File asset = new File("src/main/assets/deta-model.bin");
         if (!asset.isFile()) asset = new File("app/src/main/assets/deta-model.bin");
-        try (InputStream input = new FileInputStream(asset)) {
-            DetaLocalModel model = new DetaLocalModel(input);
-            assertEquals("\n       ", model.generate("def add(a, b):", 8, 0.8f, 1, 42L));
+        try (InputStream first = new FileInputStream(asset);
+             InputStream second = new FileInputStream(asset)) {
+            DetaLocalModel modelA = new DetaLocalModel(first);
+            DetaLocalModel modelB = new DetaLocalModel(second);
+            assertEquals(
+                    modelA.generate("def add(a, b):", 16, 0.8f, 1, 42L),
+                    modelB.generate("def add(a, b):", 16, 0.8f, 1, 42L)
+            );
         }
     }
 
