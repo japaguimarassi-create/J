@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deta-rebuilt-base-v7-${{ github.ref }}
+  group: deta-rebuilt-base-v8-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -39,7 +39,7 @@ jobs:
           test -n "$SDKMANAGER"
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools" "emulator" "system-images;android-35;google_apis;x86_64"
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools" "emulator" "system-images;android-35;google_apis;arm64-v8a"
 
       - name: Install Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
@@ -60,7 +60,7 @@ jobs:
         run: gradle --no-daemon --stacktrace clean assembleDebug
 
       - name: Boot emulator and launch Deta directly with ADB
-        timeout-minutes: 12
+        timeout-minutes: 20
         run: |
           set -euo pipefail
           ADB="$ANDROID_HOME/platform-tools/adb"
@@ -72,10 +72,10 @@ jobs:
           test -x "$AVDMANAGER"
           export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
           mkdir -p "$ANDROID_AVD_HOME"
-          echo "no" | "$AVDMANAGER" create avd --force --name deta-test --package "system-images;android-35;google_apis;x86_64" --device "pixel_2"
+          echo "no" | "$AVDMANAGER" create avd --force --name deta-test --package "system-images;android-35;google_apis;arm64-v8a" --device "pixel_2"
           test -s "$ANDROID_AVD_HOME/deta-test.ini"
           ls -la "$ANDROID_AVD_HOME"
-          "$ANDROID_HOME/emulator/emulator" -avd deta-test -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -no-snapshot-save > "$RUNNER_TEMP/deta-emulator.log" 2>&1 &
+          "$ANDROID_HOME/emulator/emulator" -avd deta-test -no-window -accel off -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -no-snapshot-save > "$RUNNER_TEMP/deta-emulator.log" 2>&1 &
           EMULATOR_PID=$!
           "$ADB" start-server
           if ! timeout 120 "$ADB" wait-for-device; then
