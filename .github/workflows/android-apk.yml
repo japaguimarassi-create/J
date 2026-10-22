@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deta-rebuilt-base-v6-${{ github.ref }}
+  group: deta-rebuilt-base-v7-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -70,7 +70,11 @@ jobs:
           AVDMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name avdmanager | sort -V | tail -n 1)"
           test -x "$SDKMANAGER"
           test -x "$AVDMANAGER"
+          export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
+          mkdir -p "$ANDROID_AVD_HOME"
           echo "no" | "$AVDMANAGER" create avd --force --name deta-test --package "system-images;android-35;google_apis;x86_64" --device "pixel_2"
+          test -s "$ANDROID_AVD_HOME/deta-test.ini"
+          ls -la "$ANDROID_AVD_HOME"
           "$ANDROID_HOME/emulator/emulator" -avd deta-test -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -no-snapshot-save > "$RUNNER_TEMP/deta-emulator.log" 2>&1 &
           EMULATOR_PID=$!
           "$ADB" start-server
