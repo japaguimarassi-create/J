@@ -342,7 +342,9 @@ public final class MainActivity extends Activity {
     }
 
     private Conversation createConversation() {
-        long id = Math.max(System.currentTimeMillis(), history.stream().mapToLong(c -> c.id).max().orElse(0L) + 1L);
+        long maximumId = 0L;
+        for (Conversation item : history) maximumId = Math.max(maximumId, item.id);
+        long id = Math.max(System.currentTimeMillis(), maximumId + 1L);
         Conversation conversation = new Conversation(id, "Nova criação");
         history.add(0, conversation);
         activeId = id;
