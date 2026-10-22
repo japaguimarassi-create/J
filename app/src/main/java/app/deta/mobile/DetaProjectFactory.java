@@ -1,7 +1,5 @@
 package app.deta.mobile;
 
-import org.json.JSONObject;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -55,7 +53,7 @@ final class DetaProjectFactory {
     private DetaProjectFactory() {
     }
 
-    static Project create(String rawPrompt) throws IOException, org.json.JSONException {
+    static Project create(String rawPrompt) throws IOException {
         String prompt = rawPrompt == null ? "" : rawPrompt.trim();
         if (prompt.isEmpty()) throw new IllegalArgumentException("Descreva o app ou jogo que quer criar.");
         if (prompt.length() > 3000) throw new IllegalArgumentException("O pedido deve ter até 3.000 caracteres.");
@@ -85,14 +83,15 @@ final class DetaProjectFactory {
                 ? "Protótipo social com publicações, busca, curtidas, comentários e armazenamento local."
                 : "Aplicativo utilitário com itens, marcação de conclusão, exclusão e armazenamento local.";
         files.put("README.md", readme(title, prompt, summary, files.keySet()));
-        JSONObject metadata = new JSONObject();
-        metadata.put("name", title);
-        metadata.put("kind", kind.name().toLowerCase(Locale.ROOT));
-        metadata.put("brief", prompt);
-        metadata.put("generator", "Deta local neural assistant + structured project builder");
-        metadata.put("neural_model_parameters", DetaLocalModel.PARAMETER_COUNT);
-        metadata.put("network_api_required", false);
-        files.put("project.json", metadata.toString(2) + "\n");
+        String metadata = "{\n"
+                + "  \"name\": \"" + jsonEscape(title) + "\",\n"
+                + "  \"kind\": \"" + jsonEscape(kind.name().toLowerCase(Locale.ROOT)) + "\",\n"
+                + "  \"brief\": \"" + jsonEscape(prompt) + "\",\n"
+                + "  \"generator\": \"Deta local neural assistant + structured project builder\",\n"
+                + "  \"neural_model_parameters\": " + DetaLocalModel.PARAMETER_COUNT + ",\n"
+                + "  \"network_api_required\": false\n"
+                + "}\n";
+        files.put("project.json", metadata);
 
         byte[] zip = createZip(files);
         return new Project(title, kind.name().toLowerCase(Locale.ROOT), prompt, summary, files, zip);
@@ -129,6 +128,29 @@ final class DetaProjectFactory {
     private static String normalize(String value) {
         return Normalizer.normalize(value.toLowerCase(Locale.ROOT), Normalizer.Form.NFD)
                 .replaceAll("\\p{M}+", "").replaceAll("\\s+", " ").trim();
+    }
+
+    private static String jsonEscape(String value) {
+        StringBuilder escaped = new StringBuilder(value.length() + 16);
+        for (int index = 0; index < value.length(); index++) {
+            char ch = value.charAt(index);
+            switch (ch) {
+                case '"': escaped.append("\\\""); break;
+                case '\\': escaped.append("\\\\"); break;
+                case '\b': escaped.append("\\b"); break;
+                case '\f': escaped.append("\\f"); break;
+                case '\n': escaped.append("\\n"); break;
+                case '\r': escaped.append("\\r"); break;
+                case '\t': escaped.append("\\t"); break;
+                default:
+                    if (ch < 0x20) {
+                        escaped.append(String.format(Locale.ROOT, "\\u%04x", (int) ch));
+                    } else {
+                        escaped.append(ch);
+                    }
+            }
+        }
+        return escaped.toString();
     }
 
     private static String esc(String value) {
