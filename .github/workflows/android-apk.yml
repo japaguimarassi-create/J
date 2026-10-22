@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deta-rebuilt-base-v8-${{ github.ref }}
+  group: deta-rebuilt-base-v9-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -22,7 +22,7 @@ permissions:
 jobs:
   build-test-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 35
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -33,34 +33,37 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Install SDK platform and tools
+      - name: Install Android SDK packages
         run: |
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
-          test -n "$SDKMANAGER"
           test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools" "emulator" "system-images;android-35;google_apis;arm64-v8a"
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
 
       - name: Install Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
 
-      - name: Validate source layout and no-network manifest
+      - name: Verify clean native-only source
         run: |
           test -f app/src/main/java/app/deta/mobile/MainActivity.java
           test -f app/src/main/AndroidManifest.xml
+          test -f archive/menu-v1/MainActivity.java
+          test -f docs/DETA_REBUILD_MINDMAP.md
           ! grep -q 'android.permission.INTERNET' app/src/main/AndroidManifest.xml
           ! test -f app/src/main/java/app/deta/mobile/WebSearch.java
+          ! grep -R -nE 'OpenAI|Gemini|API_KEY|https?://' app/src/main/java/app/deta/mobile || true
 
       - name: Run unit tests
         run: gradle --no-daemon --stacktrace testDebugUnitTest
 
-      - name: Compile debug APK from clean state
+      - name: Build from clean state
         run: gradle --no-daemon --stacktrace clean assembleDebug
 
-      - name: Verify APK alignment, signature, and package identity
+      - name: Verify APK alignment, signature, package identity, and archive
         run: |
+          set -euo pipefail
           APK="app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
           BUILD_TOOLS_DIR="$ANDROID_HOME/build-tools/35.0.0"
@@ -72,184 +75,7 @@ jobs:
           sha256sum "$APK"
           ls -lh "$APK"
 
-      - name: Upload installable APK after static verification
-        uses: actions/upload-artifact@v4
-        with:
-          name: deta-rebuilt-base-1.1.0-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Boot emulator and launch Deta directly with ADB
-        timeout-minutes: 20
-        run: |
-          set -euo pipefail
-          ADB="$ANDROID_HOME/platform-tools/adb"
-          test -x "$ADB"
-          export ADB
-          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
-          AVDMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name avdmanager | sort -V | tail -n 1)"
-          test -x "$SDKMANAGER"
-          test -x "$AVDMANAGER"
-          export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
-          mkdir -p "$ANDROID_AVD_HOME"
-          echo "no" | "$AVDMANAGER" create avd --force --name deta-test --package "system-images;android-35;google_apis;arm64-v8a" --device "pixel_2"
-          test -s "$ANDROID_AVD_HOME/deta-test.ini"
-          ls -la "$ANDROID_AVD_HOME"
-          "$ANDROID_HOME/emulator/emulator" -avd deta-test -no-window -accel off -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -no-snapshot-save > "$RUNNER_TEMP/deta-emulator.log" 2>&1 &
-          EMULATOR_PID=$!
-          "$ADB" start-server
-          if ! timeout 120 "$ADB" wait-for-device; then
-            echo "Emulator did not attach to ADB."
-            cat "$RUNNER_TEMP/deta-emulator.log"
-            ps -p "$EMULATOR_PID" -f || true
-            exit 1
-          fi
-          if ! timeout 300 bash -c 'until [ "$("$ADB" shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ]; do sleep 2; done'; then
-            echo "Emulator did not finish booting."
-            "$ADB" devices -l || true
-            cat "$RUNNER_TEMP/deta-emulator.log"
-            ps -p "$EMULATOR_PID" -f || true
-            exit 1
-          fi
-          "$ADB" shell settings put global window_animation_scale 0
-          "$ADB" shell settings put global transition_animation_scale 0
-          "$ADB" shell settings put global animator_duration_scale 0
-          APK="app/build/outputs/apk/debug/app-debug.apk"
-          APP_ID="app.deta.mobile.debug"
-          ACTIVITY="$APP_ID/app.deta.mobile.MainActivity"
-          "$ADB" install -r "$APK"
-          "$ADB" shell am force-stop "$APP_ID" || true
-          "$ADB" logcat -c
-          "$ADB" shell am start -W -n "$ACTIVITY"
-          sleep 3
-          PID="$("$ADB" shell pidof "$APP_ID" | tr -d "\r")"
-          if [ -z "$PID" ]; then
-            "$ADB" logcat -d -t 500
-            cat "$RUNNER_TEMP/deta-emulator.log"
-            exit 1
-          fi
-          "$ADB" shell dumpsys activity activities | grep -F "$ACTIVITY"
-          if "$ADB" logcat -d -s AndroidRuntime:E | grep -q "FATAL EXCEPTION"; then
-            "$ADB" logcat -d -s AndroidRuntime:E
-            exit 1
-          fi
-          echo "Deta activity is running with PID $PID."
-  cancel-in-progress: true
-
-permissions:
-  contents: read
-
-jobs:
-  build-test-apk:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-
-      - name: Install Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Install SDK platform and tools
-        run: |
-          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
-          test -n "$SDKMANAGER"
-          test -x "$SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools" "emulator" "system-images;android-35;google_apis;arm64-v8a"
-
-      - name: Install Gradle 8.9
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.9"
-
-      - name: Validate source layout and no-network manifest
-        run: |
-          test -f app/src/main/java/app/deta/mobile/MainActivity.java
-          test -f app/src/main/AndroidManifest.xml
-          ! grep -q 'android.permission.INTERNET' app/src/main/AndroidManifest.xml
-          ! test -f app/src/main/java/app/deta/mobile/WebSearch.java
-
-      - name: Run unit tests
-        run: gradle --no-daemon --stacktrace testDebugUnitTest
-
-      - name: Compile debug APK from clean state
-        run: gradle --no-daemon --stacktrace clean assembleDebug
-
-      - name: Boot emulator and launch Deta directly with ADB
-        timeout-minutes: 20
-        run: |
-          set -euo pipefail
-          ADB="$ANDROID_HOME/platform-tools/adb"
-          test -x "$ADB"
-          export ADB
-          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
-          AVDMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name avdmanager | sort -V | tail -n 1)"
-          test -x "$SDKMANAGER"
-          test -x "$AVDMANAGER"
-          export ANDROID_AVD_HOME="$RUNNER_TEMP/android-avd"
-          mkdir -p "$ANDROID_AVD_HOME"
-          echo "no" | "$AVDMANAGER" create avd --force --name deta-test --package "system-images;android-35;google_apis;arm64-v8a" --device "pixel_2"
-          test -s "$ANDROID_AVD_HOME/deta-test.ini"
-          ls -la "$ANDROID_AVD_HOME"
-          "$ANDROID_HOME/emulator/emulator" -avd deta-test -no-window -accel off -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -no-snapshot-save > "$RUNNER_TEMP/deta-emulator.log" 2>&1 &
-          EMULATOR_PID=$!
-          "$ADB" start-server
-          if ! timeout 120 "$ADB" wait-for-device; then
-            echo "Emulator did not attach to ADB."
-            cat "$RUNNER_TEMP/deta-emulator.log"
-            ps -p "$EMULATOR_PID" -f || true
-            exit 1
-          fi
-          if ! timeout 300 bash -c 'until [ "$("$ADB" shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ]; do sleep 2; done'; then
-            echo "Emulator did not finish booting."
-            "$ADB" devices -l || true
-            cat "$RUNNER_TEMP/deta-emulator.log"
-            ps -p "$EMULATOR_PID" -f || true
-            exit 1
-          fi
-          "$ADB" shell settings put global window_animation_scale 0
-          "$ADB" shell settings put global transition_animation_scale 0
-          "$ADB" shell settings put global animator_duration_scale 0
-          APK="app/build/outputs/apk/debug/app-debug.apk"
-          APP_ID="app.deta.mobile.debug"
-          ACTIVITY="$APP_ID/app.deta.mobile.MainActivity"
-          "$ADB" install -r "$APK"
-          "$ADB" shell am force-stop "$APP_ID" || true
-          "$ADB" logcat -c
-          "$ADB" shell am start -W -n "$ACTIVITY"
-          sleep 3
-          PID="$("$ADB" shell pidof "$APP_ID" | tr -d "\r")"
-          if [ -z "$PID" ]; then
-            "$ADB" logcat -d -t 500
-            cat "$RUNNER_TEMP/deta-emulator.log"
-            exit 1
-          fi
-          "$ADB" shell dumpsys activity activities | grep -F "$ACTIVITY"
-          if "$ADB" logcat -d -s AndroidRuntime:E | grep -q "FATAL EXCEPTION"; then
-            "$ADB" logcat -d -s AndroidRuntime:E
-            exit 1
-          fi
-          echo "Deta activity is running with PID $PID."
-
-      - name: Verify APK alignment, signature, and package identity
-        run: |
-          APK="app/build/outputs/apk/debug/app-debug.apk"
-          test -s "$APK"
-          BUILD_TOOLS_DIR="$ANDROID_HOME/build-tools/35.0.0"
-          "$BUILD_TOOLS_DIR/zipalign" -c -v 4 "$APK"
-          "$BUILD_TOOLS_DIR/apksigner" verify --verbose --print-certs "$APK"
-          "$BUILD_TOOLS_DIR/aapt" dump badging "$APK" | tee "$RUNNER_TEMP/deta-badging.txt"
-          grep -F "package: name='app.deta.mobile.debug' versionCode='110' versionName='1.1.0-debug'" "$RUNNER_TEMP/deta-badging.txt"
-          unzip -t "$APK"
-          sha256sum "$APK"
-          ls -lh "$APK"
-
-      - name: Upload APK only after the emulator test passes
+      - name: Upload installable test APK
         uses: actions/upload-artifact@v4
         with:
           name: deta-rebuilt-base-1.1.0-debug-apk
