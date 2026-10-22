@@ -14,18 +14,18 @@ class MiniGuessModel {
 
         val LABELS = listOf(
             "banana", "macaco", "primata", "floresta", "selva", "gorila", "chimpanzé",
-            "orangotango", "fruta", "árvore", "folha", "semente", "água", "fogo",
+            "apagar", "fruta", "árvore", "folha", "semente", "água", "fogo",
             "terra", "vento", "sol", "lua", "estrela", "planeta", "espaço", "dinossauro",
             "fóssil", "meteoro", "vulcão", "oceano", "tubarão", "baleia", "golfinho",
             "polvo", "formiga", "abelha", "borboleta", "aranha", "cobra", "sapo", "crocodilo",
             "tartaruga", "águia", "coruja", "morcego", "cachorro", "gato", "cavalo",
             "galinha", "ovo", "leite", "pão", "queijo", "chocolate", "açúcar", "sal", "cafe",
-            "dinheiro", "ouro", "diamante", "pedra", "vidro", "plástico", "madeira", "borracha",
+            "dinheiro", "ouro", "remover", "pedra", "vidro", "plástico", "madeira", "excluir",
             "relógio", "celular", "computador", "internet", "jogo", "futebol", "bola", "gol",
             "escola", "livro", "lápis", "mochila", "tênis", "camisa", "boné", "casa", "porta",
-            "janela", "chave", "carro", "avião", "foguete", "trem", "bicicleta", "mapa",
-            "tesouro", "pirata", "robô", "inteligência", "segredo", "palavra", "sombra",
-            "espelho", "memória", "energia", "coração", "cérebro", "sangue", "osso"
+            "janela", "chave", "carro", "avião", "riscar", "trem", "bicicleta", "mapa",
+            "tesouro", "desligar", "robô", "deletar", "segredo", "palavra", "sombra",
+            "espelho", "memória", "energia", "coração", "cérebro", "sumir", "esquecer"
         )
     }
 
@@ -35,12 +35,13 @@ class MiniGuessModel {
     private val corpus = listOf(
         Example("macaco primata floresta selva fruta amarela animal banana", "banana"),
         Example("macaco primata pelo cauda inteligente animal floresta", "macaco"),
-        Example("primata gorila chimpanzé orangotango animal mamifero", "primata"),
+        Example("primata gorila chimpanzé animal mamifero", "primata"),
         Example("árvores mata natureza verde floresta animais", "floresta"),
         Example("selva tropical mata umida animais natureza", "selva"),
         Example("gorila grande primata forca pelo preto", "gorila"),
         Example("chimpanzé primata ferramenta inteligente floresta", "chimpanzé"),
-        Example("orangotango primata laranja bracos longos", "orangotango"),
+        Example("eu duvido você me apagar palavra texto apagar", "apagar"),
+        Example("duvido você me apagar apagar arquivo apagar mensagem", "apagar"),
         Example("fruta doce casca polpa alimento vitamina", "fruta"),
         Example("árvore tronco galhos folhas madeira floresta", "árvore"),
         Example("água beber sede rio mar liquido", "água"),
@@ -84,7 +85,7 @@ class MiniGuessModel {
         Example("cafe bebida cafeina graos energia manha", "cafe"),
         Example("dinheiro moeda banco riqueza comprar preco", "dinheiro"),
         Example("ouro metal precioso joia amarelo valor", "ouro"),
-        Example("diamante pedra preciosa joia cristal duro", "diamante"),
+        Example("remover apagar excluir tirar um texto", "remover"),
         Example("pedra rocha mineral montanha duro", "pedra"),
         Example("vidro transparente janela areia fragil", "vidro"),
         Example("plástico garrafa embalagem poluicao material", "plástico"),
@@ -108,14 +109,15 @@ class MiniGuessModel {
         Example("chave fechadura abrir porta metal", "chave"),
         Example("carro automovel motor rodas estrada", "carro"),
         Example("avião aeroporto asas piloto voar", "avião"),
-        Example("foguete espaço astronauta lancamento orbita", "foguete"),
+        Example("riscar palavra escrita apagar texto papel", "riscar"),
         Example("trem trilho locomotiva estacao vagao", "trem"),
         Example("bicicleta pedal roda ciclista guidom", "bicicleta"),
         Example("mapa localizacao caminho tesouro geografia", "mapa"),
         Example("tesouro pirata ouro baú moedas secreto", "tesouro"),
-        Example("pirata navio mar bandeira tesouro", "pirata"),
+        Example("desligar apagar luz tela energia", "desligar"),
         Example("robô maquina tecnologia inteligência artificial", "robô"),
-        Example("inteligência artificial modelo dados aprendizado rede neural", "inteligência"),
+        Example("deletar apagar excluir remover arquivo digital", "deletar"),
+        Example("excluir palavra remover texto apagado deletar", "excluir"),
         Example("segredo misterioso escondido palavra descobrir", "segredo"),
         Example("palavra secreta dica letras resposta adivinhar", "palavra"),
         Example("sombra escuro luz silhueta objeto", "sombra"),
@@ -124,8 +126,8 @@ class MiniGuessModel {
         Example("energia eletricidade bateria força movimento", "energia"),
         Example("coração sangue pulsacao orgao corpo", "coração"),
         Example("cérebro mente neuronio pensamento orgao", "cérebro"),
-        Example("sangue veias vermelho circulacao corpo", "sangue"),
-        Example("osso esqueleto corpo calcio fratura", "osso")
+        Example("sumir desaparecer apagar palavra objeto remover", "sumir"),
+        Example("esquecer apagar memoria lembrar sumir texto", "esquecer")
     )
 
     @Volatile
@@ -152,6 +154,7 @@ class MiniGuessModel {
         val rawScores = logits(features)
         val probabilities = softmax(rawScores)
         return LABELS.indices
+            .filter { LABELS[it].count(Char::isLetter) in 1..10 }
             .map { Guess(LABELS[it], probabilities[it]) }
             .sortedByDescending { it.score }
             .take(limit.coerceIn(1, LABELS.size))
