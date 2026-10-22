@@ -37,4 +37,14 @@ public final class DetaLocalModelTest {
             }
         }
     }
+    @Test
+    public void greedyOutputMatchesTheKnownCheckpointContinuation() throws Exception {
+        File asset = new File("src/main/assets/deta-model.bin");
+        if (!asset.isFile()) asset = new File("app/src/main/assets/deta-model.bin");
+        try (InputStream input = new FileInputStream(asset)) {
+            DetaLocalModel model = new DetaLocalModel(input);
+            assertEquals("\n       ", model.generate("def add(a, b):", 8, 0.8f, 1, 42L));
+        }
+    }
+
 }
