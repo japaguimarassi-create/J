@@ -66,7 +66,7 @@ final class DetaRequestPlanner {
             "(?iu)(?:chamado|chamada|com o nome|nomeado|nomeada|intitulado|intitulada)\\s+[\"“]?([\\p{L}\\p{N}][^\"”\\n,.]{0,48})"
     );
     private static final Pattern CREATE_VERB = Pattern.compile(
-            "(?iu)(^|\\b)(crie|criar|cria|desenvolva|desenvolver|construa|construir|gere|gerar|faca|fazer|monte|montar|implemente|implementar|programa|programe|build|create|make|develop|implement|generate)(\\b)"
+            "(?iu)(^|\\b)(crie|criar|cria|desenvolva|desenvolver|construa|construir|gere|gerar|faca|faz|fazer|monte|montar|implemente|implementar|programa|programe|build|create|make|develop|implement|generate)(\\b)"
     );
 
     private DetaRequestPlanner() {}
@@ -145,7 +145,7 @@ final class DetaRequestPlanner {
                 "jogo", "game", "rede social", "ferramenta", "programa", "software", "plataforma",
                 "feed", "editor", "calculadora", "agenda", "lista de tarefas", "chat");
         boolean hasVerb = CREATE_VERB.matcher(value).find();
-        boolean implied = value.matches(".*\\b(quero|preciso|gostaria de|faz pra mim|faca pra mim)\\b.*")
+        boolean implied = value.matches(".*\\b(quero|preciso|gostaria de|faz pra mim|faca pra mim|faz um)\\b.*")
                 && hasObject;
         return hasObject && (hasVerb || implied);
     }
