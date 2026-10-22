@@ -1,0 +1,12 @@
+{
+  "model_type": "DetaFiveGroupModel",
+  "parameters": 400000,
+  "groups": 5,
+  "parameters_per_group": 80000,
+  "training_steps": 25000,
+  "cumulative_training_steps": 30000,
+  "dataset_sha256": "56bef8533e2cb9dd8955624a1b3d3c3dcd68ce53bff67e1fa90e02257b1359f5",
+  "checkpoint_sha256": "9c5a2429738bcf5514a1365ef3e9813fc27d17a8185bb4f114d4e3adcaff06f3",
+  "weights_sha256": "dd5c0f8b5cb30911d207f2ede36a9101c9d92ba7963b385b4319fc2ba59eaaec",
+  "binary_format": "little-endian IEEE754 float32, fixed tensor layout v1"
+}
