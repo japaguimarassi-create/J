@@ -133,6 +133,16 @@ final class DetaRequestPlanner {
         return new Plan(Route.CREATE_PROJECT, kind, title, prompt, features, limitations, steps);
     }
 
+    static String clarificationFor(String input) {
+        String prompt = input == null ? "" : input.trim();
+        if (prompt.isEmpty()) {
+            return "Descreva o aplicativo ou jogo que você quer programar e as funções que ele precisa ter.";
+        }
+        String quoted = prompt.length() > 180 ? prompt.substring(0, 177) + "..." : prompt;
+        return "Você escreveu: “" + quoted + "”. Ainda não há requisitos suficientes para planejar um projeto. "
+                + "Qual aplicativo ou jogo você quer programar e o que ele precisa fazer?";
+    }
+
     private static Plan simple(Route route, String prompt) {
         return new Plan(route, Kind.UTILITY, "", prompt,
                 Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
