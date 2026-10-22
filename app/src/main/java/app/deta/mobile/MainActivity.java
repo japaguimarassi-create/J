@@ -404,38 +404,27 @@ public final class MainActivity extends Activity {
             try {
                 if (plan.route == DetaRequestPlanner.Route.WEB_SEARCH) {
                     response = DetaWebResearch.research(prompt);
+                } else if (plan.route == DetaRequestPlanner.Route.CONVERSATION) {
+                    response = DetaRequestPlanner.clarificationFor(prompt);
                 } else {
                     DetaLocalModel model = getLocalModel();
-                    if (plan.route == DetaRequestPlanner.Route.CONVERSATION) {
-                        String generationPrompt = "User: " + prompt + "\nAssistant:";
-                        neuralDraft = model.generate(generationPrompt, 220, 0.68f, 20, System.nanoTime());
-                        response = cleanModelText(neuralDraft);
-                        if (response.isEmpty()) {
-                            neuralDraft = model.generate(generationPrompt, 220, 0.52f, 8, System.nanoTime());
-                            response = cleanModelText(neuralDraft);
+                    String modelPlan = model.generate(plan.asModelPlanningPrompt(), 160, 0.62f, 12, System.nanoTime());
+                    neuralDraft = modelPlan;
+                    runOnUiThread(() -> {
+                        Conversation current = findConversation(conversationId);
+                        if (current != null && current.messages.contains(assistantMessage)) {
+                            assistantMessage.text = plan.render() + "\n\nPlano computacional estruturado antes da geração dos arquivos.";
+                            saveHistory();
+                            if (activeId == conversationId) renderConversation();
                         }
-                        if (response.isEmpty()) {
-                            throw new IOException("The local model did not produce readable text for this input.");
-                        }
-                    } else {
-                        String modelPlan = model.generate(plan.asModelPlanningPrompt(), 160, 0.62f, 12, System.nanoTime());
-                        neuralDraft = modelPlan;
-                        runOnUiThread(() -> {
-                            Conversation current = findConversation(conversationId);
-                            if (current != null && current.messages.contains(assistantMessage)) {
-                                assistantMessage.text = plan.render() + "\n\nPlano computacional estruturado antes da geração dos arquivos.";
-                                saveHistory();
-                                if (activeId == conversationId) renderConversation();
-                            }
-                        });
-                        project = DetaProjectFactory.create(plan);
-                        response = plan.render()
-                                + "\n\nIMPLEMENTAÇÃO\nProjeto: " + project.title
-                                + "\nTipo: " + project.kind
-                                + "\n\n" + project.summary
-                                + "\n\nArquivos incluídos: " + project.fileList()
-                                + "\n\nO projeto foi gerado e empacotado após o planejamento. Inspecione a prévia e teste antes de publicar.";
-                    }
+                    });
+                    project = DetaProjectFactory.create(plan);
+                    response = plan.render()
+                            + "\n\nIMPLEMENTAÇÃO\nProjeto: " + project.title
+                            + "\nTipo: " + project.kind
+                            + "\n\n" + project.summary
+                            + "\n\nArquivos incluídos: " + project.fileList()
+                            + "\n\nO projeto foi gerado e empacotado após o planejamento. Inspecione a prévia e teste antes de publicar.";
                 }
             } catch (Exception exception) {
                 response = buildFailureMessage(plan.route, exception);
