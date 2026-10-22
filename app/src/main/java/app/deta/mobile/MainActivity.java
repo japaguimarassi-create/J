@@ -2,29 +2,46 @@ package app.deta.mobile;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.ContentResolver;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
+import android.webkit.WebChromeClient;
+import android.webkit.WebView;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public final class MainActivity extends Activity {
     private static final int BG = Color.rgb(8, 9, 13);
@@ -34,13 +51,17 @@ public final class MainActivity extends Activity {
     private static final int FG = Color.rgb(244, 244, 247);
     private static final int MUTED = Color.rgb(164, 166, 177);
     private static final int ACCENT = Color.rgb(186, 174, 255);
-    private static final String PREFS = "deta_rebuilt_base";
+    private static final int CYAN = Color.rgb(73, 217, 245);
+    private static final String PREFS = "deta_creator_v2";
     private static final String HISTORY_KEY = "history";
-    private static final String ACTIVE_KEY = "active_conversation";
-    private static final int MAX_CONVERSATIONS = 80;
-    private static final int MAX_MESSAGES = 120;
+    private static final String ACTIVE_KEY = "active";
+    private static final int SAVE_REQUEST = 742;
+    private static final int MAX_CONVERSATIONS = 24;
+    private static final int MAX_MESSAGES = 40;
 
     private final ArrayList<Conversation> history = new ArrayList<>();
+    private final ExecutorService generationExecutor = Executors.newSingleThreadExecutor();
+    private DetaLocalModel localModel;
     private FrameLayout root;
     private LinearLayout transcript;
     private ScrollView transcriptScroll;
@@ -49,14 +70,32 @@ public final class MainActivity extends Activity {
     private LinearLayout drawerList;
     private EditText drawerSearch;
     private long activeId = -1L;
+    private DetaProjectFactory.Project pendingProject;
+    private boolean searchOpen;
+
+    private static final class Message {
+        final boolean fromUser;
+        String text;
+        String projectPrompt;
+        String neuralDraft;
+        DetaProjectFactory.Project project;
+
+        Message(boolean fromUser, String text) {
+            this.fromUser = fromUser;
+            this.text = text;
+        }
+    }
 
     private static final class Conversation {
         final long id;
         String title;
-        final ArrayList<String> messages = new ArrayList<>();
+        long updatedAt;
+        final ArrayList<Message> messages = new ArrayList<>();
+
         Conversation(long id, String title) {
             this.id = id;
             this.title = title;
+            this.updatedAt = id;
         }
     }
 
@@ -67,15 +106,28 @@ public final class MainActivity extends Activity {
         window.setStatusBarColor(BG);
         window.setNavigationBarColor(BG);
         window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
-        loadHistory();
-        if (state != null) activeId = state.getLong(ACTIVE_KEY, -1L);
-        buildInterface();
+        try {
+            loadHistory();
+            activeId = state == null
+                    ? getSharedPreferences(PREFS, MODE_PRIVATE).getLong(ACTIVE_KEY, -1L)
+                    : state.getLong(ACTIVE_KEY, -1L);
+            if (activeConversation() == null) activeId = -1L;
+            buildInterface();
+        } catch (RuntimeException exception) {
+            showRecovery(exception);
+        }
     }
 
     @Override
     protected void onSaveInstanceState(Bundle state) {
         state.putLong(ACTIVE_KEY, activeId);
         super.onSaveInstanceState(state);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (isFinishing()) generationExecutor.shutdownNow();
     }
 
     @Override
@@ -92,51 +144,51 @@ public final class MainActivity extends Activity {
         return new LinearLayout.LayoutParams(width < 0 ? width : dp(width), height < 0 ? height : dp(height));
     }
 
-    private void margins(LinearLayout.LayoutParams p, int left, int top, int right, int bottom) {
-        p.setMargins(dp(left), dp(top), dp(right), dp(bottom));
+    private void margins(LinearLayout.LayoutParams params, int left, int top, int right, int bottom) {
+        params.setMargins(dp(left), dp(top), dp(right), dp(bottom));
     }
 
     private GradientDrawable shape(int fill, int radius, int stroke) {
-        GradientDrawable d = new GradientDrawable();
-        d.setColor(fill);
-        d.setCornerRadius(dp(radius));
-        if (stroke != 0) d.setStroke(dp(1), stroke);
-        return d;
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setColor(fill);
+        drawable.setCornerRadius(dp(radius));
+        if (stroke != 0) drawable.setStroke(dp(1), stroke);
+        return drawable;
     }
 
     private TextView text(String value, float size, int color, boolean bold) {
-        TextView v = new TextView(this);
-        v.setText(value);
-        v.setTextSize(size);
-        v.setTextColor(color);
-        v.setTypeface(Typeface.create("sans-serif", bold ? Typeface.BOLD : Typeface.NORMAL));
-        v.setIncludeFontPadding(false);
-        v.setGravity(Gravity.CENTER_VERTICAL);
-        return v;
+        TextView view = new TextView(this);
+        view.setText(value);
+        view.setTextSize(size);
+        view.setTextColor(color);
+        view.setTypeface(Typeface.create("sans-serif", bold ? Typeface.BOLD : Typeface.NORMAL));
+        view.setIncludeFontPadding(false);
+        view.setGravity(Gravity.CENTER_VERTICAL);
+        return view;
     }
 
     private LinearLayout column() {
-        LinearLayout v = new LinearLayout(this);
-        v.setOrientation(LinearLayout.VERTICAL);
-        return v;
+        LinearLayout view = new LinearLayout(this);
+        view.setOrientation(LinearLayout.VERTICAL);
+        return view;
     }
 
     private LinearLayout row() {
-        LinearLayout v = new LinearLayout(this);
-        v.setOrientation(LinearLayout.HORIZONTAL);
-        v.setGravity(Gravity.CENTER_VERTICAL);
-        return v;
+        LinearLayout view = new LinearLayout(this);
+        view.setOrientation(LinearLayout.HORIZONTAL);
+        view.setGravity(Gravity.CENTER_VERTICAL);
+        return view;
     }
 
-    private TextView button(String glyph, String description, int fill, int color, Runnable click) {
-        TextView v = text(glyph, 22, color, false);
-        v.setGravity(Gravity.CENTER);
-        v.setContentDescription(description);
-        v.setBackground(shape(fill, 23, fill == FIELD ? BORDER : 0));
-        v.setClickable(true);
-        v.setFocusable(true);
-        v.setOnClickListener(view -> click.run());
-        return v;
+    private TextView button(String glyph, String description, int fill, int color, Runnable action) {
+        TextView view = text(glyph, 22, color, false);
+        view.setGravity(Gravity.CENTER);
+        view.setContentDescription(description);
+        view.setBackground(shape(fill, 23, fill == FIELD ? BORDER : 0));
+        view.setClickable(true);
+        view.setFocusable(true);
+        view.setOnClickListener(ignored -> action.run());
+        return view;
     }
 
     private void buildInterface() {
@@ -150,6 +202,7 @@ public final class MainActivity extends Activity {
         transcriptScroll = new ScrollView(this);
         transcriptScroll.setFillViewport(true);
         transcriptScroll.setVerticalScrollBarEnabled(false);
+        transcriptScroll.setClipToPadding(false);
         transcript = column();
         transcript.setPadding(dp(18), dp(18), dp(18), dp(22));
         transcriptScroll.addView(transcript, new ScrollView.LayoutParams(-1, -2));
@@ -162,7 +215,7 @@ public final class MainActivity extends Activity {
     private View buildToolbar() {
         LinearLayout bar = row();
         bar.setPadding(dp(16), dp(8), dp(16), dp(8));
-        bar.addView(button("☰", "Abrir menu", FIELD, FG, this::openDrawer), lp(46, 46));
+        bar.addView(button("☰", "Abrir conversas", FIELD, FG, this::openDrawer), lp(46, 46));
 
         LinearLayout brand = row();
         brand.setPadding(dp(12), 0, dp(17), 0);
@@ -172,34 +225,37 @@ public final class MainActivity extends Activity {
         logo.setBackground(shape(Color.rgb(43, 39, 64), 10, 0));
         brand.addView(logo, lp(30, 30));
         TextView title = text("Deta", 18, FG, true);
-        LinearLayout.LayoutParams tp = lp(-2, -1);
-        margins(tp, 9, 0, 0, 0);
-        brand.addView(title, tp);
-        LinearLayout.LayoutParams bp = lp(-2, 46);
-        margins(bp, 10, 0, 0, 0);
-        bar.addView(brand, bp);
+        LinearLayout.LayoutParams titleParams = lp(-2, -1);
+        margins(titleParams, 9, 0, 0, 0);
+        brand.addView(title, titleParams);
+        LinearLayout.LayoutParams brandParams = lp(-2, 46);
+        margins(brandParams, 10, 0, 0, 0);
+        bar.addView(brand, brandParams);
         bar.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
-        bar.addView(button("+", "Nova conversa", FIELD, FG, this::startNewConversation), lp(46, 46));
+        bar.addView(button("+", "Nova criação", FIELD, FG, this::startNewConversation), lp(46, 46));
         return bar;
     }
 
     private View buildComposer() {
         LinearLayout wrapper = column();
-        wrapper.setPadding(dp(16), dp(3), dp(16), dp(12));
+        wrapper.setPadding(dp(16), dp(3), dp(16), dp(10));
         LinearLayout field = row();
-        field.setPadding(dp(7), dp(7), dp(7), dp(7));
-        field.setBackground(shape(PANEL, 27, BORDER));
+        field.setPadding(dp(8), dp(7), dp(7), dp(7));
+        field.setBackground(shape(FIELD, 26, BORDER));
 
-        TextView options = button("+", "Mais opções", PANEL, FG, this::showOptions);
-        field.addView(options, lp(42, 42));
+        TextView add = button("+", "Sugestões de criação", FIELD, FG, this::showCreationOptions);
+        add.setBackgroundColor(Color.TRANSPARENT);
+        field.addView(add, lp(40, 42));
+
         composer = new EditText(this);
-        composer.setHint("Escreva uma mensagem ou nota");
-        composer.setTextColor(FG);
-        composer.setHintTextColor(MUTED);
-        composer.setTextSize(16);
+        composer.setSingleLine(false);
         composer.setMinLines(1);
         composer.setMaxLines(4);
-        composer.setPadding(dp(9), dp(8), dp(5), dp(8));
+        composer.setTextSize(16);
+        composer.setTextColor(FG);
+        composer.setHintTextColor(MUTED);
+        composer.setHint("Descreva o app ou jogo que quer criar");
+        composer.setPadding(dp(8), dp(7), dp(5), dp(7));
         composer.setBackgroundColor(Color.TRANSPARENT);
         composer.setInputType(android.text.InputType.TYPE_CLASS_TEXT
                 | android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
@@ -209,247 +265,471 @@ public final class MainActivity extends Activity {
             boolean enter = event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER
                     && event.getAction() == KeyEvent.ACTION_DOWN;
             if (actionId == EditorInfo.IME_ACTION_SEND || enter) {
-                saveMessage();
+                createFromPrompt();
                 return true;
             }
             return false;
         });
         field.addView(composer, new LinearLayout.LayoutParams(0, -2, 1f));
-        field.addView(button("↑", "Enviar mensagem", ACCENT, BG, this::saveMessage), lp(42, 42));
+        TextView send = button("↑", "Criar projeto", ACCENT, BG, this::createFromPrompt);
+        field.addView(send, lp(42, 42));
         wrapper.addView(field, lp(-1, -2));
-        TextView footer = text("Base local · sem IA · sem internet", 11, MUTED, false);
-        footer.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams fp = lp(-1, 22);
-        margins(fp, 0, 4, 0, 0);
-        wrapper.addView(footer, fp);
+
+        TextView note = text("Modelo neural local · 400 mil parâmetros · sem API de IA", 10, Color.rgb(127, 129, 143), false);
+        note.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams noteParams = lp(-1, 18);
+        margins(noteParams, 0, 4, 0, 0);
+        wrapper.addView(note, noteParams);
         return wrapper;
     }
 
-    private Conversation findConversation(long id) {
-        for (Conversation c : history) if (c.id == id) return c;
-        return null;
+    private void showCreationOptions() {
+        String[] options = {"Criar um jogo", "Criar um app social", "Criar um app utilitário", "Ver informações do modelo"};
+        new AlertDialog.Builder(this).setTitle("Criar com a Deta")
+                .setItems(options, (dialog, which) -> {
+                    if (which == 0) composer.setText("Crie um jogo de reflexos chamado Neon Arena com pontuação e recorde.");
+                    else if (which == 1) composer.setText("Crie uma rede social chamada Comunidade Deta com publicações, curtidas e comentários.");
+                    else if (which == 2) composer.setText("Crie um app de tarefas chamado Minha Rotina com adicionar, concluir e excluir.");
+                    else showModelInfo();
+                    if (which < 3) {
+                        composer.setSelection(composer.length());
+                        composer.requestFocus();
+                        showKeyboard(composer);
+                    }
+                }).setNegativeButton("Fechar", null).show();
+    }
+
+    private void showModelInfo() {
+        new AlertDialog.Builder(this).setTitle("Modelo Deta local")
+                .setMessage("Checkpoint original DetaFiveGroupModel. 400.000 parâmetros em cinco grupos de 80.000. O modelo funciona localmente, sem API de IA hospedada. É um modelo byte-level experimental; por isso, o aplicativo combina a inferência neural com um gerador estruturado que cria projetos jogáveis, sociais e utilitários.")
+                .setPositiveButton("Entendi", null).show();
+    }
+
+    private void showRecovery(RuntimeException exception) {
+        LinearLayout recovery = column();
+        recovery.setPadding(dp(24), dp(32), dp(24), dp(24));
+        recovery.setBackgroundColor(BG);
+        recovery.addView(text("Deta — recuperação", 24, FG, true), lp(-1, 48));
+        TextView body = text("A tela encontrou um erro ao iniciar. Os projetos e conversas salvos não foram apagados.", 16, MUTED, false);
+        body.setGravity(Gravity.TOP);
+        LinearLayout.LayoutParams bodyParams = lp(-1, -2);
+        margins(bodyParams, 0, 12, 0, 16);
+        recovery.addView(body, bodyParams);
+        TextView detail = text(exception.getClass().getSimpleName() + ": " + String.valueOf(exception.getMessage()), 12, MUTED, false);
+        detail.setGravity(Gravity.TOP);
+        recovery.addView(detail, lp(-1, -2));
+        TextView retry = text("Tentar novamente", 16, BG, true);
+        retry.setGravity(Gravity.CENTER);
+        retry.setBackground(shape(ACCENT, 24, 0));
+        retry.setClickable(true);
+        LinearLayout.LayoutParams retryParams = lp(-1, 52);
+        margins(retryParams, 0, 25, 0, 0);
+        recovery.addView(retry, retryParams);
+        retry.setOnClickListener(view -> {
+            try {
+                loadHistory();
+                buildInterface();
+            } catch (RuntimeException retryError) {
+                showRecovery(retryError);
+            }
+        });
+        setContentView(recovery);
     }
 
     private Conversation activeConversation() {
-        return findConversation(activeId);
+        for (Conversation conversation : history) if (conversation.id == activeId) return conversation;
+        return null;
     }
 
-    private long uniqueId() {
-        long id = System.currentTimeMillis();
-        while (findConversation(id) != null) id++;
-        return id;
+    private Conversation createConversation() {
+        long id = Math.max(System.currentTimeMillis(), history.stream().mapToLong(c -> c.id).max().orElse(0L) + 1L);
+        Conversation conversation = new Conversation(id, "Nova criação");
+        history.add(0, conversation);
+        activeId = id;
+        return conversation;
     }
 
     private void startNewConversation() {
+        activeId = -1L;
         closeDrawer();
-        activeId = uniqueId();
-        history.add(0, new Conversation(activeId, "Nova conversa"));
-        trimHistory();
+        if (composer != null) {
+            composer.setText("");
+            composer.clearFocus();
+        }
         saveHistory();
-        composer.setText("");
-        composer.clearFocus();
         renderConversation();
     }
 
-    private void saveMessage() {
-        String value = composer.getText().toString().trim();
-        if (value.isEmpty()) {
-            Toast.makeText(this, "Escreva algo antes de salvar.", Toast.LENGTH_SHORT).show();
+    private void createFromPrompt() {
+        String prompt = composer.getText().toString().trim();
+        if (prompt.isEmpty()) {
+            Toast.makeText(this, "Descreva o app ou jogo que quer construir.", Toast.LENGTH_SHORT).show();
             return;
         }
-        Conversation c = activeConversation();
-        if (c == null) {
-            c = new Conversation(uniqueId(), "Nova conversa");
-            history.add(0, c);
-            activeId = c.id;
+        if (prompt.length() > 3000) {
+            Toast.makeText(this, "O pedido deve ter até 3.000 caracteres.", Toast.LENGTH_LONG).show();
+            return;
         }
-        if (c.messages.isEmpty()) c.title = makeTitle(value);
-        c.messages.add(value);
-        if (c.messages.size() > MAX_MESSAGES) c.messages.remove(0);
-        moveToTop(c);
-        trimHistory();
-        saveHistory();
+        Conversation conversation = activeConversation();
+        if (conversation == null) conversation = createConversation();
+        if (conversation.messages.isEmpty()) conversation.title = makeTitle(prompt);
+        conversation.updatedAt = System.currentTimeMillis();
+
+        Message userMessage = new Message(true, prompt);
+        Message assistantMessage = new Message(false, "Montando o projeto e carregando o modelo neural local…");
+        conversation.messages.add(userMessage);
+        conversation.messages.add(assistantMessage);
         composer.setText("");
+        closeDrawer();
+        saveHistory();
+        renderConversation();
+        hideKeyboard();
+
+        long conversationId = conversation.id;
+        generationExecutor.execute(() -> {
+            DetaProjectFactory.Project project = null;
+            String neuralDraft = "";
+            String modelStatus;
+            try {
+                DetaLocalModel model = getLocalModel();
+                neuralDraft = model.generate(prompt, 112, 0.82f, 18, System.nanoTime());
+                modelStatus = "Inferência local concluída com o checkpoint de 400.000 parâmetros.";
+            } catch (Exception exception) {
+                modelStatus = "O modelo neural não pôde ser carregado: " + exception.getClass().getSimpleName()
+                        + ". O gerador de projetos continuará disponível.";
+            }
+            String response;
+            try {
+                project = DetaProjectFactory.create(prompt);
+                response = "Projeto preparado: " + project.title + "\n"
+                        + "Tipo: " + project.kind + "\n"
+                        + project.summary + "\n\n"
+                        + "Arquivos incluídos: " + project.fileList() + "\n\n"
+                        + modelStatus + "\n\n"
+                        + "O construtor estruturado cria os arquivos executáveis; o rascunho neural é experimental e não foi inserido automaticamente no código final.";
+            } catch (Exception exception) {
+                response = "Não consegui montar o projeto: " + exception.getMessage();
+            }
+            DetaProjectFactory.Project finalProject = project;
+            String finalDraft = neuralDraft;
+            String finalResponse = response;
+            runOnUiThread(() -> {
+                Conversation targetConversation = findConversation(conversationId);
+                if (targetConversation == null) return;
+                int index = targetConversation.messages.indexOf(assistantMessage);
+                if (index < 0) return;
+                assistantMessage.text = finalResponse;
+                assistantMessage.neuralDraft = finalDraft;
+                if (finalProject != null) {
+                    assistantMessage.projectPrompt = prompt;
+                    assistantMessage.project = finalProject;
+                    pendingProject = finalProject;
+                }
+                targetConversation.updatedAt = System.currentTimeMillis();
+                moveToTop(targetConversation);
+                saveHistory();
+                if (activeId == conversationId) {
+                    renderConversation();
+                    transcriptScroll.post(() -> transcriptScroll.fullScroll(View.FOCUS_DOWN));
+                }
+                if (drawerOverlay != null) renderHistoryList();
+            });
+        });
+    }
+
+    private DetaLocalModel getLocalModel() throws IOException {
+        if (localModel != null) return localModel;
+        synchronized (this) {
+            if (localModel == null) localModel = DetaLocalModel.fromAssets(getAssets());
+            return localModel;
+        }
+    }
+
+    private Conversation findConversation(long id) {
+        for (Conversation conversation : history) if (conversation.id == id) return conversation;
+        return null;
+    }
+
+    private String makeTitle(String prompt) {
+        String value = prompt.replaceAll("\\s+", " ").trim();
+        if (value.length() > 38) value = value.substring(0, 35).trim() + "...";
+        return value.isEmpty() ? "Nova criação" : value;
+    }
+
+    private void moveToTop(Conversation conversation) {
+        history.remove(conversation);
+        history.add(0, conversation);
+    }
+
+    private void hideKeyboard() {
+        if (composer == null) return;
         InputMethodManager manager = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
         if (manager != null) manager.hideSoftInputFromWindow(composer.getWindowToken(), 0);
         composer.clearFocus();
-        renderConversation();
-        if (drawerList != null) renderHistoryList();
-        transcriptScroll.post(() -> transcriptScroll.fullScroll(View.FOCUS_DOWN));
-        Toast.makeText(this, "Mensagem salva neste dispositivo.", Toast.LENGTH_SHORT).show();
-    }
-
-    private String makeTitle(String value) {
-        String title = value.replaceAll("\\s+", " ").trim();
-        if (title.length() > 38) title = title.substring(0, 35).trim() + "...";
-        return title.isEmpty() ? "Nova conversa" : title;
-    }
-
-    private void moveToTop(Conversation c) {
-        history.remove(c);
-        history.add(0, c);
-    }
-
-    private void trimHistory() {
-        while (history.size() > MAX_CONVERSATIONS) {
-            Conversation removed = history.remove(history.size() - 1);
-            if (removed.id == activeId) activeId = -1L;
-        }
     }
 
     private void renderConversation() {
         if (transcript == null) return;
         transcript.removeAllViews();
-        Conversation c = activeConversation();
-        if (c == null || c.messages.isEmpty()) {
-            transcript.setGravity(Gravity.CENTER);
-            LinearLayout intro = column();
-            intro.setGravity(Gravity.CENTER_HORIZONTAL);
-            TextView logo = text("D", 34, ACCENT, true);
-            logo.setGravity(Gravity.CENTER);
-            logo.setBackground(shape(Color.rgb(43, 39, 64), 23, 0));
-            intro.addView(logo, lp(68, 68));
-            TextView heading = text("Deta — base local", 23, FG, true);
-            heading.setGravity(Gravity.CENTER);
-            LinearLayout.LayoutParams hp = lp(-1, -2);
-            margins(hp, 0, 22, 0, 0);
-            intro.addView(heading, hp);
-            TextView detail = text(
-                    "A interface foi refeita do zero.\nAs mensagens ficam neste aparelho.\nNão há IA ou internet nesta versão.",
-                    14, MUTED, false);
-            detail.setGravity(Gravity.CENTER);
-            detail.setLineSpacing(dp(5), 1f);
-            LinearLayout.LayoutParams dp = lp(-1, -2);
-            margins(dp, 0, 10, 0, 0);
-            intro.addView(detail, dp);
-            TextView historyAction = text("Abrir conversas", 14, FG, true);
-            historyAction.setGravity(Gravity.CENTER);
-            historyAction.setBackground(shape(FIELD, 20, BORDER));
-            historyAction.setPadding(this.dp(18), 0, this.dp(18), 0);
-            historyAction.setClickable(true);
-            historyAction.setFocusable(true);
-            historyAction.setContentDescription("Abrir conversas recentes");
-            historyAction.setOnClickListener(view -> openDrawer());
-            LinearLayout.LayoutParams ap = lp(-2, 44);
-            margins(ap, 0, 22, 0, 0);
-            intro.addView(historyAction, ap);
-            transcript.addView(intro, lp(-1, -2));
+        Conversation conversation = activeConversation();
+        if (conversation == null || conversation.messages.isEmpty()) {
+            renderWelcome();
             return;
         }
-
-        transcript.setGravity(Gravity.TOP);
-        for (String message : c.messages) {
-            LinearLayout bubbleRow = row();
-            bubbleRow.setGravity(Gravity.RIGHT);
-            LinearLayout.LayoutParams rp = lp(-1, -2);
-            margins(rp, 0, 6, 0, 6);
-            TextView bubble = text(message, 16, FG, false);
-            bubble.setMaxWidth((int) (getResources().getDisplayMetrics().widthPixels * 0.82f));
-            bubble.setPadding(dp(15), dp(12), dp(15), dp(12));
-            bubble.setBackground(shape(Color.rgb(47, 47, 56), 20, 0));
-            bubble.setTextIsSelectable(true);
-            bubbleRow.addView(bubble, new LinearLayout.LayoutParams(-2, -2));
-            transcript.addView(bubbleRow, rp);
+        for (Message message : conversation.messages) {
+            addMessageBubble(message);
         }
     }
 
-    private void showOptions() {
-        ArrayList<String> values = new ArrayList<>();
-        values.add("Nova conversa");
-        if (activeConversation() != null) values.add("Apagar conversa atual");
-        values.add("Sobre esta base");
-        String[] labels = values.toArray(new String[0]);
-        new AlertDialog.Builder(this).setTitle("Menu da Deta").setItems(labels, (dialog, index) -> {
-            String chosen = labels[index];
-            if (chosen.equals("Nova conversa")) startNewConversation();
-            else if (chosen.equals("Apagar conversa atual")) confirmDelete(activeConversation());
-            else new AlertDialog.Builder(this)
-                    .setTitle("Deta 1.1 — base local")
-                    .setMessage("Esta versão contém somente interface e histórico local. IA, rede e APIs foram removidas.")
-                    .setPositiveButton("Fechar", null).show();
-        }).setNegativeButton("Fechar", null).show();
+    private void renderWelcome() {
+        LinearLayout welcome = column();
+        welcome.setGravity(Gravity.CENTER_HORIZONTAL);
+        welcome.setPadding(dp(4), dp(36), dp(4), dp(18));
+        TextView icon = text("D", 34, ACCENT, true);
+        icon.setGravity(Gravity.CENTER);
+        icon.setBackground(shape(Color.rgb(37, 34, 55), 22, BORDER));
+        welcome.addView(icon, lp(68, 68));
+
+        TextView heading = text("O que vamos criar?", 26, FG, true);
+        heading.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams headingParams = lp(-1, -2);
+        margins(headingParams, 0, 20, 0, 0);
+        welcome.addView(heading, headingParams);
+
+        TextView body = text("Descreva o app ou jogo. A Deta usa seu modelo neural local e transforma o pedido em arquivos de projeto.", 15, MUTED, false);
+        body.setGravity(Gravity.CENTER);
+        body.setLineSpacing(dp(4), 1f);
+        LinearLayout.LayoutParams bodyParams = lp(-1, -2);
+        margins(bodyParams, 8, 11, 8, 22);
+        welcome.addView(body, bodyParams);
+        welcome.addView(chip("Criar jogo", "Crie um jogo de reflexos chamado Neon Arena com pontuação e recorde."), lp(-1, 48));
+        welcome.addView(chip("Criar app social", "Crie uma rede social chamada Comunidade Deta com publicações, curtidas e comentários."), lp(-1, 48));
+        welcome.addView(chip("Criar app utilitário", "Crie um app de tarefas chamado Minha Rotina com adicionar, concluir e excluir."), lp(-1, 48));
+        TextView info = text("400.000 parâmetros · 5 grupos · processamento local", 11, Color.rgb(113, 116, 130), false);
+        info.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams infoParams = lp(-1, 24);
+        margins(infoParams, 0, 18, 0, 0);
+        welcome.addView(info, infoParams);
+        transcript.addView(welcome, lp(-1, -2));
     }
 
-    private void confirmDelete(Conversation c) {
-        if (c == null) return;
-        new AlertDialog.Builder(this).setTitle("Apagar conversa?")
-                .setMessage("A conversa será removida deste dispositivo.")
-                .setNegativeButton("Cancelar", null)
-                .setPositiveButton("Apagar", (dialog, which) -> {
-                    history.remove(c);
-                    activeId = -1L;
-                    saveHistory();
-                    renderConversation();
-                    if (drawerList != null) renderHistoryList();
-                }).show();
+    private TextView chip(String label, String prompt) {
+        TextView chip = text(label, 14, FG, true);
+        chip.setGravity(Gravity.CENTER);
+        chip.setBackground(shape(PANEL, 16, BORDER));
+        chip.setClickable(true);
+        chip.setFocusable(true);
+        LinearLayout.LayoutParams params = lp(-1, 46);
+        margins(params, 0, 5, 0, 5);
+        chip.setOnClickListener(view -> {
+            composer.setText(prompt);
+            composer.setSelection(composer.length());
+            composer.requestFocus();
+            showKeyboard(composer);
+        });
+        return chip;
+    }
+
+    private void addMessageBubble(Message message) {
+        LinearLayout wrapper = column();
+        LinearLayout row = row();
+        row.setGravity(message.fromUser ? Gravity.RIGHT : Gravity.LEFT);
+        LinearLayout.LayoutParams rowParams = lp(-1, -2);
+        margins(rowParams, 0, 7, 0, 7);
+
+        if (!message.fromUser) {
+            TextView mark = text("D", 15, ACCENT, true);
+            mark.setGravity(Gravity.CENTER);
+            mark.setBackground(shape(Color.rgb(37, 34, 55), 13, 0));
+            LinearLayout.LayoutParams markParams = lp(28, 28);
+            margins(markParams, 0, 0, 8, 0);
+            row.addView(mark, markParams);
+        }
+
+        TextView bubble = text(message.text, 15, FG, false);
+        bubble.setGravity(Gravity.TOP);
+        bubble.setLineSpacing(dp(3), 1f);
+        bubble.setPadding(dp(14), dp(12), dp(14), dp(12));
+        bubble.setBackground(shape(message.fromUser ? Color.rgb(40, 41, 48) : PANEL, 19, message.fromUser ? 0 : BORDER));
+        bubble.setMaxWidth((int) (getResources().getDisplayMetrics().widthPixels * (message.fromUser ? 0.82f : 0.88f)));
+        row.addView(bubble, new LinearLayout.LayoutParams(-2, -2));
+        wrapper.addView(row, rowParams);
+
+        if (!message.fromUser && message.project != null) {
+            LinearLayout actions = row();
+            LinearLayout.LayoutParams actionsParams = lp(-1, 43);
+            margins(actionsParams, 36, 0, 0, 4);
+            actions.addView(actionButton("Pré-visualizar", () -> showProjectPreview(message.project)), new LinearLayout.LayoutParams(0, dp(38), 1f));
+            View spacer = new View(this);
+            actions.addView(spacer, lp(8, 1));
+            actions.addView(actionButton("Exportar ZIP", () -> exportProject(message.project)), new LinearLayout.LayoutParams(0, dp(38), 1f));
+            wrapper.addView(actions, actionsParams);
+        }
+
+        if (!message.fromUser && message.neuralDraft != null && !message.neuralDraft.isEmpty()) {
+            TextView draftAction = text("Ver rascunho neural local", 12, CYAN, true);
+            draftAction.setPadding(dp(36), dp(8), dp(8), dp(8));
+            draftAction.setClickable(true);
+            draftAction.setOnClickListener(view -> showNeuralDraft(message.neuralDraft));
+            wrapper.addView(draftAction, lp(-1, 35));
+        }
+        transcript.addView(wrapper, lp(-1, -2));
+    }
+
+    private TextView actionButton(String label, Runnable action) {
+        TextView button = text(label, 13, FG, true);
+        button.setGravity(Gravity.CENTER);
+        button.setBackground(shape(FIELD, 13, BORDER));
+        button.setClickable(true);
+        button.setFocusable(true);
+        button.setOnClickListener(view -> action.run());
+        return button;
+    }
+
+    private void showNeuralDraft(String draft) {
+        ScrollView scroll = new ScrollView(this);
+        TextView content = text(draft, 13, FG, false);
+        content.setGravity(Gravity.TOP);
+        content.setTextIsSelectable(true);
+        content.setPadding(dp(14), dp(14), dp(14), dp(14));
+        scroll.addView(content);
+        new AlertDialog.Builder(this).setTitle("Rascunho do modelo Deta")
+                .setView(scroll)
+                .setPositiveButton("Copiar", (dialog, which) -> copyText("Rascunho Deta", draft))
+                .setNegativeButton("Fechar", null).show();
+    }
+
+    private void copyText(String label, String value) {
+        ClipboardManager manager = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        if (manager != null) {
+            manager.setPrimaryClip(ClipData.newPlainText(label, value));
+            Toast.makeText(this, "Copiado.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showProjectPreview(DetaProjectFactory.Project project) {
+        if (project == null) return;
+        WebView webView = new WebView(this);
+        webView.setBackgroundColor(BG);
+        webView.getSettings().setJavaScriptEnabled(true);
+        webView.getSettings().setAllowFileAccess(false);
+        webView.getSettings().setAllowContentAccess(false);
+        webView.setWebChromeClient(new WebChromeClient());
+        webView.loadDataWithBaseURL(null, project.previewHtml(), "text/html", "UTF-8", null);
+        int height = Math.min(getResources().getDisplayMetrics().heightPixels - dp(120), dp(620));
+        new AlertDialog.Builder(this).setTitle(project.title)
+                .setView(webView, dp(320), Math.max(dp(300), height))
+                .setPositiveButton("Exportar ZIP", (dialog, which) -> exportProject(project))
+                .setNegativeButton("Fechar", null).show();
+    }
+
+    private void exportProject(DetaProjectFactory.Project project) {
+        if (project == null) return;
+        pendingProject = project;
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/zip");
+        intent.putExtra(Intent.EXTRA_TITLE, slug(project.title) + ".zip");
+        try {
+            startActivityForResult(intent, SAVE_REQUEST);
+        } catch (RuntimeException exception) {
+            Toast.makeText(this, "Não foi possível abrir o seletor de arquivos.", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private String slug(String value) {
+        String result = java.text.Normalizer.normalize(value.toLowerCase(Locale.ROOT), java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "").replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", "");
+        return result.isEmpty() ? "deta-project" : result;
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != SAVE_REQUEST || resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        DetaProjectFactory.Project project = pendingProject;
+        if (project == null) return;
+        Uri uri = data.getData();
+        try (OutputStream output = getContentResolver().openOutputStream(uri, "wt")) {
+            if (output == null) throw new IOException("The selected destination could not be opened.");
+            output.write(project.zip);
+            output.flush();
+            Toast.makeText(this, "Projeto exportado: " + project.title + ".zip", Toast.LENGTH_LONG).show();
+        } catch (IOException exception) {
+            Toast.makeText(this, "Falha ao salvar o projeto: " + exception.getMessage(), Toast.LENGTH_LONG).show();
+        } finally {
+            pendingProject = null;
+        }
     }
 
     private void openDrawer() {
-        closeDrawer();
+        if (drawerOverlay != null) return;
         drawerOverlay = new FrameLayout(this);
-        drawerOverlay.setBackgroundColor(0x99000000);
-        drawerOverlay.setClickable(true);
-        drawerOverlay.setOnClickListener(view -> closeDrawer());
+        View dim = new View(this);
+        dim.setBackgroundColor(0xAA000000);
+        dim.setOnClickListener(view -> closeDrawer());
+        drawerOverlay.addView(dim, new FrameLayout.LayoutParams(-1, -1));
+
         LinearLayout panel = column();
         panel.setBackgroundColor(PANEL);
-        panel.setPadding(dp(18), dp(23), dp(16), dp(14));
+        panel.setPadding(dp(20), dp(26), dp(16), dp(14));
         panel.setElevation(dp(12));
         panel.setOnClickListener(view -> {});
 
-        LinearLayout header = row();
-        header.addView(text("Conversas", 23, FG, true), new LinearLayout.LayoutParams(0, dp(46), 1f));
-        header.addView(button("×", "Fechar menu", FIELD, FG, this::closeDrawer), lp(42, 42));
-        panel.addView(header, lp(-1, 48));
-
-        TextView create = text("+   Nova conversa", 15, BG, true);
-        create.setPadding(dp(14), 0, dp(14), 0);
-        create.setBackground(shape(ACCENT, 17, 0));
-        create.setClickable(true);
-        create.setFocusable(true);
-        create.setContentDescription("Criar conversa");
-        create.setOnClickListener(view -> startNewConversation());
-        LinearLayout.LayoutParams cp = lp(-1, 48);
-        margins(cp, 0, 18, 0, 17);
-        panel.addView(create, cp);
+        LinearLayout titleRow = row();
+        titleRow.addView(text("Conversas", 24, FG, true), new LinearLayout.LayoutParams(0, dp(46), 1f));
+        titleRow.addView(button("×", "Fechar menu", FIELD, FG, this::closeDrawer), lp(42, 42));
+        panel.addView(titleRow, lp(-1, 46));
 
         drawerSearch = new EditText(this);
-        drawerSearch.setHint("Buscar conversas");
-        drawerSearch.setTextColor(FG);
-        drawerSearch.setHintTextColor(MUTED);
         drawerSearch.setSingleLine(true);
         drawerSearch.setTextSize(15);
+        drawerSearch.setTextColor(FG);
+        drawerSearch.setHintTextColor(MUTED);
+        drawerSearch.setHint("Buscar no histórico");
         drawerSearch.setPadding(dp(12), 0, dp(12), 0);
         drawerSearch.setBackground(shape(FIELD, 14, BORDER));
-        drawerSearch.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
-        LinearLayout.LayoutParams sp = lp(-1, 46);
-        margins(sp, 0, 0, 0, 20);
-        panel.addView(drawerSearch, sp);
-        panel.addView(text("Recentes", 14, MUTED, true), lp(-1, 26));
-
-        ScrollView listScroll = new ScrollView(this);
-        listScroll.setVerticalScrollBarEnabled(false);
-        drawerList = column();
-        drawerList.setPadding(0, dp(5), 0, dp(8));
-        listScroll.addView(drawerList, new ScrollView.LayoutParams(-1, -2));
-        panel.addView(listScroll, new LinearLayout.LayoutParams(-1, 0, 1f));
-        LinearLayout.LayoutParams fp = lp(-1, 34);
-        margins(fp, 0, 10, 0, 0);
-        panel.addView(text("Base local · sem IA", 12, MUTED, false), fp);
-
-        int width = getResources().getDisplayMetrics().widthPixels;
-        int panelWidth = Math.max(dp(240), Math.min(dp(330), width - dp(40)));
-        drawerOverlay.addView(panel, new FrameLayout.LayoutParams(panelWidth, -1, Gravity.START));
-        root.addView(drawerOverlay, new FrameLayout.LayoutParams(-1, -1));
+        LinearLayout.LayoutParams searchParams = lp(-1, 46);
+        margins(searchParams, 0, 12, 0, 0);
+        panel.addView(drawerSearch, searchParams);
         drawerSearch.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) { renderHistoryList(); }
             @Override public void afterTextChanged(Editable s) {}
         });
+
+        TextView newChat = actionButton("＋   Nova criação", this::startNewConversation);
+        LinearLayout.LayoutParams newParams = lp(-1, 48);
+        margins(newParams, 0, 16, 0, 20);
+        panel.addView(newChat, newParams);
+        panel.addView(text("Recentes", 15, MUTED, true), lp(-1, 28));
+
+        ScrollView rowsScroll = new ScrollView(this);
+        rowsScroll.setVerticalScrollBarEnabled(false);
+        drawerList = column();
+        rowsScroll.addView(drawerList, new ScrollView.LayoutParams(-1, -2));
+        panel.addView(rowsScroll, new LinearLayout.LayoutParams(-1, 0, 1f));
+
+        panel.addView(text("Deta · modelo local de criação", 12, MUTED, false), lp(-1, 38));
+        int width = Math.min(dp(340), getResources().getDisplayMetrics().widthPixels - dp(52));
+        drawerOverlay.addView(panel, new FrameLayout.LayoutParams(Math.max(dp(260), width), -1, Gravity.START));
+        root.addView(drawerOverlay, new FrameLayout.LayoutParams(-1, -1));
         renderHistoryList();
+        if (searchOpen) {
+            drawerSearch.requestFocus();
+            showKeyboard(drawerSearch);
+        }
+    }
+
+    private void showKeyboard(EditText field) {
+        field.postDelayed(() -> {
+            InputMethodManager manager = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            if (manager != null) manager.showSoftInput(field, InputMethodManager.SHOW_IMPLICIT);
+        }, 150);
     }
 
     private void closeDrawer() {
-        if (drawerOverlay != null && root != null) root.removeView(drawerOverlay);
+        if (drawerOverlay != null) root.removeView(drawerOverlay);
         drawerOverlay = null;
         drawerList = null;
         drawerSearch = null;
@@ -458,88 +738,133 @@ public final class MainActivity extends Activity {
     private void renderHistoryList() {
         if (drawerList == null) return;
         drawerList.removeAllViews();
+        ArrayList<Conversation> sorted = new ArrayList<>(history);
+        Collections.sort(sorted, Comparator.comparingLong((Conversation item) -> item.updatedAt).reversed());
         String query = drawerSearch == null ? "" : drawerSearch.getText().toString().trim().toLowerCase(Locale.ROOT);
         int count = 0;
-        for (Conversation c : new ArrayList<>(history)) {
-            String title = c.title == null ? "Nova conversa" : c.title;
-            if (!query.isEmpty() && !title.toLowerCase(Locale.ROOT).contains(query)) continue;
+        for (Conversation conversation : sorted) {
+            if (!query.isEmpty() && !conversation.title.toLowerCase(Locale.ROOT).contains(query)) continue;
             count++;
-            TextView item = text(title, 15, c.id == activeId ? FG : MUTED, false);
-            item.setPadding(dp(12), dp(10), dp(12), dp(10));
+            TextView item = text(conversation.title, 14, conversation.id == activeId ? FG : MUTED, false);
             item.setSingleLine(true);
             item.setEllipsize(android.text.TextUtils.TruncateAt.END);
-            item.setBackgroundResource(android.R.drawable.list_selector_background);
+            item.setPadding(dp(10), dp(12), dp(10), dp(12));
+            item.setBackground(shape(conversation.id == activeId ? Color.rgb(42, 42, 51) : PANEL, 12, 0));
             item.setClickable(true);
-            item.setFocusable(true);
-            item.setContentDescription("Abrir conversa: " + title);
-            LinearLayout.LayoutParams ip = lp(-1, 46);
-            margins(ip, 0, 2, 0, 2);
-            drawerList.addView(item, ip);
             item.setOnClickListener(view -> {
-                activeId = c.id;
+                activeId = conversation.id;
                 closeDrawer();
+                saveHistory();
                 renderConversation();
             });
             item.setOnLongClickListener(view -> {
                 new AlertDialog.Builder(this).setTitle("Apagar conversa?")
-                        .setMessage(title).setNegativeButton("Cancelar", null)
+                        .setMessage(conversation.title)
+                        .setNegativeButton("Cancelar", null)
                         .setPositiveButton("Apagar", (dialog, which) -> {
-                            history.remove(c);
-                            if (activeId == c.id) activeId = -1L;
+                            history.remove(conversation);
+                            if (activeId == conversation.id) activeId = -1L;
                             saveHistory();
                             renderHistoryList();
                             renderConversation();
                         }).show();
                 return true;
             });
+            LinearLayout.LayoutParams itemParams = lp(-1, 44);
+            margins(itemParams, 0, 2, 0, 2);
+            drawerList.addView(item, itemParams);
         }
         if (count == 0) {
-            TextView empty = text(query.isEmpty() ? "Nenhuma conversa salva." : "Nenhum resultado.", 14, MUTED, false);
-            empty.setPadding(dp(10), dp(12), dp(10), dp(12));
-            drawerList.addView(empty, lp(-1, -2));
-        }
-    }
-
-    private void loadHistory() {
-        history.clear();
-        String raw = getSharedPreferences(PREFS, MODE_PRIVATE).getString(HISTORY_KEY, "[]");
-        try {
-            JSONArray array = new JSONArray(raw);
-            for (int i = 0; i < array.length() && i < MAX_CONVERSATIONS; i++) {
-                JSONObject object = array.optJSONObject(i);
-                if (object == null) continue;
-                long id = object.optLong("id", -1L);
-                if (id < 0) continue;
-                Conversation c = new Conversation(id, object.optString("title", "Nova conversa"));
-                JSONArray messages = object.optJSONArray("messages");
-                if (messages != null) {
-                    for (int j = 0; j < messages.length() && j < MAX_MESSAGES; j++) {
-                        String value = messages.optString(j, "");
-                        if (!value.trim().isEmpty()) c.messages.add(value);
-                    }
-                }
-                history.add(c);
-            }
-        } catch (JSONException ignored) {
-            history.clear();
-            getSharedPreferences(PREFS, MODE_PRIVATE).edit().remove(HISTORY_KEY).apply();
+            TextView empty = text(query.isEmpty() ? "Nenhuma conversa ainda." : "Nenhum resultado.", 13, MUTED, false);
+            drawerList.addView(empty, lp(-1, 42));
         }
     }
 
     private void saveHistory() {
+        trimHistory();
         JSONArray array = new JSONArray();
-        for (Conversation c : history) {
-            JSONObject object = new JSONObject();
+        for (Conversation conversation : history) {
+            JSONObject item = new JSONObject();
             try {
-                object.put("id", c.id);
-                object.put("title", c.title);
+                item.put("id", conversation.id);
+                item.put("title", conversation.title);
+                item.put("updatedAt", conversation.updatedAt);
                 JSONArray messages = new JSONArray();
-                for (String message : c.messages) messages.put(message);
-                object.put("messages", messages);
-                array.put(object);
+                int start = Math.max(0, conversation.messages.size() - MAX_MESSAGES);
+                for (int index = start; index < conversation.messages.size(); index++) {
+                    Message message = conversation.messages.get(index);
+                    JSONObject object = new JSONObject();
+                    object.put("user", message.fromUser);
+                    object.put("text", trimText(message.text, 2500));
+                    if (message.projectPrompt != null) object.put("projectPrompt", trimText(message.projectPrompt, 3000));
+                    if (message.neuralDraft != null) object.put("neuralDraft", trimText(message.neuralDraft, 300));
+                    messages.put(object);
+                }
+                item.put("messages", messages);
+                array.put(item);
             } catch (JSONException ignored) {
             }
         }
-        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(HISTORY_KEY, array.toString()).apply();
+        String serialized = array.toString();
+        while (serialized.length() > 600_000 && array.length() > 0) {
+            array.remove(array.length() - 1);
+            serialized = array.toString();
+        }
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+                .putString(HISTORY_KEY, serialized)
+                .putLong(ACTIVE_KEY, activeId)
+                .apply();
+    }
+
+    private String trimText(String value, int limit) {
+        if (value == null || value.length() <= limit) return value == null ? "" : value;
+        return value.substring(0, limit);
+    }
+
+    private void trimHistory() {
+        for (Conversation conversation : history) {
+            while (conversation.messages.size() > MAX_MESSAGES) conversation.messages.remove(0);
+        }
+        while (history.size() > MAX_CONVERSATIONS) {
+            Conversation removed = history.remove(history.size() - 1);
+            if (removed.id == activeId) activeId = -1L;
+        }
+    }
+
+    private void loadHistory() {
+        String saved = getSharedPreferences(PREFS, MODE_PRIVATE).getString(HISTORY_KEY, "[]");
+        try {
+            JSONArray array = new JSONArray(saved);
+            for (int index = 0; index < Math.min(array.length(), MAX_CONVERSATIONS); index++) {
+                JSONObject object = array.optJSONObject(index);
+                if (object == null) continue;
+                long id = object.optLong("id", -1L);
+                if (id < 0) continue;
+                Conversation conversation = new Conversation(id, object.optString("title", "Nova criação"));
+                conversation.updatedAt = object.optLong("updatedAt", id);
+                JSONArray messages = object.optJSONArray("messages");
+                if (messages != null) {
+                    for (int messageIndex = 0; messageIndex < messages.length() && messageIndex < MAX_MESSAGES; messageIndex++) {
+                        JSONObject source = messages.optJSONObject(messageIndex);
+                        if (source == null) continue;
+                        Message message = new Message(source.optBoolean("user", false), source.optString("text", ""));
+                        message.neuralDraft = source.optString("neuralDraft", null);
+                        message.projectPrompt = source.optString("projectPrompt", null);
+                        if (!message.fromUser && message.projectPrompt != null) {
+                            try {
+                                message.project = DetaProjectFactory.create(message.projectPrompt);
+                            } catch (Exception ignored) {
+                                message.project = null;
+                            }
+                        }
+                        conversation.messages.add(message);
+                    }
+                }
+                history.add(conversation);
+            }
+        } catch (JSONException | RuntimeException ignored) {
+            history.clear();
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit().remove(HISTORY_KEY).remove(ACTIVE_KEY).apply();
+        }
     }
 }
