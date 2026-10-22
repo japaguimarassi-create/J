@@ -12,12 +12,12 @@ The application is reconstructed natively. The former interface is retained unde
 - **Projects supported:** browser game, social feed, and utility/checklist app.
 - **Preview and export:** projects can be previewed inside the app and saved as a ZIP through Android's document picker.
 - **History:** chats are stored locally, can be searched from the drawer, and can be deleted.
-- **No AI API:** the app has no Internet permission and contains no OpenAI/Gemini API calls.
+- **No hosted AI model API:** Android `INTERNET` permission is enabled for public web search. No OpenAI/Gemini inference API is used. Search currently parses public DuckDuckGo HTML and may fail if the provider changes its page structure.
 - **Custom rules:** there is no pre-filled personality prompt or owner-specific internal rules. The user prompt is sent directly to the local model.
 
 ## Quality and limitation
 
-The 400k model is real and comes from the project's existing trained checkpoint. It is a compact byte-level model trained on a small approved code corpus, not a modern general-purpose LLM. Its drafts can be incoherent. The app therefore combines neural inference with tested structured project templates and labels that distinction rather than claiming arbitrary code generation is solved.
+The 400k model is real and comes from the project's existing trained checkpoint. It is a compact byte-level model, not a modern general-purpose LLM, and its text completions can be incoherent. Ordinary messages such as `Olá` are routed to a contextual clarification instead of random model text or project creation. Explicit app requests are planned before project files are generated. The structured generator still creates supported starter templates; this is not equivalent to a newly trained general-purpose code model.
 
 Generated projects are local prototypes. A single HTML/JavaScript ZIP is not the same as a compiled native APK, multiplayer backend, secure account system or production release. Those capabilities require separate implementation and testing.
 
