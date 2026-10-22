@@ -1,52 +1,71 @@
-# Deta — mapa mental da reconstrução
+# Deta AI — reconstruction and integration map
 
-## Escopo
-- Aplicativo Android refeito com fonte nova
-- Nenhuma implementação de IA, modelo neural ou motor de resposta
-- Nenhum acesso à internet ou permissão de rede
-- Histórico guardado localmente
-- Menu antigo arquivado fora de app/src/main
+## Product goal
+- Mobile-first IA que cria projetos de apps e jogos
+- Reuse the actual Deta checkpoint previously trained in this repository
+- No hosted AI API and no Internet permission in the Android APK
+- User-defined behavior remains unconfigured; no hidden personality prompt is injected
 
-## Interface
-- Barra superior, menu lateral e nova conversa
-- Área de conversa vazia claramente identificada como base local
-- Mensagens próprias em balões
-- Campo multilinha e enviar
-- Histórico recente com busca
-- Apagar conversa atual pelo menu
-- Apagar conversa individual com toque prolongado
-- Sobre explica o escopo da versão
+## Android shell
+- Native Java Activity rebuilt independently
+- Minimal dark interface with Deta identity
+- Recent conversations and local persistence
+- Search and delete from the menu drawer
+- New creation flow and prompt composer
+- Recovery screen for startup errors
+- Accessible labels and bounded saved history
 
-## Dados
-- SharedPreferences + JSON
-- IDs únicos por conversa
-- Título a partir da primeira mensagem
-- Histórico ordenado pela atividade recente
-- Limites de 80 conversas e 120 mensagens por conversa
-- JSON danificado é descartado sem impedir a tela de abrir
-- Conversa ativa restaurada após recriação da Activity
+## Original Deta model
+- Source: `deta-400k-five-group-checkpoints` artifact from training run 39690950684
+- Architecture: `DetaFiveGroupModel`
+- 400,000 trainable parameters total
+- Five additive byte-level GRU groups of 80,000 parameters
+- 30,000 cumulative training updates in the source checkpoint
+- 343 records in the source manifest
+- Python exporter validates tensor names, exact shapes, finite weights, group count and parameter total
+- Export format: ordered little-endian float32 binary, 1,600,000 bytes
+- Android runtime reimplements GRU reset/update/new gates, hidden affine transform, output projection, group summation, and top-k sampling
+- Startup does not load the model; weights are loaded lazily on the first creation request
 
-## Removido do APK
-- WebSearch.java
-- Permissão INTERNET
-- Modelo, prompts e respostas automáticas de IA
-- Reconhecimento de voz e chamadas HTTP
-- Classe Canvas do ícone antigo
+## App/project creation path
+1. Accept the user's raw prompt without a pre-filled system/personality prompt.
+2. Run the original trained neural model locally to produce a byte-level experimental draft.
+3. Classify the request into game, social-feed, or utility prototype.
+4. Generate actual HTML, CSS, JavaScript, README, and project metadata files.
+5. Offer embedded preview with network loads blocked.
+6. Export a ZIP through Android's document picker.
+7. Store the conversation locally, including enough project metadata to regenerate the ZIP later.
 
-## Arquivo histórico
-- MainActivity antiga, menu, WebSearch, ícone, manifest, tema, testes e workflow preservados em archive/menu-v1
-- Arquivos arquivados não são compilados pelo Android
+## Projects
+- Game: 30-second touch-based target game, score, restart and local record
+- Social: local posts, search, likes, comments, delete and browser storage
+- Utility: local checklist, add, complete, delete and clear completed
+- Output is a working starter project; arbitrary native APK compilation is not included in the mobile app yet
 
-## Testes de lançamento
-- Teste unitário
-- Inicialização real em emulador
-- Envio e exibição de uma mensagem local
-- Abertura do menu e criação de conversa
-- Persistência ao recriar a Activity
-- Compilação limpa, zipalign, assinatura e package ID
-- APK publicado somente depois que o teste de emulador passar
+## No-network and privacy posture
+- No `android.permission.INTERNET`
+- No OpenAI/Gemini API or other hosted AI call
+- WebView preview blocks network loading and only inlines the generated local HTML/CSS/JS
+- Neural inference runs on the device
+- Conversations are stored in local Android preferences with size limits
+- Export destination is chosen by the user through Android's document picker
 
-## Versão
-- Deta rebuilt base 1.1.0
-- versionCode 110
-- Pacote de teste app.deta.mobile.debug
+## Tests
+- Robolectric app startup and composer visibility
+- The original 400k weights load and produce a known greedy continuation for a fixed prompt
+- Project archive contents and ZIP structure
+- Game, social, and utility feature assertions
+- HTML injection escaping in user-supplied prompt text
+- Model checksum, exact weight size, source checkpoint metadata and 400k parameter count
+- Clean Gradle assemble, zipalign, apksigner, package/version identity and ZIP integrity
+
+## Limitations to be explicit about
+- The neural checkpoint is small and byte-level; completions can be incoherent or invalid.
+- The structured generator is what makes the three starter project types runnable.
+- Generated prototypes require review and testing before publishing.
+- The current mobile build creates browser-based project ZIPs; it does not yet compile arbitrary Android-native projects to APK.
+- Robolectric validates Activity startup in a JVM Android environment, not every physical handset. A physical-device test remains valuable.
+
+## Archive
+- `archive/menu-v1/`: original previous menu and related Android files retained as historical reference.
+- Current app source under `app/src/main/` is independent of that archive.
