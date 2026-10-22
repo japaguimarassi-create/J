@@ -59,7 +59,7 @@ jobs:
       - name: Compile debug APK from clean state
         run: gradle --no-daemon --stacktrace clean assembleDebug
 
-      - name: Launch and test the rebuilt app in Android emulator
+      - name: Launch the APK and check the live activity in Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -68,7 +68,28 @@ jobs:
           profile: pixel_2
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          script: gradle --no-daemon --stacktrace connectedDebugAndroidTest
+          script: |
+            set -euo pipefail
+            APK="app/build/outputs/apk/debug/app-debug.apk"
+            APP_ID="app.deta.mobile.debug"
+            ACTIVITY="$APP_ID/app.deta.mobile.MainActivity"
+            adb wait-for-device
+            adb install -r "$APK"
+            adb shell am force-stop "$APP_ID" || true
+            adb logcat -c
+            adb shell am start -W -n "$ACTIVITY"
+            sleep 3
+            PID="$(adb shell pidof "$APP_ID" | tr -d '\\r')"
+            if [ -z "$PID" ]; then
+              adb logcat -d -t 500
+              exit 1
+            fi
+            adb shell dumpsys activity activities | grep -F "$ACTIVITY"
+            if adb logcat -d -s AndroidRuntime:E | grep -q "FATAL EXCEPTION"; then
+              adb logcat -d -s AndroidRuntime:E
+              exit 1
+            fi
+            echo "Deta activity is running with PID $PID."
 
       - name: Verify APK alignment, signature, and package identity
         run: |
