@@ -46,9 +46,6 @@ jobs:
           test -f app/src/main/AndroidManifest.xml
           test -f app/src/main/java/app/deta/mobile/MainActivity.java
 
-      - name: Run Android unit tests
-        run: gradle --no-daemon --stacktrace testDebugUnitTest
-
       - name: Compile debug APK
         run: gradle --no-daemon --stacktrace clean assembleDebug
 
@@ -75,7 +72,9 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
-      - name: Launch app in Android emulator
+
+      - name: Run Android unit tests
+        run: gradle --no-daemon --stacktrace testDebugUnitTest      - name: Launch app in Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
