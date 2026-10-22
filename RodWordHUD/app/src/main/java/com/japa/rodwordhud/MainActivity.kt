@@ -28,6 +28,7 @@ class MainActivity : Activity() {
     private lateinit var statusLabel: TextView
     private lateinit var model: MiniGuessModel
     private var selectedGuess = "banana"
+    @Volatile private var modelReady = false
 
     private val backgroundColor = Color.rgb(11, 16, 32)
     private val panelColor = Color.rgb(20, 28, 50)
@@ -42,6 +43,21 @@ class MainActivity : Activity() {
         model = MiniGuessModel()
         selectedGuess = prefs.getString("guess", "banana") ?: "banana"
         buildUi()
+        Thread({
+            try {
+                model.trainModel()
+                runOnUiThread {
+                    if (!isFinishing) {
+                        modelReady = true
+                        generateGuesses()
+                    }
+                }
+            } catch (_: Throwable) {
+                runOnUiThread {
+                    if (!isFinishing) statusLabel.text = "A mini-IA não conseguiu concluir o treinamento."
+                }
+            }
+        }, "rodword-model-training").start()
     }
 
     override fun onResume() {
@@ -123,10 +139,14 @@ class MainActivity : Activity() {
             ))
         }
         setContentView(scroll)
-        renderGuesses(model.predict("Rod Primata palavra secreta desafio animal fruta objeto", 5))
+        guessList.addView(label("Preparando a mini-IA em segundo plano…", 14, mutedColor, false))
     }
 
     private fun generateGuesses() {
+        if (!modelReady) {
+            statusLabel.text = "A mini-IA ainda está treinando. Tente novamente em instantes."
+            return
+        }
         val context = contextInput.text.toString().trim()
         val link = videoInput.text.toString().trim()
         val usableContext = buildString {
