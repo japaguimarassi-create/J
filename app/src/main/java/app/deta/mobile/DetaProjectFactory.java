@@ -77,15 +77,6 @@ final class DetaProjectFactory {
         String slug = slug(title);
         Map<String, String> files = new LinkedHashMap<>();
 
-        String prompt = rawPrompt == null ? "" : rawPrompt.trim();
-        if (prompt.isEmpty()) throw new IllegalArgumentException("Descreva o app ou jogo que quer criar.");
-        if (prompt.length() > 3000) throw new IllegalArgumentException("O pedido deve ter até 3.000 caracteres.");
-        String normalized = normalize(prompt);
-        Kind kind = detectKind(normalized);
-        String title = detectTitle(prompt, kind);
-        String slug = slug(title);
-        Map<String, String> files = new LinkedHashMap<>();
-
         if (kind == Kind.GAME) {
             files.put("index.html", gameHtml(title, prompt));
             files.put("style.css", gameCss());
@@ -110,27 +101,25 @@ final class DetaProjectFactory {
             summary += "\nLimitações: " + String.join(" · ", plan.limitations);
         }
         files.put("README.md", readme(title, prompt, summary, files.keySet()));
-        String metadata = "{\n"
-                + "  \"name\": \"" + jsonEscape(title) + "\",\n"
-                + "  \"kind\": \"" + jsonEscape(kind.name().toLowerCase(Locale.ROOT)) + "\",\n"
-                + "  \"brief\": \"" + jsonEscape(prompt) + "\",\n"
-                + "  \"generator\": \"Deta local neural assistant + structured project builder\",\n"
-                + "  \"neural_model_parameters\": " + DetaLocalModel.PARAMETER_COUNT + ",\n"
-                + "  \"network_api_required\": false\n"
-                + "}\n";
-        StringBuilder planJson = new StringBuilder("\n  \"planned_features\": [");
+        StringBuilder metadata = new StringBuilder("{\n");
+        metadata.append("  \"name\": \"").append(jsonEscape(title)).append("\",\n");
+        metadata.append("  \"kind\": \"").append(jsonEscape(kind.name().toLowerCase(Locale.ROOT))).append("\",\n");
+        metadata.append("  \"brief\": \"").append(jsonEscape(prompt)).append("\",\n");
+        metadata.append("  \"generator\": \"Deta local neural assistant + structured project builder\",\n");
+        metadata.append("  \"neural_model_parameters\": ").append(DetaLocalModel.PARAMETER_COUNT).append(",\n");
+        metadata.append("  \"network_api_required\": false,\n");
+        metadata.append("  \"planned_features\": [");
         for (int index = 0; index < plan.features.size(); index++) {
-            if (index > 0) planJson.append(", ");
-            planJson.append("\"").append(jsonEscape(plan.features.get(index))).append("\"");
+            if (index > 0) metadata.append(", ");
+            metadata.append("\"").append(jsonEscape(plan.features.get(index))).append("\"");
         }
-        planJson.append("],\n  \"limitations\": [");
+        metadata.append("],\n  \"limitations\": [");
         for (int index = 0; index < plan.limitations.size(); index++) {
-            if (index > 0) planJson.append(", ");
-            planJson.append("\"").append(jsonEscape(plan.limitations.get(index))).append("\"");
+            if (index > 0) metadata.append(", ");
+            metadata.append("\"").append(jsonEscape(plan.limitations.get(index))).append("\"");
         }
-        planJson.append("]");
-        metadata = metadata.substring(0, metadata.lastIndexOf("}")) + planJson + "\n}\n";
-        files.put("project.json", metadata);
+        metadata.append("]\n}\n");
+        files.put("project.json", metadata.toString());
 
         byte[] zip = createZip(files);
         return new Project(title, kind.name().toLowerCase(Locale.ROOT), prompt, summary, plan, files, zip);
