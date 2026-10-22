@@ -1,45 +1,30 @@
-# Deta v1.0 — mapa mental
+# Deta v1.2 — mental map
 
-## Aplicativo Android
-- Interface escura e vetorial
-- Conversas, nova conversa, menu lateral e busca no histórico
-- Persistência local
-- Ditado de voz quando disponível no Android
-- Tela de recuperação se a interface falhar na inicialização
+## Android app
+- Rebuilt native interface, no old Activity code in the active source tree
+- Current menu retained under `archive/menu-v1/`
+- Empty creation screen, prompt composer, local recent chats and deletion
+- Robust saved-history bounds and malformed-JSON recovery
 
-## Internet sem API de IA
-- Pesquisa pública via HTTPS
-- Títulos, resumos e links das fontes
-- Pesquisa em segundo plano
-- Limites de resposta e validação básica de URLs
-- Falhas de rede comunicadas na conversa
+## Original AI model
+- The project's original `DetaFiveGroupModel` checkpoint is packaged into the APK
+- 400,000 parameters, five groups of 80,000
+- Python export checks model format and hashes weights
+- Java inference runs locally; no model API and no network permission
+- The model receives the raw user prompt with no predefined owner-specific system/personality prompt
+- Local drafts are experimental because the byte-level model is small
 
-## Núcleo de IA experimental
-- Modelo Python de 400.000 parâmetros
-- Cinco grupos de treinamento sequencial
-- Checkpoints como artefatos de CI
-- Qualidade generativa ainda requer benchmark independente
-- Não integrado ao APK atual até a inferência local ser comprovada
+## App creation
+- Natural-language prompt -> original model inference + structured project builder
+- Game starter, social-feed starter, or utility app
+- Real HTML/CSS/JS files, README and project metadata
+- Preview inside the app with network disabled
+- Export project ZIP via Android document picker
+- Reopen local conversation and regenerate its project payload
 
-## Criação de projetos
-- Jogo de navegador
-- Aplicativo social
-- Ferramenta CLI Python
-- Testes sintáticos dos projetos gerados
-
-## Qualidade
-- Testes unitários
-- Checagem de dependências e compilação
-- Teste de inicialização no emulador Android
-- Verificação de identidade, alinhamento, assinatura e integridade do APK
-
-## Regras da IA
-- Nenhuma personalidade ou conjunto de diretrizes personalizadas é imposto nesta versão
-- O proprietário define as regras futuras
-- Restrições técnicas do Android, rede e dependências permanecem aplicáveis
-
-## Próximas prioridades
-1. Capturar log de falha do aparelho para determinar a causa original.
-2. Confirmar inicialização no emulador e em aparelho físico.
-3. Medir qualidade e memória antes de integrar o modelo local.
-4. Testar persistência, pesquisa e criação de projetos de ponta a ponta.
+## Build and tests
+- Robolectric app-startup test
+- Neural weights load/greedy continuation test
+- Project ZIP feature/structure tests and input escaping checks
+- Clean Gradle build, model payload SHA, package identity, zipalign and signature checks
+- Debug APK uploaded by GitHub Actions
