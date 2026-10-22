@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Rod Word HUD</string>
+    <string name="accessibility_description">Permite inserir um palpite no campo de texto que você focou, apenas quando você toca no botão do HUD. Não envia comentários.</string>
+</resources>
