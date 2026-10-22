@@ -91,7 +91,7 @@ jobs:
           git add app/src/main/assets/deta-model.bin app/src/main/assets/deta-model.json
           if ! git diff --cached --quiet; then
             git commit -m "Bundle validated Deta 400k model for offline Android inference"
-            git push origin "HEAD:$GITHUB_REF_NAME"
+            git push origin "HEAD:$GITHUB_REF_NAME" || echo "::warning::Model weights are included in this APK build but could not be committed for future builds."
           fi
 
       - name: Install Android SDK packages
