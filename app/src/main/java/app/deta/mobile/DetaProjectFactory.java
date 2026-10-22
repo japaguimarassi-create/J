@@ -20,14 +20,17 @@ final class DetaProjectFactory {
         final String kind;
         final String prompt;
         final String summary;
+        final DetaRequestPlanner.Plan plan;
         final Map<String, String> files;
         final byte[] zip;
 
-        Project(String title, String kind, String prompt, String summary, Map<String, String> files, byte[] zip) {
+        Project(String title, String kind, String prompt, String summary,
+                DetaRequestPlanner.Plan plan, Map<String, String> files, byte[] zip) {
             this.title = title;
             this.kind = kind;
             this.prompt = prompt;
             this.summary = summary;
+            this.plan = plan;
             this.files = files;
             this.zip = zip;
         }
@@ -54,6 +57,26 @@ final class DetaProjectFactory {
     }
 
     static Project create(String rawPrompt) throws IOException {
+        DetaRequestPlanner.Plan plan = DetaRequestPlanner.analyze(rawPrompt);
+        if (plan.route != DetaRequestPlanner.Route.CREATE_PROJECT) {
+            throw new IllegalArgumentException("This input is not a project-creation request.");
+        }
+        return create(plan);
+    }
+
+    static Project create(DetaRequestPlanner.Plan plan) throws IOException {
+        if (plan == null || plan.route != DetaRequestPlanner.Route.CREATE_PROJECT) {
+            throw new IllegalArgumentException("A valid project plan is required.");
+        }
+        String prompt = plan.originalPrompt;
+        if (prompt.isEmpty()) throw new IllegalArgumentException("Descreva o app ou jogo que quer construir.");
+        if (prompt.length() > 3000) throw new IllegalArgumentException("O pedido deve ter até 3.000 caracteres.");
+        Kind kind = plan.kind == DetaRequestPlanner.Kind.GAME ? Kind.GAME
+                : plan.kind == DetaRequestPlanner.Kind.SOCIAL ? Kind.SOCIAL : Kind.UTILITY;
+        String title = plan.title;
+        String slug = slug(title);
+        Map<String, String> files = new LinkedHashMap<>();
+
         String prompt = rawPrompt == null ? "" : rawPrompt.trim();
         if (prompt.isEmpty()) throw new IllegalArgumentException("Descreva o app ou jogo que quer criar.");
         if (prompt.length() > 3000) throw new IllegalArgumentException("O pedido deve ter até 3.000 caracteres.");
@@ -82,6 +105,10 @@ final class DetaProjectFactory {
                 : kind == Kind.SOCIAL
                 ? "Protótipo social com publicações, busca, curtidas, comentários e armazenamento local."
                 : "Aplicativo utilitário com itens, marcação de conclusão, exclusão e armazenamento local.";
+        summary = summary + "\n\nRequisitos planejados: " + String.join(" · ", plan.features);
+        if (!plan.limitations.isEmpty()) {
+            summary += "\nLimitações: " + String.join(" · ", plan.limitations);
+        }
         files.put("README.md", readme(title, prompt, summary, files.keySet()));
         String metadata = "{\n"
                 + "  \"name\": \"" + jsonEscape(title) + "\",\n"
@@ -91,10 +118,22 @@ final class DetaProjectFactory {
                 + "  \"neural_model_parameters\": " + DetaLocalModel.PARAMETER_COUNT + ",\n"
                 + "  \"network_api_required\": false\n"
                 + "}\n";
+        StringBuilder planJson = new StringBuilder("\n  \"planned_features\": [");
+        for (int index = 0; index < plan.features.size(); index++) {
+            if (index > 0) planJson.append(", ");
+            planJson.append("\"").append(jsonEscape(plan.features.get(index))).append("\"");
+        }
+        planJson.append("],\n  \"limitations\": [");
+        for (int index = 0; index < plan.limitations.size(); index++) {
+            if (index > 0) planJson.append(", ");
+            planJson.append("\"").append(jsonEscape(plan.limitations.get(index))).append("\"");
+        }
+        planJson.append("]");
+        metadata = metadata.substring(0, metadata.lastIndexOf("}")) + planJson + "\n}\n";
         files.put("project.json", metadata);
 
         byte[] zip = createZip(files);
-        return new Project(title, kind.name().toLowerCase(Locale.ROOT), prompt, summary, files, zip);
+        return new Project(title, kind.name().toLowerCase(Locale.ROOT), prompt, summary, plan, files, zip);
     }
 
     private static Kind detectKind(String text) {
