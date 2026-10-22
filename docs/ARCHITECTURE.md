@@ -1,56 +1,30 @@
-# Deta architecture 0.3.0
+# Deta architecture 1.2
 
-## 1. Public web research
+## Android runtime
 
-The deta.web module performs public HTML search and page retrieval using direct HTTPS requests without a hosted generative-AI API key. It rejects non-HTTPS URLs, URL credentials, local hostnames, non-public IP addresses, and DNS results containing non-public addresses. Download sizes and timeouts are bounded. Results include titles, snippets and source URLs.
+The Android app packages the original `DetaFiveGroupModel` checkpoint as `assets/deta-model.bin`. `scripts/export_android_model.py` loads the existing PyTorch checkpoint, requires five complete groups and exactly 400,000 parameters, validates each tensor shape and finite values, and writes the weights in a fixed little-endian float32 layout. The export is 1,600,000 bytes before APK compression and includes a SHA-256 manifest.
 
-The deta.assistant module coordinates search, bounded page reads, local indexing, passage ranking and source citations. It is a retrieval assistant rather than a generative LLM. Pages that reject automation or have no extractable text are skipped; Deta does not sign in or bypass access controls.
+`DetaLocalModel` reimplements the PyTorch GRU one byte at a time. Each of the five groups stores its embedding, input/recurrent projections and biases, hidden scale/bias and output projection. The runtime uses the original reset/update/new gate ordering, carries hidden state forward during generation, sums all active-group logits and samples the next byte by top-k and temperature. It runs on a background executor, loads lazily, and makes no network requests.
 
-## 2. Local knowledge index
+The first launch does not deserialize the neural weights. That avoids model initialization being a cause of the Activity startup failure. The model is initialized on the first creation request and has explicit validation errors if the payload is missing, truncated or malformed.
 
-The deta.knowledge module stores page text, title, source URL, source type and SHA-256 content digest in a local JSON database. The index is deduplicated by URL+content digest and bounded by document count, per-document size and total database size. Queries use lexical weighting and title boosts; results remain linked to their original sources. The index is not automatically copied into neural training data.
+## Project builder
 
-## 3. Offline project builder
+`DetaProjectFactory` combines model output with a structured generator:
+- Game starter: a 30-second touch-friendly score game
+- Social starter: local posts, search, likes, comments and deletion
+- Utility starter: local checklist with completion and deletion
 
-The deta.projects module can generate:
-- A touch-friendly browser game with timer, score, restart and a locally saved record.
-- A local social feed with creation, filtering, likes, comments, deletion and browser storage.
-- A Python CLI task manager with add/list/done/remove commands.
+The builder produces actual `index.html`, `style.css`, `app.js`, `README.md` and `project.json` files, packaged as a ZIP. Project previews inline the generated HTML/CSS/JS into a WebView with network loads and file/content access disabled. The ZIP is saved using the Android document picker.
 
-Templates are written into a staging directory then atomically moved into the requested output path. Non-empty destinations are rejected. These are functional starter projects, not full applications with remote accounts, multiplayer servers or production authentication.
+The neural model generates an experimental draft for the request; its output is not silently treated as production-ready source. The builder is responsible for producing valid starter code and records the original prompt in project metadata. Arbitrary native APK compilation is not part of the mobile app yet.
 
-## 4. Neural model and training
+## Conversation persistence
 
-The default DetaFiveGroupModel has exactly 400,000 trainable parameters: five byte-language experts with 80,000 parameters each. The earlier 79,824-parameter GRU baseline remains available. Later group output heads start at zero so inactive experts initially contribute no logits.
+Conversation history remains in private Android `SharedPreferences` JSON. IDs, titles, timestamps and messages are stored with bounds on conversation count, message count and total serialized size. Assistant creation messages keep the original project prompt so the ZIP can be reconstructed when the history is reopened.
 
-Training proceeds group 1 through group 5. At each stage, only the current group's parameters are optimized; earlier groups do not receive gradients. Each group produces a checkpoint. Evaluation batches are sampled once from the held-out tail segment and reused across groups.
+## Test architecture
 
-The longer workflow warm-starts the previous model and fine-tunes each group for 5,000 steps on a broader, bounded code manifest. Checkpoints store:
-- Architecture/configuration and actual parameter counts
-- Current dataset SHA-256 and corpus budget
-- Per-group updates and validation metrics
-- Parent checkpoint hash, previous step count and previous dataset hash
-- Completed group number for safe restart
+Robolectric starts `MainActivity` and asserts that the composer and creation welcome view are present. The model unit test reads the binary asset, validates the 400k parameter count, and compares a fixed greedy completion against the known output from the source checkpoint. The project builder tests ZIP contents, project-type features and escaping of user-provided markup.
 
-The 400k model is still a compact byte-prediction research baseline. Retrieval/tools provide current factual coverage; the neural checkpoint is not a modern pretrained chat model.
-
-The deta.inference module loads a saved grouped checkpoint and samples the next UTF-8 bytes given a prompt. Generation is local and uses temperature/top-k sampling; it is explicitly experimental and may produce malformed code or incoherent text. The CLI does not route factual questions through this generator.
-
-## 5. Source discovery and governance
-
-The GitHub collector uses a finite list of repositories; it is not a universal crawler. It checks repository-level license metadata before requesting source files, rejects unsupported licenses, observes file-level SPDX declarations when present, filters common secret patterns/private repositories and writes per-record URLs, licenses and hashes.
-
-Web-retrieved pages belong to the local knowledge index and are not automatically used for training. Training records still require an allowlisted license and provenance. Dataset agreements, attribution, privacy, opt-outs and removal requests must be honored.
-
-## 6. Four-pass verification
-
-1. Parse supported Python, JSON and TOML syntax/formats.
-2. Run configured static checks for selected risky constructs and likely embedded credentials.
-3. Require an explicitly executed test runner.
-4. Check source URLs/licenses and token-shingle similarity against supplied references.
-
-Pattern-based checks can miss issues and produce false positives. Passing this gate is not proof of correctness, security or legal compliance.
-
-## 7. Mobile status
-
-The Android HUD was not changed or rebuilt during the 0.3.0 core update. Web research, local knowledge, project generation and model training commands are exposed through the Python CLI. Wiring these capabilities into Android and connecting an effective on-device inference runtime are separate future tasks.
+GitHub Actions exports the checkpoint only when the weight asset is missing, stores validated model weights in the repository for repeatable future builds, runs the JVM Android tests, performs a clean Gradle build, and verifies APK signature, alignment, package identity and presence of model data.
