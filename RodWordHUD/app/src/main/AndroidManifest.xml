@@ -4,6 +4,7 @@
     <application
         android:allowBackup="false"
         android:label="Rod Word HUD"
+        android:icon="@drawable/ic_launcher"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="false">
         <activity
