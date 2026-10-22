@@ -614,10 +614,12 @@ public final class MainActivity extends Activity {
         WebView webView = new WebView(this);
         webView.setBackgroundColor(BG);
         webView.getSettings().setJavaScriptEnabled(true);
+        webView.getSettings().setDomStorageEnabled(true);
         webView.getSettings().setAllowFileAccess(false);
+        webView.getSettings().setBlockNetworkLoads(true);
         webView.getSettings().setAllowContentAccess(false);
         webView.setWebChromeClient(new WebChromeClient());
-        webView.loadDataWithBaseURL(null, project.previewHtml(), "text/html", "UTF-8", null);
+        webView.loadDataWithBaseURL("https://deta-preview.local/", project.previewHtml(), "text/html", "UTF-8", null);
         int height = Math.max(dp(300), Math.min(getResources().getDisplayMetrics().heightPixels - dp(120), dp(620)));
         FrameLayout preview = new FrameLayout(this);
         preview.addView(webView, new FrameLayout.LayoutParams(dp(320), height));
