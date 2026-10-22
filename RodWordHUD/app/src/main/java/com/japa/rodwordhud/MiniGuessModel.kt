@@ -137,8 +137,8 @@ class MiniGuessModel {
 
     fun predict(context: String, limit: Int = 5): List<Guess> {
         val features = activeFeatures(context)
-        val logits = logits(features)
-        val probabilities = softmax(logits)
+        val rawScores = logits(features)
+        val probabilities = softmax(rawScores)
         return LABELS.indices
             .map { Guess(LABELS[it], probabilities[it]) }
             .sortedByDescending { it.score }
