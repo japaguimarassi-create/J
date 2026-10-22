@@ -113,6 +113,7 @@ final class DetaProjectFactory {
         Matcher matcher = NAMED.matcher(prompt);
         if (matcher.find()) {
             String name = matcher.group(1).trim().replaceAll("\\s+", " ");
+            name = name.replaceFirst("(?iu)\\s+(?:com|para|que tenha|com suporte a|e com)\\s+.*$", "").trim();
             if (!name.isEmpty()) return name.length() > 39 ? name.substring(0, 39).trim() : name;
         }
         if (kind == Kind.GAME) return "Jogo Deta";
