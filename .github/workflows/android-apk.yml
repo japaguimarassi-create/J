@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deta-rebuilt-base-${{ github.ref }}
+  group: deta-rebuilt-base-v2-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
