@@ -13,6 +13,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.text.method.LinkMovementMethod;
+import android.text.util.Linkify;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -275,7 +277,7 @@ public final class MainActivity extends Activity {
         field.addView(send, lp(42, 42));
         wrapper.addView(field, lp(-1, -2));
 
-        TextView note = text("Modelo neural local · 400 mil parâmetros · sem API de IA", 10, Color.rgb(127, 129, 143), false);
+        TextView note = text("Modelo local · planejamento antes da geração · sem API de IA hospedada", 10, Color.rgb(127, 129, 143), false);
         note.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams noteParams = lp(-1, 18);
         margins(noteParams, 0, 4, 0, 0);
@@ -365,20 +367,27 @@ public final class MainActivity extends Activity {
     private void createFromPrompt() {
         String prompt = composer.getText().toString().trim();
         if (prompt.isEmpty()) {
-            Toast.makeText(this, "Descreva o app ou jogo que quer construir.", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "A mensagem está vazia.", Toast.LENGTH_SHORT).show();
             return;
         }
         if (prompt.length() > 3000) {
-            Toast.makeText(this, "O pedido deve ter até 3.000 caracteres.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "O pedido excede 3.000 caracteres.", Toast.LENGTH_LONG).show();
             return;
         }
+
+        DetaRequestPlanner.Plan plan = DetaRequestPlanner.analyze(prompt);
         Conversation conversation = activeConversation();
         if (conversation == null) conversation = createConversation();
         if (conversation.messages.isEmpty()) conversation.title = makeTitle(prompt);
         conversation.updatedAt = System.currentTimeMillis();
 
         Message userMessage = new Message(true, prompt);
-        Message assistantMessage = new Message(false, "Montando o projeto e carregando o modelo neural local…");
+        String initialStatus = plan.route == DetaRequestPlanner.Route.CREATE_PROJECT
+                ? plan.render()
+                : plan.route == DetaRequestPlanner.Route.WEB_SEARCH
+                ? "Buscando resultados públicos para a consulta…"
+                : "Gerando uma continuação com o modelo local…";
+        Message assistantMessage = new Message(false, initialStatus);
         conversation.messages.add(userMessage);
         conversation.messages.add(assistantMessage);
         composer.setText("");
@@ -391,34 +400,54 @@ public final class MainActivity extends Activity {
         generationExecutor.execute(() -> {
             DetaProjectFactory.Project project = null;
             String neuralDraft = "";
-            String modelStatus;
-            try {
-                DetaLocalModel model = getLocalModel();
-                neuralDraft = model.generate(prompt, 112, 0.82f, 18, System.nanoTime());
-                modelStatus = "Inferência local concluída com o checkpoint de 400.000 parâmetros.";
-            } catch (Exception exception) {
-                modelStatus = "O modelo neural não pôde ser carregado: " + exception.getClass().getSimpleName()
-                        + ". O gerador de projetos continuará disponível.";
-            }
             String response;
             try {
-                project = DetaProjectFactory.create(prompt);
-                response = "Projeto preparado: " + project.title + "\n"
-                        + "Tipo: " + project.kind + "\n"
-                        + project.summary + "\n\n"
-                        + "Arquivos incluídos: " + project.fileList() + "\n\n"
-                        + modelStatus + "\n\n"
-                        + "O construtor estruturado cria os arquivos executáveis; o rascunho neural é experimental e não foi inserido automaticamente no código final.";
+                if (plan.route == DetaRequestPlanner.Route.WEB_SEARCH) {
+                    response = DetaWebResearch.research(prompt);
+                } else {
+                    DetaLocalModel model = getLocalModel();
+                    if (plan.route == DetaRequestPlanner.Route.CONVERSATION) {
+                        String generationPrompt = "User: " + prompt + "\nAssistant:";
+                        neuralDraft = model.generate(generationPrompt, 220, 0.68f, 20, System.nanoTime());
+                        response = cleanModelText(neuralDraft);
+                        if (response.isEmpty()) {
+                            neuralDraft = model.generate(generationPrompt, 220, 0.52f, 8, System.nanoTime());
+                            response = cleanModelText(neuralDraft);
+                        }
+                        if (response.isEmpty()) {
+                            throw new IOException("The local model did not produce readable text for this input.");
+                        }
+                    } else {
+                        String modelPlan = model.generate(plan.asModelPlanningPrompt(), 160, 0.62f, 12, System.nanoTime());
+                        neuralDraft = modelPlan;
+                        runOnUiThread(() -> {
+                            Conversation current = findConversation(conversationId);
+                            if (current != null && current.messages.contains(assistantMessage)) {
+                                assistantMessage.text = plan.render() + "\n\nPlano computacional estruturado antes da geração dos arquivos.";
+                                saveHistory();
+                                if (activeId == conversationId) renderConversation();
+                            }
+                        });
+                        project = DetaProjectFactory.create(plan);
+                        response = plan.render()
+                                + "\n\nIMPLEMENTAÇÃO\nProjeto: " + project.title
+                                + "\nTipo: " + project.kind
+                                + "\n\n" + project.summary
+                                + "\n\nArquivos incluídos: " + project.fileList()
+                                + "\n\nO projeto foi gerado e empacotado após o planejamento. Inspecione a prévia e teste antes de publicar.";
+                    }
+                }
             } catch (Exception exception) {
-                response = "Não consegui montar o projeto: " + exception.getMessage();
+                response = buildFailureMessage(plan.route, exception);
             }
+
             DetaProjectFactory.Project finalProject = project;
             String finalDraft = neuralDraft;
             String finalResponse = response;
             runOnUiThread(() -> {
-                Conversation targetConversation = findConversation(conversationId);
-                if (targetConversation == null) return;
-                int index = targetConversation.messages.indexOf(assistantMessage);
+                Conversation current = findConversation(conversationId);
+                if (current == null) return;
+                int index = current.messages.indexOf(assistantMessage);
                 if (index < 0) return;
                 assistantMessage.text = finalResponse;
                 assistantMessage.neuralDraft = finalDraft;
@@ -427,8 +456,8 @@ public final class MainActivity extends Activity {
                     assistantMessage.project = finalProject;
                     pendingProject = finalProject;
                 }
-                targetConversation.updatedAt = System.currentTimeMillis();
-                moveToTop(targetConversation);
+                current.updatedAt = System.currentTimeMillis();
+                moveToTop(current);
                 saveHistory();
                 if (activeId == conversationId) {
                     renderConversation();
@@ -437,6 +466,35 @@ public final class MainActivity extends Activity {
                 if (drawerOverlay != null) renderHistoryList();
             });
         });
+    }
+
+    private String cleanModelText(String value) {
+        if (value == null) return "";
+        String clean = value.replace("\uFFFD", "")
+                .replaceAll("[\\p{Cc}&&[^\\n\\t]]", "")
+                .replaceAll("\\n{3,}", "\n\n").trim();
+        int boundary = clean.indexOf("\nUser:");
+        if (boundary >= 0) clean = clean.substring(0, boundary).trim();
+        if (clean.startsWith("Assistant:")) clean = clean.substring("Assistant:".length()).trim();
+        if (clean.length() > 1200) clean = clean.substring(0, 1200).trim();
+        long visible = clean.codePoints().filter(Character::isLetterOrDigit).count();
+        if (visible < 2) return "";
+        return clean;
+    }
+
+    private String buildFailureMessage(DetaRequestPlanner.Route route, Exception exception) {
+        String cause = exception.getMessage();
+        if (cause == null || cause.trim().isEmpty()) cause = exception.getClass().getSimpleName();
+        if (route == DetaRequestPlanner.Route.WEB_SEARCH) {
+            return "A busca não pôde ser concluída: " + cause
+                    + "\nVerifique a conexão e tente uma consulta pública mais específica.";
+        }
+        if (route == DetaRequestPlanner.Route.CREATE_PROJECT) {
+            return "A geração foi interrompida antes de concluir o projeto: " + cause
+                    + "\nO ZIP não foi apresentado como concluído.";
+        }
+        return "A geração local não produziu uma resposta utilizável: " + cause
+                + "\nTente formular um pedido relacionado ao planejamento ou programação de aplicativos.";
     }
 
     private DetaLocalModel getLocalModel() throws IOException {
@@ -498,7 +556,7 @@ public final class MainActivity extends Activity {
         margins(headingParams, 0, 20, 0, 0);
         welcome.addView(heading, headingParams);
 
-        TextView body = text("Descreva o app ou jogo. A Deta usa seu modelo neural local e transforma o pedido em arquivos de projeto.", 15, MUTED, false);
+        TextView body = text("Envie uma mensagem, pesquise a web ou descreva o app/jogo que deseja criar.", 15, MUTED, false);
         body.setGravity(Gravity.CENTER);
         body.setLineSpacing(dp(4), 1f);
         LinearLayout.LayoutParams bodyParams = lp(-1, -2);
@@ -550,6 +608,9 @@ public final class MainActivity extends Activity {
 
         TextView bubble = text(message.text, 15, FG, false);
         bubble.setGravity(Gravity.TOP);
+        bubble.setAutoLinkMask(Linkify.WEB_URLS);
+        bubble.setLinkTextColor(CYAN);
+        bubble.setMovementMethod(LinkMovementMethod.getInstance());
         bubble.setLineSpacing(dp(3), 1f);
         bubble.setPadding(dp(14), dp(12), dp(14), dp(12));
         bubble.setBackground(shape(message.fromUser ? Color.rgb(40, 41, 48) : PANEL, 19, message.fromUser ? 0 : BORDER));
