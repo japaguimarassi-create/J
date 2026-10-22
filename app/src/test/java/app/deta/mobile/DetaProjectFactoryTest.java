@@ -71,6 +71,28 @@ public final class DetaProjectFactoryTest {
     }
 
     @Test
+    public void greetingCannotAccidentallyCreateAUtilityProject() throws Exception {
+        try {
+            DetaProjectFactory.create("Olá");
+            throw new AssertionError("A greeting must never produce a project.");
+        } catch (IllegalArgumentException expected) {
+            assertTrue(expected.getMessage().contains("not a project-creation request"));
+        }
+    }
+
+    @Test
+    public void plannedFeatureAndUnsupportedInfrastructureAreRecorded() throws Exception {
+        DetaRequestPlanner.Plan plan = DetaRequestPlanner.analyze(
+                "Crie uma rede social chamada Comunidade com login e sincronização na nuvem."
+        );
+        DetaProjectFactory.Project project = DetaProjectFactory.create(plan);
+        assertTrue(project.files.get("project.json").contains("planned_features"));
+        assertTrue(project.files.get("project.json").contains("limitations"));
+        assertTrue(project.summary.contains("Requisitos planejados"));
+        assertTrue(project.summary.contains("Limitações"));
+    }
+
+    @Test
     public void blankPromptIsRejected() throws Exception {
         try {
             DetaProjectFactory.create("   ");
