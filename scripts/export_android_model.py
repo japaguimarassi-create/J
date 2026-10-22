@@ -1,7 +1,6 @@
 import argparse
 import hashlib
 import json
-import struct
 from pathlib import Path
 
 import torch
