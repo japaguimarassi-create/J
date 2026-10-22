@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deta-rebuilt-base-v2-${{ github.ref }}
+  group: deta-rebuilt-base-v3-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -59,37 +59,42 @@ jobs:
       - name: Compile debug APK from clean state
         run: gradle --no-daemon --stacktrace clean assembleDebug
 
-      - name: Launch the APK and check the live activity in Android emulator
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          target: google_apis
-          arch: x86_64
-          profile: pixel_2
-          disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          script: |
-            set -euo pipefail
-            APK="app/build/outputs/apk/debug/app-debug.apk"
-            APP_ID="app.deta.mobile.debug"
-            ACTIVITY="$APP_ID/app.deta.mobile.MainActivity"
-            adb wait-for-device
-            adb install -r "$APK"
-            adb shell am force-stop "$APP_ID" || true
-            adb logcat -c
-            adb shell am start -W -n "$ACTIVITY"
-            sleep 3
-            PID="$(adb shell pidof "$APP_ID" | tr -d '\\r')"
-            if [ -z "$PID" ]; then
-              adb logcat -d -t 500
-              exit 1
-            fi
-            adb shell dumpsys activity activities | grep -F "$ACTIVITY"
-            if adb logcat -d -s AndroidRuntime:E | grep -q "FATAL EXCEPTION"; then
-              adb logcat -d -s AndroidRuntime:E
-              exit 1
-            fi
-            echo "Deta activity is running with PID $PID."
+      - name: Boot emulator and launch Deta directly with ADB
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          AVDMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name avdmanager | sort -V | tail -n 1)"
+          test -x "$SDKMANAGER"
+          test -x "$AVDMANAGER"
+          echo "no" | "$AVDMANAGER" create avd --force --name deta-test --package "system-images;android-35;google_apis;x86_64" --device "pixel_2"
+          "$ANDROID_HOME/emulator/emulator" -avd deta-test -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -no-snapshot-save > "$RUNNER_TEMP/deta-emulator.log" 2>&1 &
+          adb start-server
+          adb wait-for-device
+          timeout 300 bash -c 'until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d "\r")" = "1" ]; do sleep 2; done'
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          APP_ID="app.deta.mobile.debug"
+          ACTIVITY="$APP_ID/app.deta.mobile.MainActivity"
+          adb install -r "$APK"
+          adb shell am force-stop "$APP_ID" || true
+          adb logcat -c
+          adb shell am start -W -n "$ACTIVITY"
+          sleep 3
+          PID="$(adb shell pidof "$APP_ID" | tr -d "\r")"
+          if [ -z "$PID" ]; then
+            adb logcat -d -t 500
+            cat "$RUNNER_TEMP/deta-emulator.log"
+            exit 1
+          fi
+          adb shell dumpsys activity activities | grep -F "$ACTIVITY"
+          if adb logcat -d -s AndroidRuntime:E | grep -q "FATAL EXCEPTION"; then
+            adb logcat -d -s AndroidRuntime:E
+            exit 1
+          fi
+          echo "Deta activity is running with PID $PID."
 
       - name: Verify APK alignment, signature, and package identity
         run: |
