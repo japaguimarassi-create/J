@@ -1,4 +1,4 @@
-name: Deta rebuilt base APK
+name: Deta local-model Android APK
 
 on:
   push:
@@ -9,20 +9,22 @@ on:
       - "build.gradle"
       - "gradle.properties"
       - "app/**"
+      - "scripts/export_android_model.py"
       - ".github/workflows/android-apk.yml"
   workflow_dispatch:
 
 concurrency:
-  group: deta-rebuilt-base-v9-${{ github.ref }}
+  group: deta-local-model-apk-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
+  actions: read
 
 jobs:
   build-test-apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -32,6 +34,65 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+
+      - name: Install Python 3.12
+        if: ${{ !hashFiles('app/src/main/assets/deta-model.bin') }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download original trained Deta checkpoint
+        if: ${{ !hashFiles('app/src/main/assets/deta-model.bin') }}
+        uses: actions/download-artifact@v4
+        with:
+          name: deta-400k-five-group-checkpoints
+          path: ${{ runner.temp }}/deta-trained-model
+          repository: ${{ github.repository }}
+          run-id: 39690950684
+          github-token: ${{ github.token }}
+
+      - name: Install checkpoint conversion dependency
+        if: ${{ !hashFiles('app/src/main/assets/deta-model.bin') }}
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "torch==2.5.1+cpu" --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple
+
+      - name: Export the original 400k model to offline Android weights
+        if: ${{ !hashFiles('app/src/main/assets/deta-model.bin') }}
+        run: |
+          CHECKPOINT="$(find "$RUNNER_TEMP/deta-trained-model" -type f -path '*/final.pt' -print -quit)"
+          test -n "$CHECKPOINT"
+          python scripts/export_android_model.py \
+            --checkpoint "$CHECKPOINT" \
+            --output app/src/main/assets/deta-model.bin \
+            --metadata app/src/main/assets/deta-model.json
+
+      - name: Validate bundled model weights and provenance
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+          weights = Path("app/src/main/assets/deta-model.bin")
+          metadata = Path("app/src/main/assets/deta-model.json")
+          assert weights.is_file() and weights.stat().st_size == 1_600_000
+          data = json.loads(metadata.read_text(encoding="utf-8"))
+          digest = hashlib.sha256(weights.read_bytes()).hexdigest()
+          assert data["model_type"] == "DetaFiveGroupModel"
+          assert data["parameters"] == 400_000 and data["groups"] == 5
+          assert data["weights_sha256"] == digest
+          print(json.dumps(data, indent=2))
+          PY
+
+      - name: Store generated model weights in the repository for reproducible builds
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/assets/deta-model.bin app/src/main/assets/deta-model.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Bundle validated Deta 400k model for offline Android inference"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
 
       - name: Install Android SDK packages
         run: |
@@ -45,40 +106,45 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Verify clean native-only source
+      - name: Verify offline Android source layout
         run: |
           test -f app/src/main/java/app/deta/mobile/MainActivity.java
+          test -f app/src/main/java/app/deta/mobile/DetaLocalModel.java
+          test -f app/src/main/java/app/deta/mobile/DetaProjectFactory.java
           test -f app/src/main/AndroidManifest.xml
           test -f archive/menu-v1/MainActivity.java
           test -f docs/DETA_REBUILD_MINDMAP.md
+          test -s app/src/main/assets/deta-model.bin
           ! grep -q 'android.permission.INTERNET' app/src/main/AndroidManifest.xml
           ! test -f app/src/main/java/app/deta/mobile/WebSearch.java
           ! grep -R -nE 'OpenAI|Gemini|API_KEY|https?://' app/src/main/java/app/deta/mobile || true
 
-      - name: Run unit tests
+      - name: Run model, project-builder, and Android startup tests
         run: gradle --no-daemon --stacktrace testDebugUnitTest
 
-      - name: Build from clean state
+      - name: Build APK from a clean state
         run: gradle --no-daemon --stacktrace clean assembleDebug
 
-      - name: Verify APK alignment, signature, package identity, and archive
+      - name: Verify APK alignment, signature, model payload, package identity, and archive
         run: |
           set -euo pipefail
           APK="app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
+          test "$(stat -c %s "$APK")" -gt 1_000_000
           BUILD_TOOLS_DIR="$ANDROID_HOME/build-tools/35.0.0"
           "$BUILD_TOOLS_DIR/zipalign" -c -v 4 "$APK"
           "$BUILD_TOOLS_DIR/apksigner" verify --verbose --print-certs "$APK"
           "$BUILD_TOOLS_DIR/aapt" dump badging "$APK" | tee "$RUNNER_TEMP/deta-badging.txt"
-          grep -F "package: name='app.deta.mobile.debug' versionCode='110' versionName='1.1.0-debug'" "$RUNNER_TEMP/deta-badging.txt"
+          grep -F "package: name='app.deta.mobile.debug' versionCode='120' versionName='1.2.0-debug'" "$RUNNER_TEMP/deta-badging.txt"
           unzip -t "$APK"
+          unzip -l "$APK" | grep -F "assets/deta-model.bin"
           sha256sum "$APK"
           ls -lh "$APK"
 
-      - name: Upload installable test APK
+      - name: Upload installable Deta local-AI APK
         uses: actions/upload-artifact@v4
         with:
-          name: deta-rebuilt-base-1.1.0-debug-apk
+          name: deta-local-ai-1.2.0-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
