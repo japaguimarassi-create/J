@@ -44,6 +44,13 @@ class MainActivity : Activity() {
         buildUi()
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (Settings.canDrawOverlays(this)) {
+            sendBroadcast(Intent(FloatingAccessService.ACTION_SHOW_HUD).setPackage(packageName))
+        }
+    }
+
     private fun buildUi() {
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
