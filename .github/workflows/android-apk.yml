@@ -115,9 +115,9 @@ jobs:
           test -f archive/menu-v1/MainActivity.java
           test -f docs/DETA_REBUILD_MINDMAP.md
           test -s app/src/main/assets/deta-model.bin
-          ! grep -q 'android.permission.INTERNET' app/src/main/AndroidManifest.xml
-          ! test -f app/src/main/java/app/deta/mobile/WebSearch.java
-          ! grep -R -nE 'OpenAI|Gemini|API_KEY|https?://' app/src/main/java/app/deta/mobile || true
+          grep -q 'android.permission.INTERNET' app/src/main/AndroidManifest.xml
+          test -f app/src/main/java/app/deta/mobile/DetaWebResearch.java
+          ! grep -R -nE 'OpenAI|Gemini|API_KEY' app/src/main/java/app/deta/mobile
 
       - name: Run model, project-builder, and Android startup tests
         run: gradle --no-daemon --stacktrace testDebugUnitTest
