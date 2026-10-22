@@ -14,6 +14,23 @@ public final class DetaRequestPlannerTest {
     }
 
     @Test
+    public void greetingGetsContextualClarificationWithoutCreatingProject() {
+        DetaRequestPlanner.Plan plan = DetaRequestPlanner.analyze("Olá");
+        assertEquals(DetaRequestPlanner.Route.CONVERSATION, plan.route);
+        String response = DetaRequestPlanner.clarificationFor("Olá");
+        assertTrue(response.contains("Olá"));
+        assertTrue(response.contains("requisitos suficientes"));
+        assertEquals(DetaRequestPlanner.Route.CONVERSATION, DetaRequestPlanner.analyze("Valeu!").route);
+    }
+
+    @Test
+    public void clarificationReflectsTheActualMessageInsteadOfModelNoise() {
+        String response = DetaRequestPlanner.clarificationFor("Quero conversar sobre ideias");
+        assertTrue(response.contains("Quero conversar sobre ideias"));
+        assertTrue(response.contains("Qual aplicativo ou jogo"));
+    }
+
+    @Test
     public void explicitCreationRequestIsPlannedBeforeFiles() {
         DetaRequestPlanner.Plan plan = DetaRequestPlanner.analyze(
                 "Crie um jogo chamado Neon Arena com recorde e cronômetro."
