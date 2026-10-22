@@ -14,7 +14,7 @@ class MiniGuessModel {
 
         val LABELS = listOf(
             "banana", "macaco", "primata", "floresta", "selva", "gorila", "chimpanze",
-            "orangotango", "fruta", "arvore", "folha", "raiz", "semente", "agua", "fogo",
+            "orangotango", "fruta", "arvore", "folha", "semente", "agua", "fogo",
             "terra", "vento", "sol", "lua", "estrela", "planeta", "espaco", "dinossauro",
             "fossil", "meteoro", "vulcao", "oceano", "tubarao", "baleia", "golfinho",
             "polvo", "formiga", "abelha", "borboleta", "aranha", "cobra", "sapo", "crocodilo",
