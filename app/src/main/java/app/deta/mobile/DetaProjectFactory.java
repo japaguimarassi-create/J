@@ -158,6 +158,15 @@ final class DetaProjectFactory {
                 .replaceAll("\\p{M}+", "").replaceAll("\\s+", " ").trim();
     }
 
+    private static String join(Iterable<String> values) {
+        StringBuilder output = new StringBuilder();
+        for (String value : values) {
+            if (output.length() > 0) output.append(" · ");
+            output.append(value);
+        }
+        return output.toString();
+    }
+
     private static String jsonEscape(String value) {
         StringBuilder escaped = new StringBuilder(value.length() + 16);
         for (int index = 0; index < value.length(); index++) {
