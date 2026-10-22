@@ -1,6 +1,8 @@
 import argparse
+import ctypes
 import hashlib
 import json
+import sys
 from pathlib import Path
 
 import torch
@@ -33,6 +35,8 @@ GROUP_COUNT = 5
 
 
 def export_checkpoint(checkpoint_path: Path, output_path: Path, metadata_path: Path) -> dict:
+    if sys.byteorder != "little":
+        raise RuntimeError("Android model export currently requires a little-endian runner.")
     checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
     if not isinstance(checkpoint, dict):
         raise ValueError("Checkpoint root must be a dictionary.")
@@ -57,12 +61,11 @@ def export_checkpoint(checkpoint_path: Path, output_path: Path, metadata_path: P
             tensor = tensor.detach().to(device="cpu", dtype=torch.float32).contiguous()
             if tuple(tensor.shape) != expected_shape:
                 raise ValueError(f"Invalid shape for {key}: {tuple(tensor.shape)}")
-            values = tensor.numpy().astype("<f4", copy=False)
-            encoded = values.tobytes(order="C")
+            if not torch.isfinite(tensor).all().item():
+                raise ValueError(f"Non-finite model values found in {key}")
+            encoded = ctypes.string_at(tensor.data_ptr(), tensor.numel() * 4)
             if len(encoded) != tensor.numel() * 4:
                 raise ValueError(f"Invalid binary length for {key}")
-            if not all(map(lambda value: value == value and abs(value) != float("inf"), values.reshape(-1))):
-                raise ValueError(f"Non-finite model values found in {key}")
             payload.extend(encoded)
             group_count += tensor.numel()
         if group_count != PARAMETERS_PER_GROUP:
