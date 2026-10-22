@@ -9,25 +9,6 @@ LICENSE_SOURCE = (
     "data/FIRST_PARTY_DATA_LICENSE.md"
 )
 
-GREETINGS = [
-    "Oi", "Olá", "Bom dia", "Boa tarde", "Boa noite", "E aí?",
-    "Tudo bem?", "Obrigado", "Entendi", "Pode me ajudar?",
-    "Quero começar", "Não sei por onde começar",
-]
-GREETING_COMPLETIONS = [
-    "Olá! Que aplicativo ou jogo você está pensando em criar?",
-    "Que tipo de projeto você quer desenvolver?",
-    "Você já tem uma ideia para um app ou prefere começar por uma função pequena?",
-    "Qual problema o aplicativo deve resolver?",
-    "Podemos partir do objetivo e definir as primeiras funções. O que o projeto precisa fazer?",
-    "Você tem uma plataforma em mente, como web ou Android?",
-    "Qual seria a principal tarefa que alguém conseguiria realizar com esse app?",
-    "Vamos definir primeiro o resultado esperado e depois separar a implementação em etapas.",
-    "Descreva a ideia como conseguir; os requisitos podem ser refinados antes de escrever o código.",
-    "Qual parte você quer construir primeiro: interface, dados, lógica ou testes?",
-    "Que tipo de usuário usaria o aplicativo e qual seria sua ação principal?",
-    "Podemos começar pequeno e adicionar funcionalidades depois de validar a primeira versão.",
-]
 KINDS = [
     ("jogo", "jogo", "controles, regras da rodada, pontuação e condição de término",
      "entrada do jogador, estado do jogo e regras de conclusão"),
@@ -71,11 +52,6 @@ def instruction(content: str, path: str) -> dict[str, str]:
 
 def build_records() -> list[dict[str, str]]:
     records = []
-    for prompt_index, prompt in enumerate(GREETINGS):
-        for answer_index, answer in enumerate(GREETING_COMPLETIONS):
-            content = f"User: {prompt}\nAssistant: {answer}"
-            records.append(instruction(content, f"dialogue/greeting-{prompt_index}-{answer_index}"))
-
     verbs = ["Crie", "Desenvolva", "Construa", "Implemente", "Gere"]
     names = [
         "Projeto Aurora", "Painel Simples", "Nova Rotina", "Espaço Pessoal",
