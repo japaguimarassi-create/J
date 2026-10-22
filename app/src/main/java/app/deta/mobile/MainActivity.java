@@ -66,7 +66,7 @@ public final class MainActivity extends Activity {
         Window window = getWindow();
         window.setStatusBarColor(BG);
         window.setNavigationBarColor(BG);
-        window.setSoftInputMode(Window.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         loadHistory();
         if (state != null) activeId = state.getLong(ACTIVE_KEY, -1L);
         buildInterface();
