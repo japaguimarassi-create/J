@@ -128,12 +128,24 @@ class MiniGuessModel {
         Example("osso esqueleto corpo calcio fratura", "osso")
     )
 
+    @Volatile
+    private var trained = false
+
     init {
         require(LABELS.size == CLASS_COUNT)
-        train(epochs = 18, learningRate = 0.075f)
     }
 
     fun parameterCount(): Int = weights.size
+
+    fun trainModel() {
+        if (trained) return
+        synchronized(this) {
+            if (!trained) {
+                train(epochs = 18, learningRate = 0.075f)
+                trained = true
+            }
+        }
+    }
 
     fun predict(context: String, limit: Int = 5): List<Guess> {
         val features = activeFeatures(context)
