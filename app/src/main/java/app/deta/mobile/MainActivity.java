@@ -618,9 +618,11 @@ public final class MainActivity extends Activity {
         webView.getSettings().setAllowContentAccess(false);
         webView.setWebChromeClient(new WebChromeClient());
         webView.loadDataWithBaseURL(null, project.previewHtml(), "text/html", "UTF-8", null);
-        int height = Math.min(getResources().getDisplayMetrics().heightPixels - dp(120), dp(620));
+        int height = Math.max(dp(300), Math.min(getResources().getDisplayMetrics().heightPixels - dp(120), dp(620)));
+        FrameLayout preview = new FrameLayout(this);
+        preview.addView(webView, new FrameLayout.LayoutParams(dp(320), height));
         new AlertDialog.Builder(this).setTitle(project.title)
-                .setView(webView, dp(320), Math.max(dp(300), height))
+                .setView(preview)
                 .setPositiveButton("Exportar ZIP", (dialog, which) -> exportProject(project))
                 .setNegativeButton("Fechar", null).show();
     }
