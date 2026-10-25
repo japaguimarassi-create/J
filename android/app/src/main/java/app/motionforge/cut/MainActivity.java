@@ -297,6 +297,7 @@ public final class MainActivity extends Activity {
         Button forward = makeToolbarButton("›");
         Button reload = makeToolbarButton("↻");
         Button go = makeToolbarButton("Ir");
+        Button openExternal = makeToolbarButton("Fora");
         browserAddress = new EditText(this);
         browserAddress.setSingleLine(true);
         browserAddress.setTextSize(12);
@@ -311,6 +312,7 @@ public final class MainActivity extends Activity {
         forward.setOnClickListener(v -> { if (browserView.canGoForward()) browserView.goForward(); });
         reload.setOnClickListener(v -> { if (browserView.getUrl() != null) browserView.reload(); });
         go.setOnClickListener(v -> navigateBrowser());
+        openExternal.setOnClickListener(v -> openInSystemBrowser());
         browserAddress.setOnEditorActionListener((view, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_ACTION_DONE) {
                 navigateBrowser();
@@ -323,6 +325,7 @@ public final class MainActivity extends Activity {
         browserToolbar.addView(reload, new LinearLayout.LayoutParams(dp(38), dp(40)));
         browserToolbar.addView(browserAddress, new LinearLayout.LayoutParams(0, dp(40), 1));
         browserToolbar.addView(go, new LinearLayout.LayoutParams(dp(40), dp(40)));
+        browserToolbar.addView(openExternal, new LinearLayout.LayoutParams(dp(52), dp(40)));
         browserToolbar.setVisibility(View.GONE);
         rootLayout.addView(browserToolbar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46)));
 
@@ -392,6 +395,19 @@ public final class MainActivity extends Activity {
         if (browserShortcuts != null) browserShortcuts.setVisibility(View.VISIBLE);
         if (browserAddress != null) browserAddress.setText(target);
         updateTabColors();
+    }
+
+    private void openInSystemBrowser() {
+        try {
+            String url = browserView == null ? null : browserView.getUrl();
+            if (url == null || !(url.startsWith("https://") || url.startsWith("http://"))) {
+                android.widget.Toast.makeText(this, "Nenhum endereço web válido para abrir.", android.widget.Toast.LENGTH_SHORT).show();
+                return;
+            }
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (Exception ex) {
+            android.widget.Toast.makeText(this, "Não foi possível abrir o navegador externo.", android.widget.Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void navigateBrowser() {
@@ -598,7 +614,7 @@ public final class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public void openAIBrowserWithPrompt(String prompt) {
+        public void openAIBrowser(String prompt) {
             String safePrompt = prompt == null ? "" : prompt.trim();
             if (safePrompt.length() > 20000) safePrompt = safePrompt.substring(0, 20000);
             String finalPrompt = safePrompt;
