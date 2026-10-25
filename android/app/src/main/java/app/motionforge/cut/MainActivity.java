@@ -374,6 +374,14 @@ public final class MainActivity extends Activity {
         endpointInput.setHint("http://127.0.0.1:11434");
         endpointInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
         layout.addView(endpointInput);
+        modes.setOnCheckedChangeListener((group, checkedId) -> {
+            String current = endpointInput.getText().toString().trim();
+            if (checkedId == 2 && (current.isEmpty() || current.endsWith(":11434"))) {
+                endpointInput.setText("http://127.0.0.1:8000");
+            } else if (checkedId == 1 && current.endsWith(":8000")) {
+                endpointInput.setText("http://127.0.0.1:11434");
+            }
+        });
 
         TextView modelLabel = new TextView(this);
         modelLabel.setText("Modelo Ollama (ignorado no modo de três professores)");
