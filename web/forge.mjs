@@ -2,7 +2,14 @@ export const DEFAULT_SOURCE = 'scene "Orbit Study" fps=24 width=960 height=540\n
 const NUMERIC = new Set(["x","y","z","radius","width","height","size","scale","rotation","rotationX","rotationY","rotationZ","opacity","at","fps"]);
 const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_-]{0,63}$/;
 function tokenize(line) {
- return (line.match(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\S+/g)||[]).map(function(part){
+ const pattern = /[A-Za-z][A-Za-z0-9_-]*=(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\S+)|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\S+/g;
+ return (line.match(pattern)||[]).map(function(part){
+  const split=part.indexOf("=");
+  if(split>0){
+   const raw=part.slice(split+1);
+   if(raw.length>=2&&((raw[0]==='"'&&raw[raw.length-1]==='"')||(raw[0]==="'"&&raw[raw.length-1]==="'")))return part.slice(0,split+1)+raw.slice(1,-1).replace(/\\(["'\\])/g,"$1");
+   return part;
+  }
   if((part[0]==='"'&&part[part.length-1]==='"')||(part[0]==="'"&&part[part.length-1]==="'"))return part.slice(1,-1).replace(/\\(["'\\])/g,"$1");
   return part;
  });
