@@ -9,8 +9,6 @@ on:
       - 'web/forge.mjs'
       - 'data/seed.jsonl'
       - 'data/distilled.jsonl'
-      - 'tests/**'
-      - '.github/workflows/train-student.yml'
   workflow_dispatch:
 
 permissions:
