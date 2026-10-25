@@ -22,7 +22,7 @@ public final class OfflineBrain {
     private static final int OUTPUTS = 24;
     private static final String RESOURCE = "/assets/realityengineai/brain/weights.bin";
     public static final String[] LABELS = {
-        "block_computer", "block_crystal", "block_generic", "entity_dragon",
+        "entity_car", "block_crystal", "block_generic", "entity_dragon",
         "entity_hostile", "entity_creature", "item_sword", "item_tool",
         "item_food", "item_generic", "dimension_desert", "dimension_cold",
         "dimension_forest", "dimension_space", "dimension_infernal",

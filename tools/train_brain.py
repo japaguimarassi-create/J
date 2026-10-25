@@ -11,7 +11,7 @@ ROOT.mkdir(parents=True, exist_ok=True)
 VOCABULARY, EMBEDDING, HIDDEN, OUTPUTS = 881, 256, 264, 24
 SEED = 171010
 CLASSES = [
-    "block_computer", "block_crystal", "block_generic", "entity_dragon",
+    "entity_car", "block_crystal", "block_generic", "entity_dragon",
     "entity_hostile", "entity_creature", "item_sword", "item_tool", "item_food",
     "item_generic", "dimension_desert", "dimension_cold", "dimension_forest",
     "dimension_space", "dimension_infernal", "dimension_generic", "query_mods",
@@ -19,7 +19,7 @@ CLASSES = [
     "command_enter", "ask_help", "ambiguous"
 ]
 EXAMPLES = {
-    "block_computer": ["um computador em bloco", "bloco de computador", "computador como bloco", "pc em bloco", "terminal de computador para colocar", "um bloco computador", "computer block", "máquina de computação em bloco", "cpu como bloco", "terminal com tela e interface", "máquina com painel clicável"],
+    "entity_car": ["um carro entidade", "crie um carro como entidade", "carro que se move", "um veículo como mob", "uma entidade carro", "spawnar um automóvel", "um caminhão como entidade", "carro com rodas", "entity car", "um carro pilotável", "uma moto como entidade"],
     "block_crystal": ["um bloco de cristal", "cristal em bloco", "bloco cristalino luminoso", "cristal que emite luz", "bloco de energia azul", "cristal sólido para construir", "glowing crystal block", "bloco de ametista personalizado"],
     "block_generic": ["um bloco de pedra azul", "um bloco personalizado", "um bloco de energia", "bloco que cura ao clicar", "bloco que concede velocidade", "bloco de metal", "uma máquina em bloco", "uma estrutura como bloco", "block", "crie um bloco novo"],
     "entity_dragon": ["um dragão", "um dragão gigante", "uma criatura dragão de cem metros", "dragão com asas", "dragon mob", "um monstro do tipo dragão", "um dragão roxo para spawnar", "uma entidade dragão"],

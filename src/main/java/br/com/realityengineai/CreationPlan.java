@@ -68,8 +68,7 @@ public final class CreationPlan {
         boolean entityMarker = hasWord(normalized, "entidade", "entidade", "mob", "criatura", "ser vivo", "veiculo", "automovel");
         boolean vehicle = hasWord(normalized, "carro", "carros", "veiculo", "veiculos", "automovel", "automoveis",
                 "caminhao", "caminhoes", "moto", "motocicleta", "bicicleta", "onibus", "tanque");
-        boolean corruptionAction = hasWord(normalized, "corrompe", "corromper", "corrompendo", "corrompida",
-                "corrompido", "infecta", "infectar", "contamina", "contaminar", "corruptor", "corruption");
+        boolean corruptionAction = hasWord(normalized, "corrompe", "corromper", "corrompendo", "corrompida", "corrompido", "infecta", "infectar", "contamina", "contaminar", "transforma", "transformar", "transformando", "corruptor", "corruption");
         boolean nearbyBlocks = hasWord(normalized, "bloco", "blocos", "construcoes", "construcao", "terreno");
         boolean entityAction = hasWord(normalized, "ataca", "atacar", "persegue", "perseguir", "voa", "voar",
                 "dirigivel", "dirige", "dirigir", "montavel", "pilotavel", "dirigivel");
