@@ -34,14 +34,14 @@
 <aside class="ai-panel">
 <div class="ai-head"><div class="ai-orb">✦</div><div><small>ASSISTENTE MULTIMÍDIA</small><h2>Forge AI</h2></div><span class="online-tag">LOCAL</span></div>
 <p class="ai-intro">Explique a ideia, selecione seus materiais e peça um plano de montagem. A IA pode usar quadros de imagens/vídeos e as descrições dos arquivos.</p>
-<div class="ai-status"><span class="pulse"></span><span id="aiStatus">Aguardando instrução</span></div><button id="configureAI" class="btn ghost full">⚙ Configurar IA local</button>
+<div class="ai-status"><span class="pulse"></span><span id="aiStatus">Aguardando instrução</span></div><button id="configureAI" class="btn ghost full">⚙ Configurar IA local</button><button id="openAIBrowser" class="btn ghost full">↗ Abrir navegador interno de IAs</button>
 <label for="idea">O que vamos criar?</label><textarea id="idea" rows="4" placeholder="Ex.: monte um trailer épico de 30 segundos, cortes rápidos, minhas imagens na tela, vídeo principal ao centro e música crescendo até o final."></textarea>
 <label for="mediaNotes">Contexto dos arquivos / transcrição de áudio (opcional)</label><textarea id="mediaNotes" rows="3" placeholder="Explique o que acontece no vídeo ou cole a letra/transcrição do áudio para a IA considerar."></textarea>
 <label class="check"><input id="sendFrames" type="checkbox" checked> Incluir quadros visuais de referência</label>
 <button id="askAI" class="btn accent full">✦ Planejar montagem com IA</button>
 <div class="ai-result" id="aiResult"><div class="result-empty">O plano de montagem aparecerá aqui.</div></div>
 <div class="ai-actions"><button id="applyPlan" class="btn ghost full" disabled>Aplicar plano à timeline</button><button id="makeCaption" class="btn ghost full">＋ Criar texto/legenda</button></div>
-<div class="ai-note">A montagem e a exportação são processadas no navegador. A análise por IA usa o backend local MotionForge/Ollama quando disponível. Áudios entram na mixagem; para a IA compreender a fala, forneça uma transcrição no campo de contexto.</div>
+<div class="ai-note">A montagem e a exportação são processadas no navegador. A análise por conexão direta usa o backend configurado. A opção Navegador de IAs abre serviços web para você conversar e copiar pedidos; a resposta externa precisa ser colada de volta manualmente. Áudios entram na mixagem; para a IA compreender a fala, forneça uma transcrição no campo de contexto.</div>
 </aside>
 </main>
 </div>
