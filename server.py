@@ -47,7 +47,7 @@ def http_json(url: str, payload: dict[str, Any] | None = None, timeout: int = 12
         return json.loads(response.read().decode("utf-8"))
 
 
-def ollama_chat(model: str, messages: list[dict[str, Any]], timeout: int = 900, images: list[str] | None = None) -> str:
+def ollama_chat(model: str, messages: list[dict[str, Any]], timeout: int = 1800, images: list[str] | None = None) -> str:
     prepared_messages = [dict(message) for message in messages]
     if images and "gemma4" in model.casefold():
         for message in reversed(prepared_messages):
