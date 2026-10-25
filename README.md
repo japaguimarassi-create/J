@@ -134,6 +134,20 @@ gradle --no-daemon assembleDebug
 
 O APK gerado fica em `android/app/build/outputs/apk/debug/app-debug.apk`. É um APK de depuração; não é uma versão assinada para distribuição na Play Store.
 
+### Navegador de IAs integrado ao APK
+
+O APK também possui um navegador próprio, com abas **Editor** e **Navegador IA**, barra de endereço, voltar/avançar, recarregar e atalhos para ChatGPT, Gemini, Claude, Copilot e HuggingChat. Esse fluxo permite usar os sites de IA sem instalar os modelos no aparelho e sem configurar Ollama.
+
+Fluxo de uso:
+1. No painel Forge AI, toque em **Abrir navegador interno de IAs**. O app copia o pedido de edição para a área de transferência e abre a aba do navegador.
+2. Escolha o serviço de IA, cole o pedido no campo de mensagem e converse normalmente.
+3. Copie a resposta produzida pela IA, volte para a aba **Editor** e toque em **Importar resposta copiada do navegador**.
+4. Leia a resposta importada. Para alterar a timeline, peça à IA um bloco `PLANO JSON` com a propriedade `clips`, confira se os nomes correspondem aos arquivos importados e toque em **Aplicar plano à timeline**.
+
+O navegador integrado é um WebView Android isolado do WebView do editor: a página externa não recebe a ponte JavaScript nativa do MotionForge. Isso impede que páginas de terceiros acessem as funções nativas do editor. O pedido e a resposta passam pela área de transferência, sob ação do usuário; o app não lê automaticamente nem controla as conversas dos sites externos.
+
+Alguns provedores, em especial fluxos de login/identidade, podem recusar navegadores incorporados. Nesse caso, use **Fora** na barra do navegador para abrir a mesma página no navegador do sistema. O pedido já terá sido copiado; cole-o no site, copie a resposta e volte ao MotionForge para importá-la. Esse modo não transforma os sites em uma API de IA, não contorna suas regras e não aplica respostas automaticamente sem revisão.
+
 ## Backend remoto com GitHub Models
 
 O projeto inclui `cloud_backend.py`, uma API leve para o APK. Ela não baixa nem carrega pesos grandes: encaminha os pedidos ao GitHub Models usando um token guardado no servidor. O modo padrão usa `openai/gpt-4o`; opcionalmente, `MOTIONFORGE_GITHUB_MODELS` aceita até três IDs de modelos separados por vírgula. Com mais de um modelo, o backend pede propostas independentes e depois sintetiza o resultado, consumindo mais chamadas e limites de inferência.
