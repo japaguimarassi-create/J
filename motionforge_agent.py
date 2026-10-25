@@ -28,8 +28,7 @@ def endpoint_parts(base_url: str) -> tuple[str, str, str, int]:
     port = parsed.port or (443 if parsed.scheme == "https" else 80)
     cli_host = parsed.hostname if port in (80, 443) else parsed.hostname + ":" + str(port)
     normalized_host = parsed.hostname.casefold()
-    local = normalized_host in ("127.0.0.1", "localhost", "::1")
-    return parsed.scheme, parsed.hostname, cli_host, port if local else port
+    return parsed.scheme, parsed.hostname, cli_host, port
 
 
 def http_json(url: str, timeout: float = 3.0) -> dict[str, Any]:
@@ -72,7 +71,7 @@ def local_model_storage() -> Path:
 
 
 def required_free_gb(models: list[str]) -> int:
-    return sum(ESTIMATED_MODEL_GB.get(model, 20) for model in models) + 4
+    return sum(ESTIMATED_MODEL_GB.get(model, 20) for model in models) + (4 if models else 0)
 
 
 def verify_disk_space(models_to_pull: list[str]) -> None:
