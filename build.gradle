@@ -37,12 +37,8 @@ dependencies {
 processResources {
     inputs.property 'version', project.version
     inputs.property 'mcversion', '1.7.10'
-    from(sourceSets.main.resources.srcDirs) {
-        include 'mcmod.info'
+    filesMatching('mcmod.info') {
         expand 'version': project.version, 'mcversion': '1.7.10'
-    }
-    from(sourceSets.main.resources.srcDirs) {
-        exclude 'mcmod.info'
     }
 }
 
