@@ -24,6 +24,8 @@ jobs:
           python-version: "3.12"
       - name: Compile backend
         run: python -m py_compile cloud_backend.py
+      - name: Run backend unit tests
+        run: python -m unittest discover -s tests -p "test_cloud_backend.py" -v
       - name: Verify deployment configuration
         run: |
           test -s render.yaml
