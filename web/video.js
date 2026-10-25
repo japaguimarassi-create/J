@@ -35,9 +35,9 @@ const idea=$("idea").value.trim();
 const notes=$("mediaNotes").value.trim();
 const summary=assetSummary();
 const history=state.conversation.slice(-6).map(item=>(item.role==="user"?"USUÁRIO":"FORGE AI")+": "+item.content).join("\\n\\n");
-const prompt="Você é um assistente de edição de vídeo e animação. Responda em português brasileiro. Ajude a planejar uma montagem concreta para o MotionForge Cut. Não afirme que editou ou viu arquivos que não foram enviados.\n\nPEDIDO DO EDITOR:\n"+(idea||"Ajude-me a planejar uma edição de vídeo.")+"\n\nCLIPES DA TIMELINE (JSON):\n"+JSON.stringify(summary)+"\n\nNOTAS E TRANSCRIÇÕES:\n"+(notes||"nenhuma")+(history?"\n\nCONVERSA ANTERIOR:\n"+history:"")+"\n\nSe eu pedir um plano para aplicar à timeline, devolva no fim PLANO JSON com um array clips; cada objeto deve usar name (nome de mídia existente), start em segundos, duration em segundos e kind (video, image, audio ou text). Não invente nomes de arquivos. Se não for um pedido de montagem, responda normalmente.";
-if(window.MotionForgeNative&&typeof window.MotionForgeNative.openAIBrowser==="function"){
-lastBrowserPrompt=prompt.slice(0,16000);window.MotionForgeNative.openAIBrowser(lastBrowserPrompt);
+const prompt="Você é um assistente de edição de vídeo e animação. Responda em português brasileiro. Ajude a planejar uma montagem concreta para o MotionForge Cut. Não afirme que editou ou viu arquivos que não foram enviados.\n\nPEDIDO DO EDITOR:\n"+(idea||"Ajude-me a planejar uma edição de vídeo.")+"\n\nCLIPES DA TIMELINE (JSON):\n"+JSON.stringify(summary)+"\n\nNOTAS E TRANSCRIÇÕES:\n"+(notes||"nenhuma")+(history?"\n\nCONVERSA ANTERIOR:\n"+history:"")+"\n\nSe eu pedir um plano para aplicar à timeline, termine com PLANO JSON: seguido por um objeto JSON com clips, por exemplo {"clips":[{"name":"arquivo.mp4","start":0,"duration":3,"kind":"video"}]}. Use nomes que existam na lista, start e duration em segundos, e kind igual a video, image, audio ou text. Não invente arquivos. Para conversa geral, responda normalmente sem plano.";
+if(window.MotionForgeNative&&typeof window.MotionForgeNative.openAIBrowserWithPrompt==="function"){
+lastBrowserPrompt=prompt.slice(0,16000);window.MotionForgeNative.openAIBrowserWithPrompt(lastBrowserPrompt);
 }else{
 toast("O navegador interno de IAs está disponível na versão APK Android.");
 }
