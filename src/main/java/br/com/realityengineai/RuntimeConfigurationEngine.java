@@ -24,6 +24,7 @@ import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 import net.minecraft.block.Block;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.EntityList;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.Item;
@@ -445,13 +446,13 @@ public final class RuntimeConfigurationEngine {
                 }
             }
         } else if ("potion".equals(type)) {
-            if (entity != null) {
+            if (entity instanceof EntityLivingBase) {
                 int id = Math.max(1, Math.min(Potion.potionTypes.length - 1, integer(action, "potion_id", 1)));
                 Potion potion = Potion.potionTypes[id];
                 if (potion != null) {
                     int duration = Math.max(20, Math.min(12000, integer(action, "duration_ticks", 200)));
                     int amplifier = Math.max(0, Math.min(4, integer(action, "amplifier", 0)));
-                    entity.addPotionEffect(new PotionEffect(id, duration, amplifier));
+                    ((EntityLivingBase) entity).addPotionEffect(new PotionEffect(id, duration, amplifier));
                 }
             }
         } else if ("set_time".equals(type)) {
