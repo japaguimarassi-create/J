@@ -8,10 +8,13 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
 from html.parser import HTMLParser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
+
+from ai.assistant import StudentAssistant
 
 ROOT = Path(__file__).resolve().parent
 WEB = ROOT / "web"
@@ -19,7 +22,8 @@ DATA = ROOT / "data"
 DISTILLED = DATA / "distilled.jsonl"
 CHECKPOINT = ROOT / "artifacts" / "student.pt"
 OLLAMA_BASE = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
-DEFAULT_TEACHERS = ["qwen3.8:27b", "gemma4:12b", "gpt-oss:20b"]
+DEFAULT_TEACHERS = ["qwen3.6:27b", "gemma4:12b", "gpt-oss:20b"]
+ASSISTANT = StudentAssistant()
 MAX_BODY = 1_000_000
 MAX_PROMPT = 12_000
 
@@ -158,9 +162,52 @@ def run_brainstorm(prompt: str, source: str = "", frame: int = 0) -> dict[str, A
         {"role": "system", "content": "Você é o sintetizador final de três modelos locais. Seja preciso e explicite limitações."},
         {"role": "user", "content": synthesis}
     ])
-    vote_summary = "Placar médio — " + "; ".join(label + ": " + format(aggregate[label], ".2f") + "/5" for label in ("A", "B", "C")) + ". Vencedor: " + winner_label + " (" + winner["model"] + ")."
-    return {"response":final_answer,"forge":extract_forge(final_answer),"mode":"teachers",
-            "proposals":proposals,"reviews":reviews,"scores":aggregate,"winner":winner_label,"vote_summary":vote_summary}
+    final_votes: list[dict[str, Any]] = []
+    for model in models:
+        vote_prompt = (
+            "Revise a resposta final de forma independente, incluindo qualquer script FORGE. "
+            "Aprove somente se for tecnicamente plausível, respeitar a gramática documentada, "
+            "ser útil e não afirmar testes inexistentes. Retorne apenas JSON válido: "
+            "{\"approve\":true,\"score\":5,\"risks\":[]} . "
+            "score é um inteiro de 1 a 5. approve deve ser false se houver erro material.\n\n"
+            "PEDIDO: " + prompt + "\nRESPOSTA FINAL:\n" + final_answer
+        )
+        raw_vote = ollama_chat(model, [
+            {"role": "system", "content": "Você é o revisor final independente. Não favoreça nenhum professor e não exponha raciocínio privado."},
+            {"role": "user", "content": vote_prompt}
+        ])
+        parsed_vote = extract_json(raw_vote)
+        score = score_value(parsed_vote.get("score", 0)) if parsed_vote else 0.0
+        approve = bool(parsed_vote and parsed_vote.get("approve") is True and score >= 4)
+        final_votes.append({
+            "model": model,
+            "approve": approve,
+            "score": score,
+            "risks": parsed_vote.get("risks", []) if parsed_vote and isinstance(parsed_vote.get("risks", []), list) else ["Resposta de revisão inválida."],
+            "raw_review": None if parsed_vote else raw_vote[:500]
+        })
+    unanimous = len(final_votes) == 3 and all(vote["approve"] for vote in final_votes)
+    vote_summary = (
+        "Placar médio — " + "; ".join(label + ": " + format(aggregate[label], ".2f") + "/5" for label in ("A", "B", "C"))
+        + ". Candidato mais pontuado: " + winner_label + " (" + winner["model"] + "). "
+        + "Aprovação final: " + str(sum(1 for vote in final_votes if vote["approve"])) + "/3"
+        + (" — consenso unânime." if unanimous else " — NÃO aprovada para destilação.")
+    )
+    result = {
+        "response": final_answer, "forge": extract_forge(final_answer), "mode": "teachers",
+        "proposals": proposals, "reviews": reviews, "scores": aggregate, "winner": winner_label,
+        "vote_summary": vote_summary, "final_votes": final_votes, "approved_for_training": unanimous,
+        "saved": False
+    }
+    DATA.mkdir(parents=True, exist_ok=True)
+    audit = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "prompt": prompt, "source": source[:24000], "frame": safe_frame(frame),
+        "models": models, "result": result
+    }
+    with (DATA / "brainstorm-audit.jsonl").open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(audit, ensure_ascii=False) + "\n")
+    return result
 
 
 def append_training_sample(prompt: str, response: str, source: str) -> None:
@@ -306,16 +353,24 @@ class Handler(SimpleHTTPRequestHandler):
                 if not prompt:
                     self.send_json(400, {"error":"A instrução está vazia."})
                     return
-                if parsed.path == "/api/assistant" and CHECKPOINT.exists():
-                    from ai.student import load_checkpoint, generate_text
-                    model, tokenizer = load_checkpoint(CHECKPOINT)
-                    answer = generate_text(model, tokenizer, "Usuário: " + prompt + "\nContexto FORGE:\n" + source[:2000] + "\nForge AI:", max_new_tokens=110)
-                    self.send_json(200, {"response":answer or "O aluno retornou texto vazio; adicione exemplos e treine novamente.","mode":"student"})
+                if parsed.path == "/api/assistant":
+                    model = None
+                    tokenizer = None
+                    if CHECKPOINT.exists():
+                        from ai.student import load_checkpoint
+                        model, tokenizer = load_checkpoint(CHECKPOINT)
+                    result = ASSISTANT.answer(prompt, source, model, tokenizer)
+                    if model is None:
+                        result["training_note"] = "O aluno ainda não foi treinado; esta resposta veio apenas do corpus revisado."
+                    self.send_json(200, result)
                     return
                 result = run_brainstorm(prompt, source, frame)
-                if bool(payload.get("save_example", False)):
+                if bool(payload.get("save_example", False)) and result.get("approved_for_training", False):
                     append_training_sample(prompt, result["response"], source)
                     result["saved"] = True
+                elif bool(payload.get("save_example", False)):
+                    result["saved"] = False
+                    result["save_note"] = "A amostra não foi adicionada: a síntese precisa da aprovação final de Qwen, Gemma e gpt-oss."
                 self.send_json(200, result)
                 return
             if parsed.path == "/api/train":
