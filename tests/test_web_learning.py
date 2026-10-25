@@ -41,7 +41,7 @@ class WebLearningTests(unittest.TestCase):
         self.assertIn("indexedDB.open(REFERENCE_DB_NAME,1)", js)
         self.assertIn("images.length>=4", js)
         self.assertIn('canvas.toBlob(function(output)', js)
-        self.assertNotIn('fetch(\"https://', js)
+        self.assertNotIn('fetch("https://', js)
 
 
 if __name__ == "__main__":
