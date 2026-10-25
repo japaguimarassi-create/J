@@ -109,17 +109,13 @@ Abra o [MotionForge Cut](./web/video.html) pelo botão **Editor de vídeo** na i
 
 Para abrir localmente, execute `python server.py` e acesse `http://127.0.0.1:8000/video.html`. O botão da interface principal também abre o editor.
 
-## APK Android com navegador interno e IA local
+## APK Android com orquestrador invisível de três IAs
 
-O projeto Android fica em `android/`. O aplicativo abre o MotionForge Cut dentro de um WebView nativo, sem mandar o usuário para o Chrome, e oferece seletor de arquivos Android para importar mídia e ZIP. A interface de edição e os controles de IA ficam no próprio app.
+O APK abre o editor dentro de um WebView nativo e coordena a IA pelo backend MotionForge. O fluxo não abre sites externos, não exige copiar respostas e não mostra um navegador no processo de brainstorming.
 
-O botão **Configurar IA local** permite escolher:
-- **Ollama direto**: chama `/api/chat` no endereço definido e usa o modelo indicado, com quadros visuais quando o modelo aceitar imagens.
-- **Backend MotionForge**: chama `/api/brainstorm` no servidor Python e usa o fluxo de três professores descrito acima.
+O botão **Orquestrar com 3 IAs** envia o pedido e o contexto da timeline ao endpoint `/api/brainstorm`. O backend executa o fluxo existente de três professores locais (Qwen 3.6 27B, Gemma 4 12B e GPT-OSS 20B), sintetiza as respostas e devolve um resultado. Um plano de edição só pode ser aplicado depois de ser exibido para revisão.
 
-Para Ollama no mesmo telefone, o endereço padrão é `http://127.0.0.1:11434`. Se o serviço estiver em outro computador/dispositivo da mesma rede, informe o IP local dele e a porta `11434`. Para o backend de três professores, use a porta do servidor MotionForge (normalmente `8000`). Os dispositivos precisam alcançar o endereço configurado; o teste no botão de configuração verifica `/api/tags` ou `/api/status`.
-
-**Os pesos dos modelos não estão embutidos no APK.** O aplicativo contém o editor e a ponte Android para conversar com o serviço local configurado. Para usar Gemma 4, Qwen e gpt-oss, os pesos desses modelos precisam estar instalados em um serviço Ollama compatível e acessível; o fluxo de três professores precisa também do backend Python. Isso evita afirmar que modelos de vários gigabytes cabem no APK ou rodam automaticamente em um celular com memória limitada.
+**Os modelos rodam na máquina/servidor que hospeda Ollama, não dentro do APK nem no Moto G04S.** O trio usa aproximadamente 40 GB de downloads e exige memória e poder computacional consideráveis. O GitHub Actions pode compilar o APK e validar o código, mas não é um serviço permanente de inferência. O GitHub Models foi aposentado em 30 de julho de 2026, então a arquitetura usa Ollama em vez desse endpoint descontinuado.
 
 ### Construir o APK
 
@@ -134,37 +130,29 @@ gradle --no-daemon assembleDebug
 
 O APK gerado fica em `android/app/build/outputs/apk/debug/app-debug.apk`. É um APK de depuração; não é uma versão assinada para distribuição na Play Store.
 
-### Navegador de IAs integrado ao APK
+## Orquestrador MotionForge
 
-O APK também possui um navegador próprio, com abas **Editor** e **Navegador IA**, barra de endereço, voltar/avançar, recarregar e atalhos para ChatGPT, Gemini, Claude, Copilot e HuggingChat. Esse fluxo permite usar os sites de IA sem instalar os modelos no aparelho e sem configurar Ollama.
+O arquivo `motionforge_agent.py` é o agente de inicialização: verifica o serviço Ollama, inicia `ollama serve` quando ele estiver ausente no host local, baixa os modelos faltantes (se houver espaço suficiente), valida que os três modelos estejam disponíveis e então inicia `server.py`. Ele coordena o backend; não é um quarto modelo de linguagem.
 
-Fluxo de uso:
-1. No painel Forge AI, toque em **Abrir navegador interno de IAs**. O app copia o pedido de edição para a área de transferência e abre a aba do navegador.
-2. Escolha o serviço de IA, cole o pedido no campo de mensagem e converse normalmente.
-3. Copie a resposta produzida pela IA, volte para a aba **Editor** e toque em **Importar resposta copiada do navegador**.
-4. Leia a resposta importada. Para alterar a timeline, peça à IA um bloco `PLANO JSON` com a propriedade `clips`, confira se os nomes correspondem aos arquivos importados e toque em **Aplicar plano à timeline**.
+### Iniciar o agente em um host compatível
 
-O navegador integrado é um WebView Android isolado do WebView do editor: a página externa não recebe a ponte JavaScript nativa do MotionForge. Isso impede que páginas de terceiros acessem as funções nativas do editor. O pedido e a resposta passam pela área de transferência, sob ação do usuário; o app não lê automaticamente nem controla as conversas dos sites externos.
+Requisitos: Python 3.11+, Ollama instalado, rede e espaço livre para os modelos. Execute no host que vai realizar a inferência:
 
-Alguns provedores, em especial fluxos de login/identidade, podem recusar navegadores incorporados. Nesse caso, use **Fora** na barra do navegador para abrir a mesma página no navegador do sistema. O pedido já terá sido copiado; cole-o no site, copie a resposta e volte ao MotionForge para importá-la. Esse modo não transforma os sites em uma API de IA, não contorna suas regras e não aplica respostas automaticamente sem revisão.
+```bash
+python -m pip install -r requirements.txt
+python motionforge_agent.py
+```
 
-## Backend remoto com GitHub Models
+Na primeira execução, o agente pode baixar Qwen 3.6 27B (aproximadamente 18–19 GB), Gemma 4 12B (7,7–8 GB) e GPT-OSS 20B (aproximadamente 14 GB). Isso não é realista no Moto G04S. Os modelos são carregados sequencialmente pelo backend; os pesos não são copiados para o APK.
 
-O projeto inclui `cloud_backend.py`, uma API leve para o APK. Ela não baixa nem carrega pesos grandes: encaminha os pedidos ao GitHub Models usando um token guardado no servidor. O modo padrão usa `openai/gpt-4o`; opcionalmente, `MOTIONFORGE_GITHUB_MODELS` aceita até três IDs de modelos separados por vírgula. Com mais de um modelo, o backend pede propostas independentes e depois sintetiza o resultado, consumindo mais chamadas e limites de inferência.
+O agente abre o backend na porta `8000`, vinculado à rede para que o celular possa acessá-lo. Ele gera uma chave aleatória caso `MOTIONFORGE_API_KEY` não esteja definida e a mostra no terminal. Copie essa chave para o campo de autenticação de **Configurar orquestrador** no APK. Para manter a mesma chave após reiniciar o agente, defina `MOTIONFORGE_API_KEY` como variável de ambiente antes de executá-lo. No APK, selecione **Orquestrador MotionForge · 3 IAs locais**, informe a URL base do host acessível pelo celular (por exemplo `http://IP-DO-SERVIDOR:8000` na mesma rede) e a chave; use **Testar conexão** e depois **Salvar**.
 
-### Implantar a API remota
+**Segurança:** nunca exponha a porta HTTP 8000 diretamente à internet pública. Para acesso remoto, use uma URL HTTPS atrás de um proxy/TLS com firewall. Uma chave compartilhada dentro de um APK pode ser extraída; para distribuir o app publicamente, é necessário autenticação por usuário e limites por conta.
 
-1. Abra o [Render](https://render.com/) e conecte a conta GitHub.
-2. Escolha **New → Blueprint**, selecione este repositório e a branch `motionforge-editor`. O arquivo `render.yaml` configura o serviço `motionforge-cloud-backend`.
-3. Nas variáveis de ambiente do serviço, defina `GITHUB_MODELS_TOKEN` com um token GitHub autorizado para inferência em GitHub Models (permissão `models:read`) e `MOTIONFORGE_API_KEY` com uma chave longa exclusiva para proteger o backend. Não coloque o token de inferência no APK ou no repositório.
-4. Aguarde a implantação e copie a URL HTTPS atribuída ao serviço pelo Render.
-5. No APK, abra **Configurar IA local**, selecione **Backend MotionForge · local/remoto**, cole a URL HTTPS como endereço base, informe a mesma `MOTIONFORGE_API_KEY` no campo de chave e toque em **Testar conexão**. Depois, salve.
+Opções do agente:
+- `MOTIONFORGE_AUTO_PULL=0`: não baixar automaticamente modelos ausentes.
+- `MOTIONFORGE_TEACHERS=qwen3.6:27b,gemma4:12b,gpt-oss:20b`: configurar exatamente três modelos Ollama.
+- `OLLAMA_BASE_URL=http://127.0.0.1:11434`: trocar o endpoint do serviço Ollama.
+- `MOTIONFORGE_HOST=127.0.0.1`: restringir o backend ao host local; use o padrão de rede apenas quando precisar conectar o celular e tiver chave definida.
 
-O endpoint `/health` verifica a disponibilidade pública do serviço; `/api/status` e `/api/brainstorm` exigem a chave de acesso. A chave enviada pelo APK protege o endpoint contra acessos casuais, mas uma chave incluída em um APK pode ser extraída. Não redistribua uma versão privada do app com uma chave compartilhada; para distribuição pública, use autenticação por usuário e limites de uso por conta.
-
-### Limites
-
-- O backend remoto usa inferência hospedada do GitHub Models; não executa fisicamente o trio Qwen/Gemma/GPT-OSS local do projeto.
-- Os limites gratuitos de GitHub Models variam por modelo e podem causar respostas HTTP 429. Usar mais de um modelo consome mais chamadas.
-- O plano gratuito do Render pode suspender a instância após 15 minutos sem tráfego; a primeira solicitação posterior pode demorar cerca de um minuto para despertar. É adequado para testes, não para disponibilidade contínua.
-- O APK e o editor continuam funcionando para montagem e exportação mesmo quando a API está indisponível.
+Sem um host Ollama ativo e acessível, o APK ainda monta e exporta vídeo localmente, mas o brainstorming com as três IAs não pode executar. Não há como fazer os modelos de 12B/20B/27B rodarem automaticamente num celular que não dispõe de recursos suficientes.
