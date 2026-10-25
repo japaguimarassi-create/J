@@ -6,6 +6,7 @@ on:
     paths:
       - 'ai/**'
       - 'server.py'
+      - 'web/forge.mjs'
       - 'data/seed.jsonl'
       - 'data/distilled.jsonl'
       - 'tests/**'
