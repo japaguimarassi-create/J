@@ -29,6 +29,6 @@ jobs:
       - name: Check browser JavaScript syntax
         run: node --check web/app.js && node --check web/video.js
       - name: Syntax checks
-        run: python -m py_compile server.py ai/student.py ai/assistant.py ai/train.py
+        run: python -m py_compile server.py motionforge_agent.py ai/student.py ai/assistant.py ai/train.py
       - name: Verify exact student parameter count
         run: python -m ai.student
