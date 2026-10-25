@@ -329,13 +329,13 @@ public final class RealityEngineAI {
         }
 
         @Override
-        protected void readEntityFromNBT(NBTTagCompound compound) {
+        public void readEntityFromNBT(NBTTagCompound compound) {
             super.readEntityFromNBT(compound);
             setDescription(compound.getString("RealityDescription"));
         }
 
         @Override
-        protected void writeEntityToNBT(NBTTagCompound compound) {
+        public void writeEntityToNBT(NBTTagCompound compound) {
             super.writeEntityToNBT(compound);
             compound.setString("RealityDescription", getEntityData().getString("RealityDescription"));
         }
