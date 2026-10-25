@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import hmac
 import re
 import subprocess
 import sys
@@ -278,6 +279,12 @@ def installed_ollama_models() -> list[str]:
         return []
 
 
+def api_key_is_valid(supplied: str, expected: str) -> bool:
+    expected = expected.strip()
+    supplied = supplied.strip()
+    return bool(expected) and hmac.compare_digest(supplied, expected)
+
+
 class SearchParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -359,6 +366,18 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(encoded)
 
+    def authorized_api_request(self) -> bool:
+        expected = os.environ.get("MOTIONFORGE_API_KEY", "").strip()
+        host = os.environ.get("MOTIONFORGE_HOST", "127.0.0.1").strip().lower()
+        externally_bound = host not in ("127.0.0.1", "localhost", "::1")
+        if not expected and not externally_bound:
+            return True
+        authorization = self.headers.get("Authorization", "")
+        prefix = "Bearer "
+        if not authorization.startswith(prefix):
+            return False
+        return api_key_is_valid(authorization[len(prefix):], expected)
+
     def read_body(self) -> dict[str, Any]:
         try:
             length = int(self.headers.get("Content-Length", "0"))
@@ -373,6 +392,9 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
+        if parsed.path.startswith("/api/") and not self.authorized_api_request():
+            self.send_json(401, {"error": "Chave de acesso do MotionForge ausente ou inválida."})
+            return
         if parsed.path == "/api/status":
             tags = installed_ollama_models()
             self.send_json(200, {"student_ready":CHECKPOINT.exists(),"ollama_reachable":bool(tags),
@@ -393,6 +415,9 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
+        if parsed.path.startswith("/api/") and not self.authorized_api_request():
+            self.send_json(401, {"error": "Chave de acesso do MotionForge ausente ou inválida."})
+            return
         try:
             payload = self.read_body()
         except (ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -458,6 +483,8 @@ class Handler(SimpleHTTPRequestHandler):
 def main() -> None:
     host = os.environ.get("MOTIONFORGE_HOST", "127.0.0.1")
     port = max(1, min(65535, int(os.environ.get("PORT", "8000"))))
+    if host.strip().lower() not in ("127.0.0.1", "localhost", "::1") and not os.environ.get("MOTIONFORGE_API_KEY", "").strip():
+        raise SystemExit("MOTIONFORGE_API_KEY é obrigatório quando MOTIONFORGE_HOST expõe o servidor à rede.")
     if not WEB.joinpath("index.html").exists():
         raise SystemExit("web/index.html não encontrado.")
     server = ThreadingHTTPServer((host, port), Handler)
