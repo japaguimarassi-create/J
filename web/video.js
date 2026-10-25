@@ -1,5 +1,5 @@
 const $=id=>document.getElementById(id);
-const state={assets:[],clips:[],duration:10,time:0,playing:false,ratio:"16:9",zoom:70,selected:null,muted:false,raf:0,last:0,plan:"",audioContext:null,audioGraph:new Map(),recording:false};
+const state={assets:[],clips:[],duration:10,time:0,playing:false,ratio:"16:9",zoom:70,selected:null,muted:false,raf:0,last:0,plan:"",audioContext:null,audioGraph:new Map(),recording:false,conversation:[]};
 const canvas=$("previewCanvas"),ctx=canvas.getContext("2d");
 const MAX_FILE=250*1024*1024,MAX_ZIP_ENTRIES=150;
 let toastTimer=0;
