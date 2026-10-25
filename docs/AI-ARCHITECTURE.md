@@ -49,3 +49,19 @@ Um dataset pequeno pode gerar sobreajuste e texto livre incoerente. Por isso, a 
 - Texto da web e prompts são dados não confiáveis; o backend não executa código vindo das páginas.
 - O servidor local fica em `127.0.0.1`; não exponha o serviço à rede sem autenticação.
 - O log de brainstorm guarda prompts, contexto de cena, propostas e votos. Não envie dados sensíveis no editor.
+
+
+## Ciclo de aprendizagem com referências
+
+A aba Aprender contém referências externas de animação, vídeo instrucional, imagem de timing e planejamento por storyboard, além de uma biblioteca local de imagens e vídeos fornecidos pelo usuário. Cada item pode conter uma nota escrita sobre pose, ação, timing, câmera ou estilo.
+
+Ao acionar Brainstorm:
+1. O navegador monta notas textuais das referências.
+2. Imagens são reduzidas para JPEG e vídeos viram até quatro quadros representativos no total.
+3. O backend entrega pixels apenas ao professor Gemma 4, que é o professor visual do trio. Qwen e gpt-oss recebem as notas textuais.
+4. Os três propõem/criticam e votam na síntese final. Só a resposta aprovada por unanimidade pode virar exemplo de destilação.
+5. O aluno aprende com o texto aprovado e o script FORGE, não com os pixels diretamente.
+
+Portanto o aluno de 249.984 parâmetros não é um modelo visual. A percepção das imagens é delegada ao professor Gemma e o aluno recebe descrições supervisionadas. O recurso é um pipeline de coleta e destilação multimodal-textual, não treinamento visual de ponta a ponta. Vídeos são amostrados como imagens estáticas; áudio e sincronização labial não são analisados nesta versão.
+
+A biblioteca usa IndexedDB do navegador para guardar os ficheiros localmente. Ao iniciar um Brainstorm, no máximo quatro quadros JPEG reduzidos são enviados ao servidor local. A auditoria registra notas e quantidade de quadros, não os próprios pixels. O arquivo de treino contém texto e respostas aprovadas, não os arquivos de mídia.
