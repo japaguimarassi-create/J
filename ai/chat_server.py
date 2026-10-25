@@ -35,7 +35,7 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         print(fmt % args)
 
-    def headers(self, status=200, origin=None):
+    def send_json_headers(self, status=200, origin=None):
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
@@ -46,25 +46,25 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Vary", "Origin")
         self.end_headers()
 
-    def do_OPTIONS(self):
-        self.headers(204, self.headers_get("Origin"))
-
     def headers_get(self, key):
         return self.headers.get(key, "")
+
+    def do_OPTIONS(self):
+        self.send_json_headers(204, self.headers_get("Origin"))
 
     def do_GET(self):
         origin = self.headers_get("Origin")
         if self.path != "/health":
-            self.headers(404, origin)
+            self.send_json_headers(404, origin)
             self.wfile.write(b'{"error":"not_found"}')
             return
-        self.headers(200, origin)
+        self.send_json_headers(200, origin)
         self.wfile.write(json.dumps({"ok": True, "checkpoint": MODEL is not None, "parameters": sum(p.numel() for p in MODEL.parameters()) if MODEL else 0}).encode())
 
     def do_POST(self):
         origin = self.headers_get("Origin")
         if origin and origin not in ALLOWED_ORIGINS:
-            self.headers(403)
+            self.send_json_headers(403)
             self.wfile.write(b'{"error":"origin_not_allowed"}')
             return
         try:
@@ -84,16 +84,16 @@ class Handler(BaseHTTPRequestHandler):
                 result = ASSISTANT.answer(prompt, model=MODEL)
                 result.update({"model": "MotionForge Student", "parameters": sum(p.numel() for p in MODEL.parameters())})
             else:
-                self.headers(404, origin)
+                self.send_json_headers(404, origin)
                 self.wfile.write(b'{"error":"not_found"}')
                 return
-            self.headers(200, origin)
+            self.send_json_headers(200, origin)
             self.wfile.write(json.dumps(result, ensure_ascii=False).encode("utf-8"))
         except (ValueError, json.JSONDecodeError) as exc:
-            self.headers(400, origin)
+            self.send_json_headers(400, origin)
             self.wfile.write(json.dumps({"error": str(exc)}, ensure_ascii=False).encode("utf-8"))
         except Exception as exc:
-            self.headers(503 if self.path == "/chat" else 502, origin)
+            self.send_json_headers(503 if self.path == "/chat" else 502, origin)
             self.wfile.write(json.dumps({"error": str(exc)}, ensure_ascii=False).encode("utf-8"))
 
 
