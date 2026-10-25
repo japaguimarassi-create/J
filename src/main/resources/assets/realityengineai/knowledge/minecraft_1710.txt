@@ -1,0 +1,9 @@
+Minecraft 1.7.10 reference
+
+A block occupies one world grid cell. A TileEntity can store extra persistent NBT data and provide interaction logic. A BlockContainer is suitable for a block that needs a TileEntity. A useful right-click interaction should do something or open a GUI rather than echoing the requested description.
+
+Items are registered through GameRegistry. Their textures and behavior need to match their declared type. Reality Engine AI registers a real sword, pickaxe and food item, plus an artifact that only applies recognized effects. Unknown descriptions do not grant arbitrary powers.
+
+Living entities need server-side spawning, entity registration, persisted description data, a client renderer and a valid texture. Reality Entity has a bundled skin and basic pathfinding behaviors; it is not an arbitrary generated 3D model or a fully trained creature brain.
+
+Dimension provider types are registered separately from dimension IDs. Registering a dimension does not mean the user should be teleported. Reality Engine persists IDs and descriptions in its configuration and provides explicit entry.

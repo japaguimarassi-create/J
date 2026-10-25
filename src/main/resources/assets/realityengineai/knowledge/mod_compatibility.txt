@@ -1,0 +1,11 @@
+Mod compatibility catalogue
+
+At runtime, Reality Engine reads Forge's loaded mod containers and namespaced block/item registry entries. This can discover many mods in the same Forge instance without a hardcoded mod list.
+
+Commands:
+- crie lista de mods instalados
+- crie liste os blocos registrados
+- crie buscar registro tinkers
+- crie consultar conhecimento textura
+
+The catalogue is observational. It does not guarantee a third-party mod exposes an API for generating its own content. It does not read arbitrary private code, use other mods as neural teachers, or automatically implement every mod's behavior. A safe integration requires a compatible API or a registered object that can be selected.

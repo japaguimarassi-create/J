@@ -3,7 +3,7 @@ name: Forge 1.7.10 build
 on:
   push:
     branches:
-      - reality-engine-ai
+      - reality-engine-ai-v2
   pull_request:
   workflow_dispatch:
 
@@ -18,15 +18,44 @@ jobs:
         with:
           distribution: temurin
           java-version: '8'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install training and texture dependencies
+        run: python -m pip install --upgrade pip numpy pillow
+      - name: Generate custom textures
+        run: python tools/generate_assets.py
+      - name: Train exact 300k-parameter offline classifier
+        run: python tools/train_brain.py
       - name: Set up Gradle 5.6.4
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '5.6.4'
-      - name: Compile and test
+      - name: Compile, test and package
         run: gradle --no-daemon clean test build
+      - name: Verify model and textures exist in the JAR
+        run: |
+          python - <<'PY'
+          import zipfile
+          jar = 'build/libs/RealityEngineAI-0.2.0.jar'
+          with zipfile.ZipFile(jar) as archive:
+              names = set(archive.namelist())
+              required = [
+                  'assets/realityengineai/brain/weights.bin',
+                  'assets/realityengineai/textures/items/reality_artifact.png',
+                  'assets/realityengineai/textures/blocks/computer_front.png',
+                  'assets/realityengineai/textures/entity/reality_creature.png',
+              ]
+              missing = [name for name in required if name not in names]
+              assert not missing, 'Missing JAR resources: ' + ', '.join(missing)
+              weights = archive.read('assets/realityengineai/brain/weights.bin')
+              assert len(weights) == 9 + 300000 * 4, 'Unexpected weights size'
+              print('JAR resource verification passed; parameters=300000; bytes=', len(weights))
+          PY
       - name: Upload mod JAR
         uses: actions/upload-artifact@v4
         with:
-          name: RealityEngineAI-1.7.10
+          name: RealityEngineAI-1.7.10-v0.2.0
           path: build/libs/RealityEngineAI-*.jar
           if-no-files-found: error

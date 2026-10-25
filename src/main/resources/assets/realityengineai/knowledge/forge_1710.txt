@@ -1,0 +1,26 @@
+Reality Engine AI - offline reference notes
+Target platform: Minecraft Java 1.7.10, Forge 10.13.4.1614, Java 8.
+
+Forge mod discovery:
+- Loader.instance().getModList() exposes loaded ModContainer entries.
+- A ModContainer provides mod ID, display name and version.
+- GameData.getBlockRegistry() and GameData.getItemRegistry() expose registered blocks and items.
+- Registry identifiers generally use the namespace format modid:object_name. Registry visibility does not prove every private feature or API is safe to invoke.
+
+Textures and rendering:
+- Item sprites are under assets/realityengineai/textures/items.
+- Block sprites are under assets/realityengineai/textures/blocks.
+- Living entities need a client renderer and a valid entity texture.
+- Dynamic atlas sprites need correct registration during the texture stitching phase. This mod generates and packages its sprites during the build.
+
+Creation safety:
+- Ambiguous requests do not silently turn into a generic item or block.
+- Block placement uses ray tracing or the view vector and searches nearby free positions without blindly moving the target downward.
+- Computer blocks open an interactive GUI.
+- New dimensions are registered and metadata is stored in config/realityengineai-dimensions.properties. Creating one does not teleport the player; entry is an explicit action.
+- The dimension provider currently uses the vanilla chunk generator with a chosen biome, not a fully custom planet generator.
+
+Known limits:
+- Third-party mods may not expose an API for automatically creating their content.
+- The 300,000-parameter offline neural model is a small intent classifier, not a general language model.
+- Procedural sprites are packaged during build. Arbitrary 3D modeling, video understanding and automatic reverse-engineering of mods are not implemented.

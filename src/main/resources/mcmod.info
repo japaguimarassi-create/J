@@ -2,9 +2,9 @@
   {
     "modid": "realityengineai",
     "name": "Reality Engine AI",
-    "description": "Local chat-driven procedural creation prototype for Minecraft 1.7.10.",
-    "version": "${version}",
-    "mcversion": "${mcversion}",
+    "description": "Offline creation assistant for Minecraft 1.7.10 with registered-mod discovery, custom textures, functional blocks and an exact 300k-parameter intent model.",
+    "version": "0.2.0",
+    "mcversion": "1.7.10",
     "url": "",
     "updateUrl": "",
     "authorList": ["Reality Engine AI contributors"],

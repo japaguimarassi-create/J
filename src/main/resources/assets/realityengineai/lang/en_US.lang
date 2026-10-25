@@ -1,0 +1,8 @@
+item.reality_artifact.name=Reality Artifact
+item.reality_sword.name=Reality Sword
+item.reality_pickaxe.name=Reality Pickaxe
+item.reality_food.name=Reality Ration
+tile.reality_block.name=Reality Block
+tile.reality_computer.name=Reality Computer
+tile.reality_crystal.name=Reality Crystal
+entity.realityengineai.reality_entity.name=Reality Creature
