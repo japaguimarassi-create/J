@@ -5,7 +5,9 @@ on:
     branches: [motionforge-editor]
     paths:
       - 'ai/**'
-      - 'data/seed_examples.jsonl'
+      - 'server.py'
+      - 'data/seed.jsonl'
+      - 'data/distilled.jsonl'
       - 'tests/**'
       - '.github/workflows/train-student.yml'
   workflow_dispatch:
@@ -21,21 +23,29 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           cache: pip
-          cache-dependency-path: ai/requirements.txt
+          cache-dependency-path: requirements.txt
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-      - run: python -m pip install --upgrade pip && pip install -r ai/requirements.txt
-      - run: python -m unittest discover -s tests -v
-      - run: node --test tests/forge.test.mjs
-      - run: python ai/train.py --steps 160 --batch-size 4 --output models/motionforge-student.pt
+          node-version: '22'
+      - name: Install CPU PyTorch
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt --index-url https://download.pytorch.org/whl/cpu
+      - name: Python unit tests
+        run: python -m unittest discover -s tests -v
+      - name: FORGE parser tests
+        run: node --test tests/test_forge.mjs
+      - name: Syntax checks
+        run: python -m py_compile server.py ai/student.py ai/assistant.py ai/train.py
+      - name: Verify exact student size
+        run: python -m ai.student
+      - name: Train the 249,984-parameter student
+        run: python -m ai.train --data data/seed.jsonl --data data/distilled.jsonl --out artifacts/student.pt --epochs 8 --batch-size 2
       - uses: actions/upload-artifact@v4
         with:
           name: motionforge-student-${{ github.sha }}
           path: |
-            models/motionforge-student.pt
-            models/motionforge-student.metrics.json
+            artifacts/student.pt
+            artifacts/student.metrics.json
           if-no-files-found: error
           retention-days: 30
