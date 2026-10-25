@@ -182,6 +182,10 @@ public final class MainActivity extends Activity {
         return prefs.getString("model", DEFAULT_MODEL);
     }
 
+    private String backendKey() {
+        return prefs.getString("backend_key", "");
+    }
+
     private static String trimSlash(String value) {
         String result = value == null ? "" : value.trim();
         while (result.endsWith("/")) result = result.substring(0, result.length() - 1);
@@ -224,6 +228,10 @@ public final class MainActivity extends Activity {
             connection.setDoOutput(true);
             connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
             connection.setRequestProperty("Accept", "application/json");
+            String accessKey = backendKey();
+            if ("backend".equals(mode()) && !accessKey.isEmpty()) {
+                connection.setRequestProperty("Authorization", "Bearer " + accessKey);
+            }
             byte[] bytes = request.toString().getBytes(StandardCharsets.UTF_8);
             connection.setFixedLengthStreamingMode(bytes.length);
             try (OutputStream output = connection.getOutputStream()) {
@@ -321,7 +329,7 @@ public final class MainActivity extends Activity {
             try {
                 JSONObject result = new JSONObject();
                 result.put("mode", mode());
-                result.put("model", "backend".equals(mode()) ? "MotionForge · 3 professores" : model());
+                result.put("model", "backend".equals(mode()) ? "MotionForge backend" : model());
                 result.put("endpoint", endpoint());
                 return result.toString();
             } catch (JSONException ex) {
@@ -342,7 +350,7 @@ public final class MainActivity extends Activity {
         layout.setPadding(pad, dp(6), pad, dp(4));
 
         TextView intro = new TextView(this);
-        intro.setText("Conecte a Forge AI a um serviço local. Os modelos não vêm embutidos no APK; eles continuam no Ollama ou no servidor que você configurar.");
+        intro.setText("Conecte a Forge AI a um Ollama local ou a um backend MotionForge remoto. No modo remoto, o backend pode encaminhar pedidos ao GitHub Models; as credenciais ficam no servidor, não no APK.");
         intro.setTextSize(13);
         intro.setTextColor(Color.LTGRAY);
         intro.setPadding(0, 0, 0, dp(12));
@@ -355,7 +363,7 @@ public final class MainActivity extends Activity {
         ollama.setTextColor(Color.WHITE);
         ollama.setId(1);
         RadioButton backend = new RadioButton(this);
-        backend.setText("Backend MotionForge · três professores");
+        backend.setText("Backend MotionForge · local/remoto");
         backend.setTextColor(Color.WHITE);
         backend.setId(2);
         modes.addView(ollama);
@@ -374,6 +382,19 @@ public final class MainActivity extends Activity {
         endpointInput.setHint("http://127.0.0.1:11434");
         endpointInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
         layout.addView(endpointInput);
+
+        TextView keyLabel = new TextView(this);
+        keyLabel.setText("Chave de acesso do backend remoto (opcional no servidor local)");
+        keyLabel.setTextColor(Color.WHITE);
+        keyLabel.setPadding(0, dp(10), 0, dp(5));
+        layout.addView(keyLabel);
+        EditText backendKeyInput = new EditText(this);
+        backendKeyInput.setSingleLine(true);
+        backendKeyInput.setText(backendKey());
+        backendKeyInput.setHint("Chave definida no servidor remoto");
+        backendKeyInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        layout.addView(backendKeyInput);
+
         modes.setOnCheckedChangeListener((group, checkedId) -> {
             String current = endpointInput.getText().toString().trim();
             if (checkedId == 2 && (current.isEmpty() || current.endsWith(":11434"))) {
@@ -384,7 +405,7 @@ public final class MainActivity extends Activity {
         });
 
         TextView modelLabel = new TextView(this);
-        modelLabel.setText("Modelo Ollama (ignorado no modo de três professores)");
+        modelLabel.setText("Modelo Ollama (usado somente no modo Ollama direto)");
         modelLabel.setTextColor(Color.WHITE);
         modelLabel.setPadding(0, dp(10), 0, dp(5));
         layout.addView(modelLabel);
@@ -417,7 +438,8 @@ public final class MainActivity extends Activity {
                     return;
                 }
                 prefs.edit().putString("mode", modes.getCheckedRadioButtonId() == 2 ? "backend" : "ollama")
-                        .putString("endpoint", url).putString("model", selectedModel).apply();
+                        .putString("endpoint", url).putString("model", selectedModel)
+                        .putString("backend_key", backendKeyInput.getText().toString().trim()).apply();
                 if (webView != null) webView.evaluateJavascript("window.refreshNativeAIStatus&&window.refreshNativeAIStatus()", null);
                 dialog.dismiss();
             });
@@ -430,6 +452,8 @@ public final class MainActivity extends Activity {
                         HttpURLConnection c = (HttpURLConnection) new URL(url + (isBackend ? "/api/status" : "/api/tags")).openConnection();
                         c.setConnectTimeout(5000);
                         c.setReadTimeout(5000);
+                        String accessKey = backendKeyInput.getText().toString().trim();
+                        if (isBackend && !accessKey.isEmpty()) c.setRequestProperty("Authorization", "Bearer " + accessKey);
                         int code = c.getResponseCode();
                         String body = readAll(code >= 200 && code < 300 ? c.getInputStream() : c.getErrorStream());
                         if (code < 200 || code >= 300) throw new IOException("HTTP " + code);
