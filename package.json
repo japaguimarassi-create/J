@@ -1,0 +1,9 @@
+{
+  "name": "motionforge-studio",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test:forge": "node --test tests/forge.test.mjs"
+  }
+}

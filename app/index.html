@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101722">
+<meta name="description" content="Editor de animação 2D/3D com linguagem FORGE e auxiliar de IA local.">
+<title>MotionForge Studio</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="#" aria-label="MotionForge Studio"><span class="brand-icon">M</span><span><b>MotionForge</b><small>STUDIO / PREVIEW</small></span></a>
+  <div class="status"><i></i><span id="statusText">Projeto local</span></div>
+  <nav><button id="example2d" class="secondary">Exemplo 2D</button><button id="example3d" class="secondary">Exemplo 3D</button><button id="exportFile" class="primary">Exportar .forge</button></nav>
+</header>
+<main class="workspace">
+<section class="panel script-panel">
+  <div class="heading"><div><label>01 / SCRIPT</label><h1>Linguagem FORGE</h1></div><span class="file-pill">scene.forge</span></div>
+  <p class="muted">Edite o script e execute para validar e visualizar a cena.</p>
+  <label class="sr-only" for="sourceCode">Código FORGE</label>
+  <textarea id="sourceCode" spellcheck="false" autocapitalize="off" autocomplete="off">project "PrimeiroProjeto"
+scene "Orbita" mode 2d fps 30 duration 3
+object "Bola" circle color "#58d6ff" at (48,130,0) size (38,38)
+animate "Bola" move from (48,130,0) to (330,130,0) from 0s to 3s ease smooth</textarea>
+  <div class="editor-foot"><span id="lineInfo">4 linhas</span><span>UTF-8 · FORGE 0.1</span></div>
+  <div class="actions"><button id="runCode" class="primary">▶ Executar cena</button><button id="resetTime" class="secondary">Voltar ao início</button></div>
+  <div id="diagnostics" class="diagnostics" role="status">Pronto para executar.</div>
+  <div class="syntax-card"><h2>Referência rápida</h2><code>scene "Nome" mode 2d fps 30 duration 3</code><code>object "Bola" circle color "#58d6ff" at (40,100,0) size (30,30)</code><code>animate "Bola" move from (40,100,0) to (300,100,0) from 0s to 2s ease smooth</code><p>Tipos: circle, box, sphere, cone e torus. Curvas: linear e smooth.</p></div>
+</section>
+<section class="panel preview-panel">
+  <div class="heading"><div><label>02 / VIEWPORT</label><h2 id="sceneTitle">Orbita</h2></div><div class="view-controls"><span id="modeBadge" class="mode">2D</span><button id="playPause" class="icon-button" aria-label="Reproduzir">▶</button></div></div>
+  <div id="viewport" class="viewport"><canvas id="preview2d"></canvas><div id="preview3d" class="preview3d hidden"></div><div id="emptyState" class="empty hidden">Execute um script FORGE válido para ver a cena.</div></div>
+  <div class="timeline-title"><span>Timeline</span><span id="timeReadout">00:00.00 / 00:03.00</span></div>
+  <input type="range" id="timeline" min="0" max="3" step="0.01" value="0" aria-label="Tempo da animação">
+  <div class="timeline-marks"><span>0s</span><span id="halfMark">1.5s</span><span id="durationMark">3s</span></div>
+  <div class="stats"><div><small>OBJETOS</small><b id="objectCount">1</b></div><div><small>DURAÇÃO</small><b id="durationValue">3.0 s</b></div><div><small>FPS</small><b id="fpsValue">30</b></div></div>
+</section>
+<aside class="panel ai-panel">
+  <div class="heading"><div><label>03 / AUXILIAR</label><h2>Forge AI</h2></div><span class="local-badge"><i></i> LOCAL</span></div>
+  <p class="muted">Peça dicas ou uma cena curta. O aluno de 250 mil parâmetros é experimental e usa exemplos verificados.</p>
+  <div class="capabilities"><span>01 · Dicas FORGE</span><span>02 · Pesquisa com links</span><span>03 · Brainstorm de 3 professores</span></div>
+  <label class="field-label" for="assistantPrompt">O que você quer criar?</label>
+  <textarea id="assistantPrompt" rows="4" placeholder="Ex.: faça uma esfera girar e mudar de altura..."></textarea>
+  <div class="ai-actions"><button id="askLocal" class="primary">Perguntar ao aluno local</button><button id="researchWeb" class="secondary">Pesquisar na internet</button></div>
+  <div id="assistantOutput" class="assistant-output" aria-live="polite">A IA não envia nada até você acionar um botão. Pesquisa externa precisa de internet.</div>
+  <button id="applyCode" class="primary apply hidden">Usar código sugerido</button>
+  <div class="teacher-card"><b>Treino por consenso</b><p>Qwen3, Gemma 4 e gpt-oss propõem e criticam exemplos. Só uma síntese aprovada pelos três entra no treino do único aluno.</p><small>Os professores precisam estar instalados localmente no Ollama.</small></div>
+</aside>
+</main>
+<footer><span>MotionForge Studio · protótipo</span><span>Verifique os scripts antes de usar em produção.</span><a href="https://github.com/japaguimarassi-create/J/tree/motionforge-editor" target="_blank" rel="noopener noreferrer">Código no GitHub ↗</a></footer>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

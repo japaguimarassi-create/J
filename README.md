@@ -1,91 +1,53 @@
 # MotionForge Studio
 
-Editor original, adaptado a celular, para animações 2D/3D, com a linguagem FORGE e uma IA auxiliar local.
+Editor experimental de animação 2D/3D, linguagem própria FORGE e auxiliar de IA local. Projeto criado e versionado no GitHub, com interface responsiva, parser determinístico, treinamento reproduzível e testes.
 
-**Estado:** MVP em construção. O repositório contém o editor visual, parser/interpolador FORGE, backend local, pesquisa web opcional, colaboração entre três modelos-professores e pipeline de destilação para um único modelo-aluno com exatamente **249.984 parâmetros treináveis**. O modelo-aluno não vem pré-treinado: precisa passar pelo treinamento documentado antes de ser tratado como assistente útil.
+## O que existe nesta primeira versão
 
-## Executar
+- Editor web responsivo com exemplos 2D/3D, timeline, pré-visualização e exportação do script .forge.
+- FORGE v0.1: declara cena, objetos, movimentos, rotações, escala e easing linear/suave.
+- Modelo-aluno Transformer próprio com 247.890 parâmetros treináveis, aproximadamente 250 mil.
+- Assistente que recupera exemplos verificados e usa os pesos treinados para reordená-los. Não apresenta geração livre incoerente como resposta confiável.
+- Brainstorm local em três etapas: Qwen, Gemma e gpt-oss propõem, criticam e depois aprovam/reprovam a síntese; apenas aprovação unânime entra no corpus de destilação.
+- Pesquisa web acionada pelo usuário, com URLs para conferência.
+- GitHub Actions para executar testes e treinar o aluno.
 
-Requisitos: Python 3.10+; para treinar, PyTorch conforme requirements.txt.
+## Limite técnico importante
 
-~~~bash
-python server.py
-~~~
+Os 247.890 parâmetros são pesos novos do aluno, não a soma ou uma cópia dos modelos-professores. O corpus inicial tem exemplos-curtos de domínio; a perda de validação menor mostra adaptação a esse corpus, mas não prova competência geral. O teste local de referência (41 exemplos, 160 passos em CPU) reduziu a perda de validação de 28,1880 para 2,7475; geração livre ainda não é confiável. O brainstorm dos três modelos está implementado, mas os modelos-professores precisam ser instalados e executados localmente para produzir exemplos reais de consenso.
 
-Abra http://127.0.0.1:8000. A edição, o preview 2D, a timeline e a exportação FORGE funcionam sem IA. O preview 3D usa Three.js por CDN e precisa de conexão à internet; o backend local e a IA são executados na máquina que inicia o servidor.
+## Executar e treinar
 
-## Três professores → um aluno
+Instale Python 3.11+, Node.js e as dependências:
 
-Modelos configuráveis no Ollama, selecionados por papéis complementares:
+    python -m venv .venv
+    . .venv/bin/activate
+    pip install -r ai/requirements.txt
+    python ai/train.py --steps 160 --batch-size 4
+    python ai/chat_server.py
 
-- **Qwen3.8 27B** — programação, tarefas agentivas e pesquisa.
-- **Gemma 4 12B** — apoio multimodal; a integração de imagem ainda não é exposta no MVP.
-- **gpt-oss 20B** — raciocínio, crítica e avaliação estruturada.
+Abra app/index.html por um servidor estático. O Three.js é carregado por CDN para a visualização 3D; o editor 2D e o parser são executados no navegador. O servidor local fica restrito a 127.0.0.1:8765.
 
-Instale o [Ollama](https://ollama.com/) numa máquina compatível e execute, um por vez:
+## Três modelos-professores locais
 
-~~~bash
-ollama pull qwen3.8:27b
-ollama pull gemma4:12b
-ollama pull gpt-oss:20b
-~~~
+Com Ollama instalado, obtenha modelos compatíveis com o seu hardware:
 
-Então reinicie o servidor e use **Brainstorm com 3 modelos**. Cada professor gera uma proposta independente; depois, cada professor avalia as três propostas. O backend agrega os votos, seleciona a proposta melhor pontuada e pede uma síntese final. As chamadas são sequenciais e solicitam o descarregamento do modelo entre chamadas para reduzir a memória retida. Isso não elimina o requisito de RAM para carregar o professor maior. A lista pode ser sobrescrita pela variável MOTIONFORGE_TEACHERS com três nomes separados por vírgulas.
+    ollama pull qwen3:8b
+    ollama pull gemma4:e4b
+    ollama pull gpt-oss:20b
+    python ai/teacher_brainstorm.py "Crie uma animação 3D de uma esfera saltando"
 
-Os pesos publicados pelo catálogo oficial do Ollama são grandes: Qwen3.8 27B ~18 GB, Gemma 4 12B ~7,7–8 GB e gpt-oss 20B ~14 GB. O trio não é adequado ao Moto G04S. Use outro computador local com memória suficiente. Fontes: [Qwen3.8](https://ollama.com/library/qwen3.8), [Gemma 4](https://ollama.com/library/gemma4), [gpt-oss 20B](https://ollama.com/library/gpt-oss%3A20b), [documentação OpenAI gpt-oss](https://developers.openai.com/api/docs/models/gpt-oss-20b).
+Os três modelos são consultados sequencialmente para reduzir o pico de memória. Esses modelos têm vários bilhões de parâmetros e não são viáveis simultaneamente em um celular comum. Depois de revisar as fontes e o exemplo aprovado:
 
-## Treinar o aluno de 250K
+    python ai/train.py --extra-data data/teacher_generated.jsonl --steps 800 --batch-size 4
 
-O número de parâmetros não é a soma dos parâmetros dos professores. O aluno tem arquitetura e pesos próprios: um Transformer causal compacto, inicializado do zero e treinado com exemplos revisados pelos professores. A configuração tem **249.984 parâmetros exatos** (contagem verificada pelo código).
+O arquivo de auditoria de brainstorming guarda propostas, críticas, notas e decisões.
 
-Cada brainstorm pode salvar uma amostra em data/distilled.jsonl; o checkbox no painel controla essa gravação. Para treinar, use o botão **Treinar aluno 250K** ou execute:
+## Pesquisa e revisão
 
-~~~bash
-python -m pip install -r requirements.txt
-python -m ai.train --data data/seed.jsonl --data data/distilled.jsonl --out artifacts/student.pt --epochs 8
-~~~
+A pesquisa externa só é feita quando o usuário aciona essa função. Os resultados são pistas para leitura, não fatos automaticamente verificados. Não execute código baixado da web. Execute todos os testes antes de publicar:
 
-data/seed.jsonl oferece exemplos iniciais do editor. Eles são apenas um ponto de partida: um modelo de 250K parâmetros não retém o conhecimento geral dos professores e precisa de muitos exemplos bons, variados e revisados. Uma pequena amostra pode causar sobreajuste. O comando salva os pesos locais em artifacts/student.pt, ignorado pelo Git.
+    python -m unittest discover -s tests -v
+    node --test tests/forge.test.mjs
 
-O painel usa o aluno treinado se o checkpoint existir; caso contrário, usa o workflow de três professores. O servidor não afirma que o aluno foi treinado quando o arquivo não existe.
-
-## Exemplo FORGE
-
-~~~forge
-scene "Orbit Study" fps=24 width=960 height=540
-background color=#0b1020
-
-circle orb x=120 y=270 radius=28 color=#65e8d4
-rect ground x=0 y=442 width=960 height=98 color=#17233a
-text heading x=42 y=64 value="MOTIONFORGE" size=28 color=#eaf2ff
-
-key orb at=0 x=120 y=270 scale=1
-key orb at=24 x=480 y=154 scale=1.35
-key orb at=48 x=820 y=270 scale=1
-
-cube core x=0 y=0 z=0 size=1.2 color=#65e8d4
-key3 core at=0 rotationY=0 rotationX=0
-key3 core at=48 rotationY=6.28 rotationX=1.0
-~~~
-
-Veja [FORGE](docs/FORGE-LANGUAGE.md) e [arquitetura de IA](docs/AI-ARCHITECTURE.md).
-
-## Privacidade e segurança
-
-- O servidor local se vincula a 127.0.0.1 por padrão.
-- A linguagem FORGE é analisada por uma lista permitida de comandos; o editor não executa o texto como JavaScript.
-- A pesquisa é opt-in e envia a consulta ao DuckDuckGo.
-- Os prompts e as amostras de treino ficam no computador local.
-- Não exponha o servidor numa rede não confiável sem autenticação e controles adicionais.
-- Confira as licenças dos modelos, datasets e dependências antes de redistribuir ou usar comercialmente.
-
-## Desenvolvimento
-
-~~~bash
-node --test tests/test_forge.mjs
-python -m py_compile server.py ai/student.py ai/train.py
-~~~
-
-## Licença
-
-Nenhuma licença do projeto foi escolhida ainda. Confirme direitos autorais, termos dos modelos e das dependências antes da redistribuição.
+Veja docs/architecture.md, docs/forge-language.md e docs/research-notes.md para a arquitetura, sintaxe e fontes de pesquisa.
