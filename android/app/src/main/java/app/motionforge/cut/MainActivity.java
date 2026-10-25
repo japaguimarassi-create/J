@@ -763,8 +763,29 @@ public final class MainActivity extends Activity {
                         if (isBackend && !accessKey.isEmpty()) c.setRequestProperty("Authorization", "Bearer " + accessKey);
                         int code = c.getResponseCode();
                         String body = readAll(code >= 200 && code < 300 ? c.getInputStream() : c.getErrorStream());
-                        if (code < 200 || code >= 300) throw new IOException("HTTP " + code);
-                        status = "Conexão OK. Serviço respondeu a " + (isBackend ? "/api/status" : "/api/tags") + ".";
+                        if (code < 200 || code >= 300) throw new IOException("HTTP " + code + ": " + body);
+                        if (isBackend) {
+                            JSONObject service = new JSONObject(body);
+                            JSONArray required = service.optJSONArray("teachers");
+                            JSONArray installed = service.optJSONArray("installed_models");
+                            if (!service.optBoolean("ollama_reachable", false) || required == null || required.length() != 3 || installed == null) {
+                                throw new IOException("O backend respondeu, mas não confirmou os três modelos Ollama.");
+                            }
+                            for (int i = 0; i < required.length(); i++) {
+                                String expected = required.optString(i, "");
+                                boolean found = false;
+                                for (int j = 0; j < installed.length(); j++) {
+                                    if (expected.equals(installed.optString(j, ""))) {
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                                if (!found) throw new IOException("Modelo não instalado no servidor: " + expected);
+                            }
+                            status = "Conexão OK. Os três modelos locais estão instalados no servidor.";
+                        } else {
+                            status = "Conexão OK. Serviço respondeu a /api/tags.";
+                        }
                         c.disconnect();
                     } catch (Exception ex) {
                         status = "Não conectou: " + (ex.getMessage() == null ? "erro desconhecido" : ex.getMessage());
