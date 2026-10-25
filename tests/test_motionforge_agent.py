@@ -35,7 +35,7 @@ class MotionForgeAgentTests(unittest.TestCase):
 
     def test_storage_estimate_is_only_for_missing_models(self):
         self.assertEqual(motionforge_agent.required_free_gb(["gemma4:12b"]), 12)
-        self.assertEqual(motionforge_agent.required_free_gb([]), 4)
+        self.assertEqual(motionforge_agent.required_free_gb([]), 0)
 
 
 if __name__ == "__main__":
