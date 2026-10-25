@@ -1,132 +1,191 @@
+from __future__ import annotations
+
 import argparse
 import json
+import math
 import random
 import time
 from pathlib import Path
+from typing import Any
 
 import torch
 from torch.nn import functional as F
 
-from model import ForgeStudent, MAX_SEQ_LEN, encode
+from ai.student import BLOCK_SIZE, BOS_ID, EOS_ID, EXPECTED_PARAMS, ForgeStudent, ByteBPETokenizer, UNK_ID, VOCAB_SIZE
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA_PATH = ROOT / "data" / "seed_examples.jsonl"
-MODEL_DIR = ROOT / "models"
+SEED_PATH = ROOT / "data" / "seed.jsonl"
+DEFAULT_OUTPUT = ROOT / "artifacts" / "student.pt"
 
 
-def read_examples(path, minimum=1):
-    rows = []
-    with Path(path).open("r", encoding="utf-8") as stream:
-        for line_number, line in enumerate(stream, 1):
-            if not line.strip():
-                continue
-            try:
-                item = json.loads(line)
-                prompt, response = str(item["prompt"]).strip(), str(item["response"]).strip()
-                if prompt and response:
+def read_examples(paths: list[Path]) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for path_index, path in enumerate(paths):
+        if not path.exists():
+            if path_index == 0:
+                raise FileNotFoundError("Corpus principal não encontrado: " + str(path))
+            continue
+        with path.open("r", encoding="utf-8") as stream:
+            for line_number, line in enumerate(stream, 1):
+                if not line.strip():
+                    continue
+                try:
+                    item = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    raise ValueError(str(path) + ":" + str(line_number) + ": JSON inválido") from exc
+                if not isinstance(item, dict) or not isinstance(item.get("prompt"), str) or not isinstance(item.get("response"), str):
+                    raise ValueError(str(path) + ":" + str(line_number) + ": cada exemplo precisa de prompt e response em texto")
+                prompt, response = item["prompt"].strip(), item["response"].strip()
+                if not prompt or not response:
+                    continue
+                key = (prompt.casefold(), response.casefold())
+                if key not in seen:
+                    seen.add(key)
                     rows.append({"prompt": prompt, "response": response})
-            except (json.JSONDecodeError, KeyError, TypeError) as exc:
-                raise ValueError("JSONL inválido na linha " + str(line_number) + ": " + str(exc)) from exc
-    if len(rows) < minimum:
-        raise ValueError("Corpus insuficiente: " + str(path))
+    if len(rows) < 5:
+        raise ValueError("São necessários pelo menos 5 exemplos únicos; corpus atual: " + str(len(rows)))
     return rows
 
 
-def make_stream(rows):
-    text = "\n\n".join("Usuário: " + x["prompt"] + "\nAssistente: " + x["response"] for x in rows)
-    return torch.tensor(encode(text, add_bos=True, add_eos=True), dtype=torch.long)
+def format_example(item: dict[str, str]) -> str:
+    return "Usuário: " + item["prompt"] + "\nAssistente: " + item["response"]
 
 
-def sample_batch(stream, batch_size, device):
-    if len(stream) < MAX_SEQ_LEN + 2:
-        raise ValueError("O corpus precisa de mais tokens que a janela de contexto.")
-    starts = torch.randint(0, len(stream) - MAX_SEQ_LEN - 1, (batch_size,))
-    x = torch.stack([stream[s:s + MAX_SEQ_LEN] for s in starts])
-    y = torch.stack([stream[s + 1:s + MAX_SEQ_LEN + 1] for s in starts])
-    return x.to(device), y.to(device)
+def tokenize_examples(rows: list[dict[str, str]], tokenizer: ByteBPETokenizer) -> list[list[int]]:
+    return [tokenizer.encode(format_example(item), add_special=True) for item in rows]
 
 
-def evaluate(model, stream, device, batches=8):
+def make_stream(sequences: list[list[int]]) -> torch.Tensor:
+    flattened: list[int] = []
+    for sequence in sequences:
+        flattened.extend(sequence)
+    if len(flattened) < BLOCK_SIZE + 2:
+        repeats = math.ceil((BLOCK_SIZE + 2) / max(1, len(flattened)))
+        flattened *= repeats
+    return torch.tensor(flattened, dtype=torch.long)
+
+
+def sample_batch(stream: torch.Tensor, batch_size: int, device: str) -> tuple[torch.Tensor, torch.Tensor]:
+    if stream.numel() < BLOCK_SIZE + 2:
+        raise ValueError("Fluxo de treino menor que a janela do modelo.")
+    maximum = stream.numel() - BLOCK_SIZE - 1
+    starts = torch.randint(0, maximum + 1, (batch_size,))
+    inputs = torch.stack([stream[int(start):int(start) + BLOCK_SIZE] for start in starts])
+    targets = torch.stack([stream[int(start) + 1:int(start) + BLOCK_SIZE + 1] for start in starts])
+    return inputs.to(device), targets.to(device)
+
+
+def evaluate(model: ForgeStudent, sequences: list[list[int]], device: str) -> float:
     model.eval()
-    maximum = len(stream) - MAX_SEQ_LEN - 1
-    if maximum < 1:
-        raise ValueError("O conjunto de validação é muito curto.")
-    starts = torch.linspace(0, maximum, steps=min(batches, maximum + 1)).round().long().unique().tolist()
-    losses = []
+    total_loss = 0.0
+    total_tokens = 0
     with torch.no_grad():
-        for start in starts:
-            x = stream[start:start + MAX_SEQ_LEN].unsqueeze(0).to(device)
-            y = stream[start + 1:start + MAX_SEQ_LEN + 1].unsqueeze(0).to(device)
-            losses.append(float(F.cross_entropy(model(x).reshape(-1, 258), y.reshape(-1))))
+        for sequence in sequences:
+            if len(sequence) < 2:
+                continue
+            ids = sequence[-(BLOCK_SIZE + 1):]
+            tokens = torch.tensor(ids, dtype=torch.long, device=device)
+            logits = model(tokens[:-1].unsqueeze(0))[0]
+            labels = tokens[1:]
+            loss_sum = F.cross_entropy(logits, labels, reduction="sum")
+            total_loss += float(loss_sum.item())
+            total_tokens += labels.numel()
     model.train()
-    return sum(losses) / len(losses)
+    if total_tokens == 0:
+        raise ValueError("Conjunto de validação sem tokens.")
+    return total_loss / total_tokens
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--data", type=Path, default=DATA_PATH)
-    parser.add_argument("--extra-data", type=Path, action="append", default=[])
-    parser.add_argument("--steps", type=int, default=160)
-    parser.add_argument("--batch-size", type=int, default=4)
-    parser.add_argument("--learning-rate", type=float, default=0.0007)
-    parser.add_argument("--seed", type=int, default=20261025)
-    parser.add_argument("--output", type=Path, default=MODEL_DIR / "motionforge-student.pt")
-    args = parser.parse_args()
-    if args.steps < 1 or args.batch_size < 1:
-        raise ValueError("steps e batch-size precisam ser positivos")
+def train(args: argparse.Namespace) -> dict[str, Any]:
     random.seed(args.seed)
     torch.manual_seed(args.seed)
     torch.set_num_threads(max(1, min(4, torch.get_num_threads())))
-    examples, seen = [], set()
-    for path in [args.data, *args.extra_data]:
-        for item in read_examples(path):
-            key = (item["prompt"].casefold(), item["response"].casefold())
-            if key not in seen:
-                seen.add(key)
-                examples.append(item)
-    if len(examples) < 5:
-        raise ValueError("São necessários pelo menos cinco exemplos únicos.")
+    examples = read_examples(args.data)
     random.shuffle(examples)
-    split = max(1, int(len(examples) * 0.9))
-    train_stream = make_stream(examples[:split])
-    validation_stream = make_stream(examples[split:]) if len(examples[split:]) >= 1 else train_stream
+    if len(examples) >= 8:
+        validation_count = max(1, min(len(examples) - 5, int(round(len(examples) * 0.15))))
+        train_examples, validation_examples = examples[:-validation_count], examples[-validation_count:]
+    else:
+        train_examples, validation_examples = examples, examples[-1:]
+    training_texts = [format_example(item) for item in train_examples]
+    tokenizer = ByteBPETokenizer.train(training_texts)
+    train_sequences = tokenize_examples(train_examples, tokenizer)
+    validation_sequences = tokenize_examples(validation_examples, tokenizer)
+    stream = make_stream(train_sequences)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = ForgeStudent().to(device)
+    parameter_count = model.count_parameters()
+    if parameter_count != EXPECTED_PARAMS:
+        raise RuntimeError("Contagem de parâmetros divergente: " + str(parameter_count))
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=0.01)
-    initial_loss = evaluate(model, validation_stream, device, 4)
+    initial_loss = evaluate(model, validation_sequences, device)
+    steps_per_epoch = max(2, min(16, math.ceil(stream.numel() / (BLOCK_SIZE * args.batch_size))))
+    total_steps = args.steps if args.steps > 0 else steps_per_epoch * args.epochs
     started = time.time()
-    for step in range(1, args.steps + 1):
-        x, y = sample_batch(train_stream, args.batch_size, device)
-        loss = F.cross_entropy(model(x).reshape(-1, 258), y.reshape(-1))
+    losses: list[float] = []
+    for step in range(1, total_steps + 1):
+        inputs, targets = sample_batch(stream, args.batch_size, device)
+        logits = model(inputs)
+        loss = F.cross_entropy(logits.reshape(-1, VOCAB_SIZE), targets.reshape(-1))
         optimizer.zero_grad(set_to_none=True)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
-        if step == 1 or step % 20 == 0 or step == args.steps:
-            print("step=" + str(step) + "/" + str(args.steps) + " loss=" + format(loss.item(), ".4f"))
-    final_loss = evaluate(model, validation_stream, device)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    metrics = {
+        losses.append(float(loss.item()))
+        if step == 1 or step % 10 == 0 or step == total_steps:
+            print("step=" + str(step) + "/" + str(total_steps) + " loss=" + format(loss.item(), ".4f"), flush=True)
+    final_loss = evaluate(model, validation_sequences, device)
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    metrics: dict[str, Any] = {
         "status": "trained",
+        "architecture": "12M? no; 2-layer causal Transformer, 32 hidden, tied 7k BPE embeddings",
         "device": device,
-        "parameters": sum(p.numel() for p in model.parameters()),
+        "parameters": parameter_count,
+        "expected_parameters": EXPECTED_PARAMS,
+        "parameter_count_valid": parameter_count == EXPECTED_PARAMS,
+        "vocabulary_size": VOCAB_SIZE,
+        "context_tokens": BLOCK_SIZE,
         "examples": len(examples),
-        "initial_validation_loss": round(initial_loss, 4),
-        "final_validation_loss": round(final_loss, 4),
+        "train_examples": len(train_examples),
+        "validation_examples": len(validation_examples),
+        "initial_validation_loss": round(initial_loss, 5),
+        "final_validation_loss": round(final_loss, 5),
         "loss_improved": final_loss < initial_loss,
+        "mean_final_training_loss": round(sum(losses[-min(10, len(losses)):]) / min(10, len(losses)), 5),
+        "training_steps": total_steps,
+        "epochs_requested": args.epochs,
         "training_seconds": round(time.time() - started, 2),
-        "steps": args.steps,
-        "checkpoint": str(args.output),
+        "checkpoint": str(args.out),
+        "teacher_examples_included": sum(1 for item in examples if "three-teacher-consensus" in str(item.get("source", ""))),
     }
-    torch.save({
-        "state_dict": model.cpu().state_dict(),
-        "config": {"vocab_size": 258, "d_model": 48, "n_heads": 4, "n_layers": 12, "ff_dim": 92, "max_seq_len": 256},
-        **{key: value for key, value in metrics.items() if key not in {"status", "device", "checkpoint"}},
+    bundle = {
+        "model_state": model.cpu().state_dict(),
+        "tokenizer": tokenizer.to_dict(),
+        "metrics": metrics,
         "seed": args.seed,
-    }, args.output)
-    metrics_path = args.output.with_suffix(".metrics.json")
+    }
+    torch.save(bundle, args.out)
+    metrics_path = args.out.with_suffix(".metrics.json")
     metrics_path.write_text(json.dumps(metrics, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps(metrics, ensure_ascii=False))
+    print(json.dumps(metrics, ensure_ascii=False), flush=True)
+    return metrics
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Treina o aluno MotionForge de exatamente 249.984 parâmetros.")
+    parser.add_argument("--data", action="append", type=Path, default=None, help="JSONL do corpus; pode ser repetido. O primeiro arquivo é obrigatório.")
+    parser.add_argument("--out", "--output", dest="out", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--epochs", type=int, default=8)
+    parser.add_argument("--steps", type=int, default=0, help="Opcional: substitui a quantidade calculada por época.")
+    parser.add_argument("--batch-size", type=int, default=2)
+    parser.add_argument("--learning-rate", type=float, default=0.001)
+    parser.add_argument("--seed", type=int, default=20261025)
+    args = parser.parse_args()
+    args.data = args.data or [SEED_PATH, ROOT / "data" / "distilled.jsonl"]
+    if args.epochs < 1 or args.epochs > 30 or args.steps < 0 or args.batch_size < 1 or args.batch_size > 16:
+        raise ValueError("epochs deve ser 1-30; steps >= 0; batch-size deve ser 1-16.")
+    train(args)
 
 
 if __name__ == "__main__":
