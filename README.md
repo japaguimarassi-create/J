@@ -79,6 +79,16 @@ O workflow **Train MotionForge student** executa testes e treinamento no GitHub 
 
 O deploy estático é opcional. Para ativá-lo, abra **Settings → Pages** e escolha **GitHub Actions** como fonte de build. Em **Settings → Secrets and variables → Actions → Variables**, crie `MOTIONFORGE_PAGES_ENABLED=true`, e execute o workflow **Deploy MotionForge Studio**. A página estática oferece a interface e o preview, mas as rotas `/api/...` precisam do backend local; GitHub Pages não hospeda `server.py` nem os modelos do Ollama.
 
+## Aprendizado com referências visuais
+
+A aba **Aprender** trata a IA como um aprendiz iniciante: observar → explicar → planejar → testar → revisar. Inclui links de estudo para animação, quadros-chave e storyboard; também permite guardar imagens e vídeos curtos no IndexedDB do próprio navegador, junto com notas escritas.
+
+Ao iniciar um Brainstorm com referências habilitadas, o navegador reduz imagens a JPEGs pequenos e extrai até quatro quadros de imagens/vídeos. Esses quadros e as notas são enviados ao backend local; somente o professor Gemma recebe os pixels via Ollama. Qwen e gpt-oss recebem o texto das notas e analisam as propostas. O vídeo é usado como quadros visuais — o áudio ainda não é analisado.
+
+O modelo-aluno de 249.984 parâmetros **não possui visão nativa**. Ele aprende texto revisado, incluindo descrições e orientações geradas a partir das referências quando os três professores aprovam a resposta. A imagem original não é colocada diretamente nos pesos do aluno. Isso permite ensinar procedimentos e código FORGE sem alegar uma capacidade visual que o modelo pequeno não tem.
+
+O material guardado na biblioteca fica no navegador. As imagens só são transmitidas ao servidor local quando você aciona Brainstorm e mantém a opção de usar referências marcada. O servidor grava notas e quantidade de quadros na auditoria; não armazena cópias dos JPEGs enviados. Links externos podem ter direitos de uso próprios; confira suas licenças antes de redistribuir mídia.
+
 ## Limites conhecidos
 
 - FORGE v0.1 não tem loops, variáveis, rigging, partículas, áudio ou renderização final de vídeo.
