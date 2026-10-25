@@ -21,6 +21,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonParser;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
@@ -481,7 +482,7 @@ public final class BotPromptEngine {
         JsonObject json = new JsonObject();
         json.addProperty("id", id);
         JsonArray words = new JsonArray();
-        for (String keyword : keywords) words.add(keyword);
+        for (String keyword : keywords) words.add(new JsonPrimitive(keyword));
         json.add("keywords", words);
         json.addProperty("shape", shape);
         json.addProperty("width", width);

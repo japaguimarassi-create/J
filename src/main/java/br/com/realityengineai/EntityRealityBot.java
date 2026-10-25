@@ -69,7 +69,6 @@ public final class EntityRealityBot extends EntityCreature {
                 if (owner.equalsIgnoreCase(player.getCommandSenderName())) {
                     double distance = getDistanceSqToEntity(player);
                     if (distance > 25.0D && distance < 4096.0D) getNavigator().tryMoveToEntityLiving(player, 1.1D);
-                    else if (distance <= 25.0D) getNavigator().clearPath();
                     return;
                 }
             }
