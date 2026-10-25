@@ -377,9 +377,9 @@ public final class MainActivity extends Activity {
         modes.setOnCheckedChangeListener((group, checkedId) -> {
             String current = endpointInput.getText().toString().trim();
             if (checkedId == 2 && (current.isEmpty() || current.endsWith(":11434"))) {
-                endpointInput.setText("http://127.0.0.1:8000");
+                endpointInput.setText(current.isEmpty() ? "http://127.0.0.1:8000" : current.replaceFirst(":11434$", ":8000"));
             } else if (checkedId == 1 && current.endsWith(":8000")) {
-                endpointInput.setText("http://127.0.0.1:11434");
+                endpointInput.setText(current.replaceFirst(":8000$", ":11434"));
             }
         });
 
