@@ -1,0 +1,23 @@
+{
+  "run_id": 40201599019,
+  "run_url": "https://github.com/japaguimarassi-create/J/actions/runs/40201599019",
+  "commit": "fd47fd81df93c03febc304a030c57620abee0cfe",
+  "status": "success",
+  "device": "cpu",
+  "parameters": 249984,
+  "parameter_count_valid": true,
+  "vocabulary_size": 7000,
+  "context_tokens": 256,
+  "examples": 41,
+  "train_examples": 35,
+  "validation_examples": 6,
+  "initial_validation_loss": 24.00772,
+  "final_validation_loss": 18.68307,
+  "loss_improved": true,
+  "mean_final_training_loss": 20.29366,
+  "training_steps": 32,
+  "epochs_requested": 8,
+  "training_seconds": 0.88,
+  "teacher_examples_included": 0,
+  "interpretation": "Base training on the seed corpus only; no real outputs from the three teacher models were included."
+}
