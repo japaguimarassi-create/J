@@ -499,7 +499,7 @@ public final class MainActivity extends Activity {
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("POST");
             connection.setConnectTimeout(12000);
-            connection.setReadTimeout(1800000);
+            connection.setReadTimeout(3600000);
             connection.setDoOutput(true);
             connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
             connection.setRequestProperty("Accept", "application/json");
