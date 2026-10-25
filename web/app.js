@@ -7,7 +7,7 @@ function status(message,error=false){$("statusText").textContent=message;$("pars
 function saveState(value){$("saveState").textContent=value;}
 function objectByName(name){return project&&project.objects.find(function(obj){return obj.name===name;});}
 function activeView(view){document.querySelectorAll(".viewtab").forEach(function(el){el.classList.toggle("active",el.dataset.view===view);});$("stage2d").classList.toggle("active",view==="2d");$("stage3d").classList.toggle("active",view==="3d");$("stageCode").classList.toggle("active",view==="code");if(view==="3d"){resizeThree();drawThree();}if(view==="2d")draw2d();}
-function panelView(panel){document.querySelectorAll(".righttab").forEach(function(el){el.classList.toggle("active",el.dataset.panel===panel);});$("inspector").classList.toggle("hidden",panel!=="inspector");$("aiPanel").classList.toggle("hidden",panel!=="ai");}
+function panelView(panel){document.querySelectorAll(".righttab").forEach(function(el){el.classList.toggle("active",el.dataset.panel===panel);});$("inspector").classList.toggle("hidden",panel!=="inspector");$("aiPanel").classList.toggle("hidden",panel!=="ai");$("learnPanel").classList.toggle("hidden",panel!=="learn");}
 function refreshObjects(){
  const list=$("objectList"),select=$("selectedObject");list.replaceChildren();select.replaceChildren();
  project.objects.forEach(function(obj){const option=document.createElement("option");option.value=obj.name;option.textContent=obj.name;select.append(option);const button=document.createElement("button");button.className="object-row"+(obj.name===selected?" selected":"");const icon=document.createElement("span");icon.className="shape-icon "+(obj.type==="circle"?"circle":obj.type==="rect"?"rect":obj.type==="text"?"text":"cube");if(obj.type==="text")icon.textContent="T";if(obj.type==="cube")icon.textContent="◇";const label=document.createElement("span");label.textContent=obj.name;const kind=document.createElement("em");kind.textContent=obj.type==="cube"?"3D":obj.type==="text"?"TXT":"2D";button.append(icon,label,kind);button.addEventListener("click",function(){selected=obj.name;refreshAll();panelView("inspector");});list.append(button);});
@@ -46,12 +46,193 @@ function openFile(file){if(!file)return;const reader=new FileReader();reader.onl
 function addMessage(role,text,label){const article=document.createElement("article");article.className="message";const avatar=document.createElement("b");avatar.textContent=role==="user"?"◉":"✦";const content=document.createElement("div"),strong=document.createElement("strong"),p=document.createElement("p");strong.textContent=label||(role==="user"?"Você":"Forge AI");p.textContent=text;content.append(strong,p);article.append(avatar,content);$("chatLog").append(article);$("chatLog").scrollTop=$("chatLog").scrollHeight;}
 async function postJSON(path,payload){const res=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}),data=await res.json().catch(function(){return {};});if(!res.ok)throw new Error(data.error||("HTTP "+res.status));return data;}
 async function runAI(mode){const prompt=$("aiPrompt").value.trim()||(mode==="brainstorm"?"Sugira uma pequena cena 2D/3D para demonstrar FORGE.":"");if(!prompt){toast("Escreva uma instrução.");return;}addMessage("user",prompt,"Você");$("aiPrompt").value="";["brainstormBtn","sendBtn","trainBtn","searchBtn"].forEach(function(id){$(id).disabled=true;});$("modelTitle").textContent="Processamento em andamento";$("modelInfo").textContent="Consultando o backend local…";
- try{const endpoint=mode==="brainstorm"?"/api/brainstorm":"/api/assistant",result=await postJSON(endpoint,{prompt:prompt,source:sourceEditor.value,frame:frame,save_example:$("saveForTraining").checked});addMessage("assistant",result.response||"Sem resposta textual.",result.mode==="student"?"Forge AI · aluno 250K":"Forge AI · consenso dos professores");$("modelTitle").textContent=result.mode==="student"?"Modelo-aluno carregado":"Brainstorm concluído";$("modelInfo").textContent=result.saved?"Consenso salvo no dataset local.":result.mode==="student"?"Resposta gerada pelo aluno treinado.":"Resposta consolidada dos três professores.";if(result.forge){sourceEditor.value=result.forge;refreshAll();saveState("Script recebido da IA");}if(result.vote_summary)addMessage("assistant",result.vote_summary,"Placar de avaliação");if(result.errors&&result.errors.length)addMessage("assistant",result.errors.join("\n"),"Diagnóstico");}
+ try{const endpoint=mode==="brainstorm"?"/api/brainstorm":"/api/assistant";const payload={prompt:prompt,source:sourceEditor.value,frame:frame,save_example:$("saveForTraining").checked};if(mode==="brainstorm"&&$("useReferencesForAI")&&$("useReferencesForAI").checked){const referenceContext=await buildReferencePayload();payload.reference_notes=referenceContext.reference_notes;payload.reference_images=referenceContext.reference_images;if(referenceContext.reference_images.length)addMessage("assistant","Analisando "+referenceContext.reference_images.length+" imagem(ns)/quadros enviados ao professor visual e usando as notas das referências.","Biblioteca visual");}const result=await postJSON(endpoint,payload);addMessage("assistant",result.response||"Sem resposta textual.",result.mode==="student"?"Forge AI · aluno 250K":"Forge AI · consenso dos professores");$("modelTitle").textContent=result.mode==="student"?"Modelo-aluno carregado":"Brainstorm concluído";$("modelInfo").textContent=result.saved?"Consenso salvo no dataset local.":result.mode==="student"?"Resposta gerada pelo aluno treinado.":"Resposta consolidada dos três professores.";if(result.forge){sourceEditor.value=result.forge;refreshAll();saveState("Script recebido da IA");}if(result.vote_summary)addMessage("assistant",result.vote_summary,"Placar de avaliação");if(result.errors&&result.errors.length)addMessage("assistant",result.errors.join("\n"),"Diagnóstico");}
  catch(e){addMessage("assistant","Falha: "+e.message+"\nConfira server.py, Ollama e se os três modelos estão instalados.","IA local indisponível");$("modelTitle").textContent="Backend indisponível";$("modelInfo").textContent="O editor visual continua funcionando.";}
  finally{["brainstormBtn","sendBtn","trainBtn","searchBtn"].forEach(function(id){$(id).disabled=false;});}}
 async function searchWeb(){const q=$("aiPrompt").value.trim();if(!q){toast("Digite o tema da pesquisa no campo de instrução.");return;}const box=$("sources");box.classList.remove("hidden");box.textContent="Pesquisando…";try{const res=await fetch("/api/search?q="+encodeURIComponent(q)),data=await res.json();if(!res.ok)throw new Error(data.error||"Pesquisa falhou.");box.replaceChildren();const title=document.createElement("strong");title.textContent="Fontes encontradas";box.append(title);(data.results||[]).forEach(function(item){const a=document.createElement("a");a.href=item.url;a.target="_blank";a.rel="noopener noreferrer";a.textContent=item.title||item.url;const p=document.createElement("p");p.textContent=item.snippet||item.url;box.append(a,p);});if(!data.results||!data.results.length)box.append(document.createTextNode("Nenhum resultado."));}catch(e){box.textContent="Pesquisa não disponível: "+e.message;}}
 async function trainStudent(){["brainstormBtn","sendBtn","trainBtn","searchBtn"].forEach(function(id){$(id).disabled=true;});$("modelTitle").textContent="Treinando aluno 250K";$("modelInfo").textContent="Treinamento local; pode levar alguns minutos.";try{const result=await postJSON("/api/train",{epochs:8});addMessage("assistant",result.response||result.log||"Treinamento finalizado.","Forge AI · treinamento");$("modelTitle").textContent=result.success?"Aluno treinado":"Treinamento falhou";$("modelInfo").textContent=result.success?"Checkpoint salvo localmente.":"Confira os requisitos e o log.";}catch(e){addMessage("assistant","Não foi possível treinar: "+e.message,"Treinamento");$("modelInfo").textContent="Instale os requisitos de ai/requirements.txt.";}finally{["brainstormBtn","sendBtn","trainBtn","searchBtn"].forEach(function(id){$(id).disabled=false;});}}
-function animate(now){if(playing&&project){const duration=findSceneDuration(project);frame=(startFrame+Math.floor((now-startedAt)/1000*project.fps))%(duration+1);renderTimeline();draw2d();drawThree();refreshInspector();}requestAnimationFrame(animate);}
+function animate(now){if(playing&&project){const duration=findSceneDuration(project);frame=(startFrame+Math.floor((now-startedAt)/1000*project.fps))%(duration+1);renderTimeline();draw2d();drawThree();refreshInspector();}
+const REFERENCE_DB_NAME="motionforge-apprentice-library";
+const REFERENCE_STORE="references";
+let referenceDbPromise=null;
+let referenceObjectUrls=[];
+function openReferenceDb(){
+ if(referenceDbPromise)return referenceDbPromise;
+ referenceDbPromise=new Promise(function(resolve,reject){
+  if(!window.indexedDB){reject(new Error("Este navegador não oferece armazenamento local de referências."));return;}
+  const request=indexedDB.open(REFERENCE_DB_NAME,1);
+  request.onupgradeneeded=function(){const db=request.result;if(!db.objectStoreNames.contains(REFERENCE_STORE))db.createObjectStore(REFERENCE_STORE,{keyPath:"id"});};
+  request.onsuccess=function(){resolve(request.result);};
+  request.onerror=function(){reject(request.error||new Error("Não foi possível abrir a biblioteca local."));};
+ });
+ return referenceDbPromise;
+}
+function referenceTransaction(mode,action){
+ return openReferenceDb().then(function(db){return new Promise(function(resolve,reject){
+  const tx=db.transaction(REFERENCE_STORE,mode),store=tx.objectStore(REFERENCE_STORE);let result;
+  try{result=action(store);}catch(error){reject(error);return;}
+  tx.oncomplete=function(){resolve(result&&result.result!==undefined?result.result:result);};
+  tx.onerror=function(){reject(tx.error||new Error("Falha ao salvar a referência."));};
+  tx.onabort=function(){reject(tx.error||new Error("A operação foi cancelada."));};
+ });});
+}
+function getStoredReferences(){
+ return openReferenceDb().then(function(db){return new Promise(function(resolve,reject){
+  const request=db.transaction(REFERENCE_STORE,"readonly").objectStore(REFERENCE_STORE).getAll();
+  request.onsuccess=function(){resolve((request.result||[]).sort(function(a,b){return b.addedAt-a.addedAt;}));};
+  request.onerror=function(){reject(request.error||new Error("Não foi possível ler as referências."));};
+ });});
+}
+function referenceId(){return (window.crypto&&crypto.randomUUID)?crypto.randomUUID():String(Date.now())+"-"+Math.random().toString(36).slice(2);}
+function makeElement(tag,className,text){
+ const element=document.createElement(tag);
+ if(className)element.className=className;
+ if(text!==undefined)element.textContent=text;
+ return element;
+}
+async function renderReferenceList(){
+ referenceObjectUrls.forEach(function(url){URL.revokeObjectURL(url);});
+ referenceObjectUrls=[];
+ const container=$("referenceList");
+ container.replaceChildren();
+ try{
+  const references=await getStoredReferences();
+  $("referenceStatus").textContent=references.length?references.length+" referência(s) guardada(s) somente neste aparelho.":"Nenhuma referência adicionada ainda.";
+  references.forEach(function(reference){
+   const card=makeElement("article","saved-reference");
+   const url=URL.createObjectURL(reference.blob);referenceObjectUrls.push(url);
+   if(reference.type==="image"){
+    const image=makeElement("img","reference-preview");image.src=url;image.alt=reference.title;image.loading="lazy";card.append(image);
+   }else{
+    const video=makeElement("video","reference-preview");video.src=url;video.controls=true;video.muted=true;video.playsInline=true;video.preload="metadata";card.append(video);
+   }
+   card.append(makeElement("b","",reference.title||reference.name));
+   card.append(makeElement("div","reference-meta",(reference.type==="image"?"IMAGEM":"VÍDEO")+" · "+(reference.size/1048576).toFixed(1)+" MB"));
+   if(reference.note)card.append(makeElement("p","",reference.note));
+   const actions=makeElement("div","reference-actions");
+   const visual=makeElement("button","","Usar como referência");
+   visual.type="button";visual.addEventListener("click",function(){
+    $("aiPrompt").value="Estude esta referência visual e planeje uma animação FORGE pequena. Explique a pose/ação, o timing, os quadros-chave e o que pode ser aprendido sem copiar mecanicamente a imagem. Use a nota anexada como contexto.";
+    panelView("ai");toast("Referência pronta para o Brainstorm.");
+   });
+   const remove=makeElement("button","","Remover");
+   remove.type="button";remove.addEventListener("click",async function(){
+    try{await referenceTransaction("readwrite",function(store){return store.delete(reference.id);});await renderReferenceList();toast("Referência removida.");}
+    catch(error){$("referenceStatus").textContent=error.message;}
+   });
+   actions.append(visual,remove);card.append(actions);container.append(card);
+  });
+ }catch(error){$("referenceStatus").textContent="Biblioteca indisponível: "+error.message;}
+}
+async function saveSelectedReferences(){
+ const input=$("referenceFiles"),files=Array.from(input.files||[]);
+ if(!files.length){$("referenceStatus").textContent="Escolha ao menos uma imagem ou vídeo primeiro.";return;}
+ const note=$("referenceNote").value.trim();
+ const customTitle=$("referenceTitle").value.trim();
+ const maxBytes=40*1024*1024;
+ for(const file of files){
+  if(!(file.type.startsWith("image/")||file.type.startsWith("video/"))){$("referenceStatus").textContent="Tipo de arquivo não aceito: "+file.name;return;}
+  if(file.size>maxBytes){$("referenceStatus").textContent=file.name+" ultrapassa o limite de 40 MB.";return;}
+ }
+ $("addReference").disabled=true;
+ $("referenceStatus").textContent="Guardando material localmente…";
+ try{
+  const db=await openReferenceDb();
+  await new Promise(function(resolve,reject){
+   const tx=db.transaction(REFERENCE_STORE,"readwrite"),store=tx.objectStore(REFERENCE_STORE);
+   files.forEach(function(file,index){
+    store.put({id:referenceId(),name:file.name,title:customTitle?(files.length===1?customTitle:customTitle+" — "+file.name):file.name,note:note,type:file.type.startsWith("image/")?"image":"video",mime:file.type,size:file.size,blob:file,addedAt:Date.now()+index});
+   });
+   tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error||new Error("Falha ao gravar o arquivo."));};tx.onabort=function(){reject(tx.error||new Error("Gravação cancelada."));};
+  });
+  input.value="";$("referenceTitle").value="";
+  await renderReferenceList();
+  toast(files.length+" referência(s) guardada(s) neste aparelho.");
+ }catch(error){$("referenceStatus").textContent="Não foi possível guardar: "+error.message;}
+ finally{$("addReference").disabled=false;}
+}
+function jpegDataUrl(blob,time){
+ return new Promise(function(resolve,reject){
+  const url=URL.createObjectURL(blob);
+  const cleanup=function(){URL.revokeObjectURL(url);};
+  const renderSource=function(source,width,height){
+   const maxSide=384,scale=Math.min(1,maxSide/Math.max(width,height));
+   const w=Math.max(1,Math.round(width*scale)),h=Math.max(1,Math.round(height*scale));
+   const canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;
+   const context=canvas.getContext("2d",{alpha:false});
+   context.fillStyle="#ffffff";context.fillRect(0,0,w,h);context.drawImage(source,0,0,w,h);
+   canvas.toBlob(function(output){cleanup();if(!output){reject(new Error("Falha ao reduzir uma referência visual."));return;}
+    const reader=new FileReader();reader.onload=function(){resolve(String(reader.result).split(",")[1]||"");};reader.onerror=function(){reject(new Error("Falha ao codificar a imagem."));};reader.readAsDataURL(output);
+   },"image/jpeg",0.52);
+  };
+  if(blob.type.startsWith("image/")){
+   if("createImageBitmap" in window){createImageBitmap(blob).then(function(bitmap){renderSource(bitmap,bitmap.width,bitmap.height);if(bitmap.close)bitmap.close();}).catch(function(){cleanup();reject(new Error("Não foi possível abrir uma imagem."));});}
+   else{const image=new Image();image.onload=function(){renderSource(image,image.naturalWidth,image.naturalHeight);};image.onerror=function(){cleanup();reject(new Error("Não foi possível abrir uma imagem."));};image.src=url;}
+   return;
+  }
+  const video=document.createElement("video");video.preload="auto";video.muted=true;video.playsInline=true;video.src=url;
+  let done=false;
+  const fail=function(){if(done)return;done=true;cleanup();reject(new Error("Não foi possível ler os quadros deste vídeo."));};
+  video.onerror=fail;
+  video.onloadedmetadata=function(){
+   const duration=Number.isFinite(video.duration)?video.duration:0;
+   const target=Math.max(0,Math.min(Math.max(0,duration-.05),Number(time)||0));
+   video.onseeked=function(){if(done)return;done=true;renderSource(video,video.videoWidth||384,video.videoHeight||216);};
+   try{video.currentTime=target;if(video.readyState>=2&&target===0)video.onseeked();}catch(error){fail();}
+  };
+  video.load();
+ });
+}
+async function buildReferencePayload(){
+ const references=await getStoredReferences();
+ const notes=references.slice(0,16).map(function(item,index){
+  return (index+1)+". "+item.title+" ["+(item.type==="image"?"imagem":"vídeo")+"]"+(item.note?" — nota: "+item.note:"");
+ }).join("\n").slice(0,5000);
+ const images=[];
+ let approximateChars=0;
+ for(const reference of references){
+  if(images.length>=4)break;
+  try{
+   if(reference.type==="image"){
+    const encoded=await jpegDataUrl(reference.blob,0);
+    if(encoded&&approximateChars+encoded.length<560000){images.push(encoded);approximateChars+=encoded.length;}
+   }else{
+    const video=document.createElement("video");video.preload="metadata";video.muted=true;video.src=URL.createObjectURL(reference.blob);
+    const metadata=await new Promise(function(resolve,reject){
+     const timer=setTimeout(function(){reject(new Error("Tempo limite ao ler vídeo."));},5000);
+     video.onloadedmetadata=function(){clearTimeout(timer);resolve(Number.isFinite(video.duration)?video.duration:0);};
+     video.onerror=function(){clearTimeout(timer);reject(new Error("Falha ao abrir vídeo."));};
+     video.load();
+    }).catch(function(){return 0;});
+    if(video.src.startsWith("blob:"))URL.revokeObjectURL(video.src);
+    if(metadata>0){
+     for(const fraction of [0.15,0.55,0.9]){
+      if(images.length>=4)break;
+      const encoded=await jpegDataUrl(reference.blob,metadata*fraction).catch(function(){return "";});
+      if(encoded&&approximateChars+encoded.length<560000){images.push(encoded);approximateChars+=encoded.length;}
+     }
+    }else{
+     const encoded=await jpegDataUrl(reference.blob,0).catch(function(){return "";});
+     if(encoded&&approximateChars+encoded.length<560000){images.push(encoded);approximateChars+=encoded.length;}
+    }
+   }
+  }catch(error){console.warn("A referência foi mantida, mas não virou um quadro visual:",error);}
+ }
+ return {reference_notes:notes,reference_images:images};
+}
+$("referenceFiles").addEventListener("change",function(){
+ const files=Array.from($("referenceFiles").files||[]);
+ if(files.length===1&& !$("referenceTitle").value.trim())$("referenceTitle").value=files[0].name;
+ $("referenceStatus").textContent=files.length?files.length+" arquivo(s) selecionado(s); clique em Guardar para mantê-los neste aparelho.":"Nenhum arquivo selecionado.";
+});
+$("addReference").addEventListener("click",saveSelectedReferences);
+$("planWithReferences").addEventListener("click",function(){
+ $("aiPrompt").value="Atue como um professor de animação. Use as referências anexadas e suas notas para me ensinar a transformar essa ideia em uma cena FORGE. Primeiro descreva o que observou; depois faça um plano curto de storyboard, defina poses-chave e timing, gere um script compatível com a gramática atual, valide-o e explique uma próxima prática. Não invente detalhes que não aparecem nas referências. Minha ideia: [escreva sua ideia no campo de instrução depois de abrir Forge AI].";
+ panelView("ai");$("aiPrompt").focus();toast("Escreva a sua ideia e envie um Brainstorm para estudar as referências.");
+});
+renderReferenceList();
+
+requestAnimationFrame(animate);}
 document.querySelectorAll(".viewtab").forEach(function(el){el.addEventListener("click",function(){activeView(el.dataset.view);});});document.querySelectorAll(".righttab").forEach(function(el){el.addEventListener("click",function(){panelView(el.dataset.panel);});});
 $("frameSlider").addEventListener("input",function(e){frame=Number(e.target.value);renderTimeline();draw2d();drawThree();refreshInspector();});$("playBtn").addEventListener("click",function(){playing=!playing;if(playing){startedAt=performance.now();startFrame=frame;$("playBtn").textContent="Ⅱ";}else $("playBtn").textContent="▶";});$("firstBtn").addEventListener("click",function(){frame=0;renderTimeline();draw2d();drawThree();refreshInspector();});$("lastBtn").addEventListener("click",function(){frame=findSceneDuration(project);renderTimeline();draw2d();drawThree();refreshInspector();});$("selectedObject").addEventListener("change",function(e){selected=e.target.value;refreshAll();});$("propColor").addEventListener("input",function(e){$("colorValue").textContent=e.target.value.toUpperCase();});$("applyProps").addEventListener("click",applyProps);$("addBtn").addEventListener("click",addCircle);$("newBtn").addEventListener("click",newProject);$("saveBtn").addEventListener("click",exportProject);$("exportBtn").addEventListener("click",exportCode);$("openBtn").addEventListener("click",function(){$("openFile").click();});$("openFile").addEventListener("change",function(e){openFile(e.target.files&&e.target.files[0]);});$("brainstormBtn").addEventListener("click",function(){runAI("brainstorm");});$("sendBtn").addEventListener("click",function(){runAI("assistant");});$("searchBtn").addEventListener("click",searchWeb);$("trainBtn").addEventListener("click",trainStudent);$("aiPrompt").addEventListener("keydown",function(e){if(e.key==="Enter"&&(e.ctrlKey||e.metaKey))runAI("assistant");});$("fitBtn").addEventListener("click",function(){draw2d();resizeThree();drawThree();toast("Preview reajustado.");});sourceEditor.addEventListener("input",function(){saveState("Alterações não exportadas");$("lineCount").textContent=sourceEditor.value.split(/\r?\n/).length+" LINHAS";});
 refreshAll();initThree();fetch("/api/status").then(function(r){return r.json();}).then(function(data){$("modelTitle").textContent=data.student_ready?"Aluno local treinado":"IA local preparada";$("modelInfo").textContent=data.student_ready?"Checkpoint de 250K detectado.":"Modelos-professores são opcionais e precisam estar instalados.";}).catch(function(){$("modelTitle").textContent="Editor offline";$("modelInfo").textContent="Inicie python server.py para IA, pesquisa e treino.";});window.addEventListener("resize",function(){resizeThree();drawThree();});requestAnimationFrame(animate);
