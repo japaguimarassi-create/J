@@ -338,6 +338,15 @@ public final class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void openAIBrowser(String prompt) {
+            String safePrompt = prompt == null ? "" : prompt.trim();
+            if (safePrompt.length() > 16000) safePrompt = safePrompt.substring(0, 16000);
+            Intent intent = new Intent(MainActivity.this, AIBrowserActivity.class);
+            intent.putExtra(AIBrowserActivity.EXTRA_PROMPT, safePrompt);
+            runOnUiThread(() -> startActivity(intent));
+        }
+
+        @JavascriptInterface
         public void configureAI() {
             runOnUiThread(MainActivity.this::showAISettings);
         }
