@@ -227,8 +227,10 @@ $("referenceFiles").addEventListener("change",function(){
 });
 $("addReference").addEventListener("click",saveSelectedReferences);
 $("planWithReferences").addEventListener("click",function(){
- $("aiPrompt").value="Estude minhas referências visuais e notas. Ensine-me a transformar minha ideia em uma cena FORGE: descreva o que realmente observou, faça um storyboard curto, defina poses-chave e timing, gere um script válido e proponha um exercício pequeno. Não invente detalhes ausentes. Minha ideia: ";
- panelView("ai");$("aiPrompt").focus();$("aiPrompt").setSelectionRange($("aiPrompt").value.length,$("aiPrompt").value.length);toast("Escreva sua ideia depois de “Minha ideia:” e envie um Brainstorm.");
+ const idea=$("animationIdea").value.trim();
+ if(!idea){$("animationIdea").focus();toast("Escreva primeiro a ideia da animação.");return;}
+ $("aiPrompt").value="Estude minhas referências visuais e notas. Transforme minha ideia em uma cena FORGE: descreva o que realmente observou, faça um storyboard curto, defina poses-chave e timing, gere um script válido e proponha um exercício pequeno. Não invente detalhes ausentes. Minha ideia: "+idea;
+ panelView("ai");runAI("brainstorm");
 });
 renderReferenceList();
 
