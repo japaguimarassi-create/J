@@ -52,7 +52,7 @@ public final class MainActivity extends Activity {
     private static final int FILE_PICKER_REQUEST = 7412;
     private static final int BROWSER_FILE_PICKER_REQUEST = 7413;
     private static final String PREFS = "motionforge_ai";
-    private static final String DEFAULT_ENDPOINT = "http://127.0.0.1:11434";
+    private static final String DEFAULT_ENDPOINT = "http://127.0.0.1:8000";
     private static final String DEFAULT_MODEL = "gemma4:12b";
 
     private WebView webView;
@@ -288,6 +288,7 @@ public final class MainActivity extends Activity {
         editorTab.setOnClickListener(v -> showEditor());
         browserTab.setOnClickListener(v -> showBrowser(browserView.getUrl() == null ? "https://chatgpt.com/" : browserView.getUrl(), false));
         rootLayout.addView(tabs, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
+        tabs.setVisibility(View.GONE);
 
         browserToolbar = new LinearLayout(this);
         browserToolbar.setGravity(Gravity.CENTER_VERTICAL);
@@ -433,7 +434,7 @@ public final class MainActivity extends Activity {
     }
 
     private String mode() {
-        return prefs.getString("mode", "ollama");
+        return prefs.getString("mode", "backend");
     }
 
     private String endpoint() {
@@ -577,7 +578,7 @@ public final class MainActivity extends Activity {
                     if (error.contains("CLEARTEXT communication")) {
                         error += " Ative HTTP permitido para endpoint local ou use HTTPS.";
                     } else if (error.contains("Failed to connect") || error.contains("Connection refused")) {
-                        error += " Configure o endereço do Ollama ou do backend MotionForge em Configurar IA local.";
+                        error += " Inicie python motionforge_agent.py no servidor dos modelos e configure a URL e a chave do backend.";
                     }
                 }
                 JSONObject finalResult = result;
@@ -591,11 +592,11 @@ public final class MainActivity extends Activity {
             try {
                 JSONObject result = new JSONObject();
                 result.put("mode", mode());
-                result.put("model", "backend".equals(mode()) ? "MotionForge backend" : model());
+                result.put("model", "backend".equals(mode()) ? "MotionForge · 3 IAs" : model());
                 result.put("endpoint", endpoint());
                 return result.toString();
             } catch (JSONException ex) {
-                return "{\"mode\":\"ollama\",\"model\":\"gemma4:12b\",\"endpoint\":\"http://127.0.0.1:11434\"}";
+                return "{\"mode\":\"backend\",\"model\":\"MotionForge · 3 IAs\",\"endpoint\":\"http://127.0.0.1:8000\"}";
             }
         }
 
@@ -644,7 +645,7 @@ public final class MainActivity extends Activity {
         layout.setPadding(pad, dp(6), pad, dp(4));
 
         TextView intro = new TextView(this);
-        intro.setText("Conecte a Forge AI a um Ollama local ou a um backend MotionForge remoto. No modo remoto, o backend pode encaminhar pedidos ao GitHub Models; as credenciais ficam no servidor, não no APK.");
+        intro.setText("A Forge AI usa o orquestrador MotionForge, que coordena Qwen 3.6, Gemma 4 e GPT-OSS instalados em um servidor Ollama compatível. O APK só envia o pedido e recebe a síntese; os pesos não ficam no celular.");
         intro.setTextSize(13);
         intro.setTextColor(Color.LTGRAY);
         intro.setPadding(0, 0, 0, dp(12));
@@ -657,7 +658,7 @@ public final class MainActivity extends Activity {
         ollama.setTextColor(Color.WHITE);
         ollama.setId(1);
         RadioButton backend = new RadioButton(this);
-        backend.setText("Backend MotionForge · local/remoto");
+        backend.setText("Orquestrador MotionForge · 3 IAs locais");
         backend.setTextColor(Color.WHITE);
         backend.setId(2);
         modes.addView(ollama);
