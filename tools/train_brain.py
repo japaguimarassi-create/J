@@ -8,7 +8,7 @@ import numpy as np
 
 ROOT = Path("src/main/resources/assets/realityengineai/brain")
 ROOT.mkdir(parents=True, exist_ok=True)
-VOCABULARY, EMBEDDING, HIDDEN, OUTPUTS = 1000, 256, 120, 24
+VOCABULARY, EMBEDDING, HIDDEN, OUTPUTS = 881, 256, 264, 24
 SEED = 171010
 CLASSES = [
     "block_computer", "block_crystal", "block_generic", "entity_dragon",
@@ -162,7 +162,7 @@ def train():
         hidden = np.maximum(x @ w1 + b1, 0.0)
         correct += int(np.argmax(hidden @ w2 + b2) == int(label))
     report = {
-        "architecture": "1000x256 token/bigram embeddings + 256 input bias + 256x120 dense + 120 hidden bias + 120x24 output + 24 output bias",
+        "architecture": "881x256 token/bigram embeddings + 256 input bias + 256x264 dense + 264 hidden bias + 264x24 output + 24 output bias",
         "parameter_count": int(len(weights)),
         "training_examples": len(features),
         "epochs": epochs,

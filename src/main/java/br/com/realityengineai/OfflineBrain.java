@@ -16,9 +16,9 @@ import java.util.regex.Pattern;
 
 public final class OfflineBrain {
     public static final int PARAMETER_COUNT = 300000;
-    private static final int VOCABULARY = 1000;
+    private static final int VOCABULARY = 881;
     private static final int EMBEDDING = 256;
-    private static final int HIDDEN = 120;
+    private static final int HIDDEN = 264;
     private static final int OUTPUTS = 24;
     private static final String RESOURCE = "/assets/realityengineai/brain/weights.bin";
     public static final String[] LABELS = {

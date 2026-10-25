@@ -10,7 +10,7 @@ import static org.junit.Assert.*;
 public final class OfflineBrainLayoutTest {
     @Test
     public void parameterLayoutIsExactlyThreeHundredThousand() {
-        assertEquals(300000, 1000 * 256 + 256 + 256 * 120 + 120 + 120 * 24 + 24);
+        assertEquals(300000, 881 * 256 + 256 + 256 * 264 + 264 + 264 * 24 + 24);
         assertEquals(300000, OfflineBrain.PARAMETER_COUNT);
         assertEquals(24, OfflineBrain.LABELS.length);
     }

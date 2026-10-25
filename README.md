@@ -32,7 +32,7 @@ The first word must be exactly crie, case-insensitively. /crie, crielobo and sen
 For ambiguous requests, the mod creates nothing and asks for a more specific type.
 
 ## Parameter count and training
-The offline classifier has 300,000 parameters: 1,000 token/bigram embeddings × 256; 256 input-bias values; a 256 × 120 dense layer plus 120 biases; and a 120 × 24 output layer plus 24 biases. The build script trains it from Portuguese and English intent examples and packages float32 weights into the JAR.
+The offline classifier has 300,000 parameters: 881 token/bigram buckets × 256; 256 input-bias values; a 256 × 264 dense layer plus 264 biases; and a 264 × 24 output layer plus 24 biases. The build script trains it from Portuguese and English intent examples and packages float32 weights into the JAR.
 
 This is not a general-purpose LLM and does not contain 300,000 independent facts. Reference notes are bundled as offline text, and custom sprites are generated at build time. No external service or API is used by the finished mod.
 
