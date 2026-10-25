@@ -1,113 +1,141 @@
+from __future__ import annotations
+
 import json
 import re
 import unicodedata
 from pathlib import Path
+from typing import Any
 
 import torch
 from torch.nn import functional as F
 
-from model import MAX_SEQ_LEN, encode
+from ai.student import BLOCK_SIZE, BOS_ID, EOS_ID, ByteBPETokenizer, ForgeStudent, VOCAB_SIZE
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_DATA = ROOT / "data" / "seed_examples.jsonl"
-TEACHER_DATA = ROOT / "data" / "teacher_generated.jsonl"
+DEFAULT_CORPUS = ROOT / "data" / "seed.jsonl"
+OPTIONAL_CORPUS = ROOT / "data" / "distilled.jsonl"
 STOPWORDS = set("a as o os um uma uns umas de da do das dos em no na nos nas para por com sem que como e ou eu voce voces meu minha seu sua ao aos se faz fazer crie criar quero preciso pode poderia sobre qual quais isso isto the and or to of in is how what make create".split())
+SYNONYMS = {
+    "bola": "circulo", "esfera": "circulo", "girar": "rotacao",
+    "girando": "rotacao", "rotacionar": "rotacao", "animacao": "animar",
+    "animar": "animacao", "quadro": "keyframe", "quadros": "keyframe",
+    "quadros-chave": "keyframe", "desenho": "2d", "tridimensional": "3d",
+}
 
 
-def normalize(text):
+def normalize_words(text: str) -> set[str]:
     value = unicodedata.normalize("NFKD", str(text).lower())
     value = "".join(char for char in value if not unicodedata.combining(char))
-    return {word for word in re.findall(r"[a-z0-9_]+", value) if len(word) > 1 and word not in STOPWORDS}
+    words = {word for word in re.findall(r"[a-z0-9_]+", value) if len(word) > 1 and word not in STOPWORDS}
+    expanded = set(words)
+    for word in words:
+        if word in SYNONYMS:
+            expanded.add(SYNONYMS[word])
+    return expanded
 
 
-def load_examples(path=DEFAULT_DATA):
-    rows, seen = [], set()
-    paths = [Path(path)]
-    if Path(path) == DEFAULT_DATA and TEACHER_DATA.exists():
-        paths.append(TEACHER_DATA)
-    for data_path in paths:
-        if not data_path.exists():
+def load_corpus(paths: list[Path] | None = None) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for path in paths or [DEFAULT_CORPUS, OPTIONAL_CORPUS]:
+        if not path.exists():
             continue
-        with data_path.open("r", encoding="utf-8") as stream:
-            for line in stream:
+        with path.open("r", encoding="utf-8") as stream:
+            for line_number, line in enumerate(stream, 1):
                 if not line.strip():
                     continue
-                item = json.loads(line)
-                if item.get("prompt") and item.get("response"):
-                    key = (str(item["prompt"]).strip().casefold(), str(item["response"]).strip().casefold())
-                    if key not in seen:
-                        seen.add(key)
-                        rows.append(item)
+                try:
+                    item = json.loads(line)
+                except json.JSONDecodeError as exc:
+                    raise ValueError(str(path) + ":" + str(line_number) + ": JSON inválido") from exc
+                prompt = item.get("prompt")
+                response = item.get("response")
+                if not isinstance(prompt, str) or not isinstance(response, str) or not prompt.strip() or not response.strip():
+                    continue
+                key = (prompt.strip().casefold(), response.strip().casefold())
+                if key not in seen:
+                    seen.add(key)
+                    rows.append({"prompt": prompt.strip(), "response": response.strip(), "source": str(item.get("source", "curated"))})
     return rows
 
 
-class LocalAssistant:
-    def __init__(self, path=DEFAULT_DATA):
-        self.examples = load_examples(path)
-        self.indexed = [(item, normalize(item["prompt"])) for item in self.examples]
+def lexical_score(query: str, candidate: str) -> float:
+    query_words, candidate_words = normalize_words(query), normalize_words(candidate)
+    if query.strip().casefold() == candidate.strip().casefold():
+        return 1.0
+    overlap = len(query_words & candidate_words)
+    if not overlap:
+        return 0.0
+    precision = overlap / max(1, len(query_words))
+    recall = overlap / max(1, len(candidate_words))
+    return 2 * precision * recall / max(1e-9, precision + recall)
 
-    @staticmethod
-    def student_score(model, query, response):
-        prefix = "Usuário: " + query + "\nAssistente: "
-        full = encode(prefix + response, add_bos=True)
-        prefix_length = len(encode(prefix, add_bos=True))
-        if len(full) > MAX_SEQ_LEN:
-            removed = len(full) - MAX_SEQ_LEN
-            full = full[removed:]
-            prefix_length = max(1, prefix_length - removed)
-        if len(full) < 3 or prefix_length >= len(full):
+
+def student_log_score(model: ForgeStudent, tokenizer: ByteBPETokenizer, prompt: str, source: str, response: str) -> float:
+    prefix = "Usuário: " + prompt + "\nContexto FORGE:\n" + source[:1500] + "\nForge AI:"
+    combined = prefix + "\n" + response
+    full_ids = [BOS_ID] + tokenizer.encode(combined) + [EOS_ID]
+    prefix_length = 1 + len(tokenizer.encode(prefix))
+    if len(full_ids) > BLOCK_SIZE + 1:
+        removed = len(full_ids) - (BLOCK_SIZE + 1)
+        full_ids = full_ids[removed:]
+        prefix_length = max(1, prefix_length - removed)
+    if len(full_ids) < 3:
+        return -100.0
+    inputs = torch.tensor(full_ids[:-1], dtype=torch.long).unsqueeze(0)
+    targets = torch.tensor(full_ids[1:], dtype=torch.long)
+    with torch.no_grad():
+        logits = model(inputs)[0]
+        log_probs = F.log_softmax(logits, dim=-1)
+        first_target = max(0, prefix_length - 1)
+        positions = torch.arange(first_target, targets.numel())
+        if positions.numel() == 0:
             return -100.0
-        inputs = torch.tensor([full[:-1]], dtype=torch.long)
-        targets = torch.tensor(full[1:], dtype=torch.long)
-        with torch.no_grad():
-            logp = F.log_softmax(model(inputs)[0], dim=-1)
-            start = max(0, prefix_length - 1)
-            positions = torch.arange(start, len(targets))
-            chosen = logp[positions, targets[positions]]
-            return float(chosen.mean().item()) if chosen.numel() else -100.0
+        scores = log_probs[positions, targets[positions]]
+        return float(scores.mean().item())
 
-    def answer(self, query, model=None):
-        qtokens = normalize(query)
-        ranked = []
-        for item, tokens in self.indexed:
-            overlap = len(qtokens & tokens)
-            precision = overlap / len(qtokens) if qtokens else 0
-            recall = overlap / len(tokens) if tokens else 0
-            score = 2 * precision * recall / (precision + recall) if precision + recall else 0
-            if item["prompt"].strip().casefold() == query.strip().casefold():
-                score = 1.0
-            ranked.append({"lexical": score, "student": None, "item": item})
+
+class StudentAssistant:
+    def __init__(self, corpus_paths: list[Path] | None = None):
+        self.corpus_paths = corpus_paths or [DEFAULT_CORPUS, OPTIONAL_CORPUS]
+
+    def answer(self, prompt: str, source: str = "", model: ForgeStudent | None = None,
+               tokenizer: ByteBPETokenizer | None = None) -> dict[str, Any]:
+        examples = load_corpus(self.corpus_paths)
+        ranked = [{"item": item, "lexical": lexical_score(prompt, item["prompt"]), "neural": None}
+                  for item in examples]
         ranked.sort(key=lambda row: row["lexical"], reverse=True)
-        candidates = ranked[:6]
-        if model is not None:
+        candidates = ranked[:8]
+        if model is not None and tokenizer is not None:
             model.eval()
             for row in candidates:
-                row["student"] = self.student_score(model, query, row["item"]["response"])
-            values = [row["student"] for row in candidates]
-            lo, hi = min(values), max(values)
+                row["neural"] = student_log_score(model, tokenizer, prompt, source, row["item"]["response"])
+            values = [float(row["neural"]) for row in candidates]
+            minimum, maximum = min(values), max(values)
             for row in candidates:
-                neural = (row["student"] - lo) / (hi - lo) if hi > lo else 0.5
-                row["combined"] = 0.9 * row["lexical"] + 0.1 * neural
-            candidates.sort(key=lambda row: row["combined"], reverse=True)
-        best_row = candidates[0] if candidates else None
-        lexical = best_row["lexical"] if best_row else 0
-        score = best_row.get("combined", lexical) if best_row else 0
-        best = best_row["item"] if best_row else None
-        if best and lexical >= 0.22:
+                neural = ((float(row["neural"]) - minimum) / (maximum - minimum)) if maximum > minimum else 0.5
+                row["combined"] = 0.88 * row["lexical"] + 0.12 * neural
+        else:
+            for row in candidates:
+                row["combined"] = row["lexical"]
+        if not candidates or candidates[0]["lexical"] < 0.16:
+            related = candidates[0] if candidates and candidates[0]["lexical"] >= 0.04 else None
+            response = "Ainda não tenho cobertura confiável para responder a esse pedido com o aluno de 250 mil parâmetros. Reformule como uma tarefa curta de FORGE, acrescente um exemplo aprovado pelos três professores ou use o modo Brainstorm."
+            if related:
+                response += "\n\nExemplo relacionado: " + related["item"]["response"]
             return {
-                "answer": best["response"],
-                "method": "student_reranked_retrieval" if model is not None else "curated_retrieval",
-                "confidence": round(score, 3),
-                "student_score": round(best_row["student"], 4) if model is not None else None,
-                "matched_prompt": best["prompt"],
-                "warning": "Resposta recuperada de exemplos revisáveis; confira se cobre exatamente o pedido.",
+                "response": response, "mode": "student", "confidence": round(candidates[0]["lexical"], 3) if candidates else 0.0,
+                "lexical_score": round(candidates[0]["lexical"], 3) if candidates else 0.0,
+                "student_score": round(float(candidates[0]["neural"]), 4) if model is not None and candidates else None,
+                "matched_prompt": related["item"]["prompt"] if related else None,
+                "warning": "O aluno usa recuperação de exemplos e reordenação neural; não gera texto livre não verificado."
             }
+        candidates.sort(key=lambda row: row["combined"], reverse=True)
+        best = candidates[0]
         return {
-            "answer": "O aluno ainda não tem cobertura confiável para esta solicitação. Reformule como uma tarefa curta de FORGE ou amplie o corpus após revisão dos professores.",
-            "method": "low_confidence_fallback",
-            "confidence": round(score, 3),
-            "student_score": round(best_row["student"], 4) if model is not None and best_row else None,
-            "matched_prompt": best["prompt"] if best else None,
-            "related_example": best["response"] if best and score > 0 else None,
-            "warning": "A geração livre de um modelo com 247.890 parâmetros não é confiável nesta etapa.",
+            "response": best["item"]["response"], "mode": "student" if model is not None else "retrieval",
+            "confidence": round(best["combined"], 3), "lexical_score": round(best["lexical"], 3),
+            "student_score": round(float(best["neural"]), 4) if model is not None else None,
+            "matched_prompt": best["item"]["prompt"], "source": best["item"].get("source", "curated"),
+            "warning": "Resposta recuperada de exemplos revisados; confira se atende exatamente ao pedido."
         }
