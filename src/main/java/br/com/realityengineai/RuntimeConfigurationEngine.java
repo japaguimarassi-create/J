@@ -34,6 +34,10 @@ import net.minecraft.util.ChatComponentText;
 import net.minecraft.world.World;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.living.LivingEvent;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.EntityJoinWorldEvent;
+import cpw.mods.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.world.BlockEvent;
 import net.minecraftforge.oredict.OreDictionary;
@@ -49,6 +53,7 @@ public final class RuntimeConfigurationEngine {
     private final List<Rule> rules = new ArrayList<Rule>();
     private final Map<String, Long> cooldowns = new HashMap<String, Long>();
     private long eventsHandled;
+    private boolean dispatching;
 
     private RuntimeConfigurationEngine() {
     }
@@ -313,6 +318,54 @@ public final class RuntimeConfigurationEngine {
     }
 
     @SubscribeEvent
+    public void onLivingHurt(LivingHurtEvent event) {
+        if (event == null || event.entityLiving == null || event.entityLiving.worldObj == null || event.entityLiving.worldObj.isRemote) {
+            return;
+        }
+        Entity entity = event.entityLiving;
+        EntityPlayer player = entity instanceof EntityPlayer ? (EntityPlayer) entity : null;
+        fire("living_hurt", entity.worldObj, player, entity, null, floor(entity.posX), floor(entity.posY), floor(entity.posZ));
+    }
+
+    @SubscribeEvent
+    public void onLivingDeath(LivingDeathEvent event) {
+        if (event == null || event.entityLiving == null || event.entityLiving.worldObj == null || event.entityLiving.worldObj.isRemote) {
+            return;
+        }
+        Entity entity = event.entityLiving;
+        EntityPlayer player = entity instanceof EntityPlayer ? (EntityPlayer) entity : null;
+        fire("living_death", entity.worldObj, player, entity, null, floor(entity.posX), floor(entity.posY), floor(entity.posZ));
+    }
+
+    @SubscribeEvent
+    public void onEntityJoinWorld(EntityJoinWorldEvent event) {
+        if (event == null || event.entity == null || event.world == null || event.world.isRemote) {
+            return;
+        }
+        Entity entity = event.entity;
+        EntityPlayer player = entity instanceof EntityPlayer ? (EntityPlayer) entity : null;
+        fire("entity_join_world", event.world, player, entity, null, floor(entity.posX), floor(entity.posY), floor(entity.posZ));
+    }
+
+    @SubscribeEvent
+    public void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (event == null || event.player == null || event.player.worldObj == null || event.player.worldObj.isRemote) {
+            return;
+        }
+        fire("player_login", event.player.worldObj, event.player, event.player, null,
+            floor(event.player.posX), floor(event.player.posY), floor(event.player.posZ));
+    }
+
+    @SubscribeEvent
+    public void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        if (event == null || event.player == null || event.player.worldObj == null || event.player.worldObj.isRemote) {
+            return;
+        }
+        fire("player_respawn", event.player.worldObj, event.player, event.player, null,
+            floor(event.player.posX), floor(event.player.posY), floor(event.player.posZ));
+    }
+
+    @SubscribeEvent
     public void onWorldTick(TickEvent.WorldTickEvent event) {
         if (event == null || event.phase != TickEvent.Phase.END || event.world == null || event.world.isRemote
             || event.world.getTotalWorldTime() % 20L != 0L) {
@@ -322,35 +375,44 @@ public final class RuntimeConfigurationEngine {
     }
 
     private synchronized void fire(String eventName, World world, EntityPlayer player, Entity entity, Block block, int x, int y, int z) {
-        int actionsRun = 0;
-        long now = world.getTotalWorldTime();
-        Iterator<Rule> iterator = rules.iterator();
-        while (iterator.hasNext() && actionsRun < MAX_ACTIONS_PER_EVENT) {
-            Rule rule = iterator.next();
-            if (!rule.enabled || !eventName.equals(rule.event) || !rule.matches(block, entity)) {
-                continue;
-            }
-            String key = rule.id + ":" + (player == null ? "world" : player.getUniqueID().toString());
-            Long last = cooldowns.get(key);
-            if (last != null && now - last.longValue() < rule.cooldownTicks) {
-                continue;
-            }
-            cooldowns.put(key, Long.valueOf(now));
-            for (JsonObject action : rule.actions) {
-                if (actionsRun >= MAX_ACTIONS_PER_EVENT) {
-                    break;
-                }
-                try {
-                    executeAction(action, world, player, entity, x, y, z);
-                } catch (Exception exception) {
-                    RealityEngineAI.LOG.warn("Runtime action failed in rule " + rule.id + ": " + exception.getMessage());
-                }
-                actionsRun++;
-            }
-            eventsHandled++;
+        if (dispatching || world == null) {
+            return;
         }
-        if (cooldowns.size() > 4096) {
-            cooldowns.clear();
+        dispatching = true;
+        try {
+            int actionsRun = 0;
+            long now = world.getTotalWorldTime();
+            Iterator<Rule> iterator = rules.iterator();
+            while (iterator.hasNext() && actionsRun < MAX_ACTIONS_PER_EVENT) {
+                Rule rule = iterator.next();
+                if (!rule.enabled || !eventName.equals(rule.event) || !rule.matches(block, entity)) {
+                    continue;
+                }
+                String subject = player != null ? player.getUniqueID().toString() : (entity != null ? entity.getUniqueID().toString() : "world");
+                String key = rule.id + ":" + world.provider.dimensionId + ":" + subject;
+                Long last = cooldowns.get(key);
+                if (last != null && now - last.longValue() < rule.cooldownTicks) {
+                    continue;
+                }
+                cooldowns.put(key, Long.valueOf(now));
+                for (JsonObject action : rule.actions) {
+                    if (actionsRun >= MAX_ACTIONS_PER_EVENT) {
+                        break;
+                    }
+                    try {
+                        executeAction(action, world, player, entity, x, y, z);
+                    } catch (Exception exception) {
+                        RealityEngineAI.LOG.warn("Runtime action failed in rule " + rule.id + ": " + exception.getMessage());
+                    }
+                    actionsRun++;
+                }
+                eventsHandled++;
+            }
+            if (cooldowns.size() > 4096) {
+                cooldowns.clear();
+            }
+        } finally {
+            dispatching = false;
         }
     }
 
@@ -361,6 +423,9 @@ public final class RuntimeConfigurationEngine {
                 player.addChatMessage(new ChatComponentText(string(action, "text", "Runtime rule executed.")));
             }
         } else if ("set_block".equals(type)) {
+            if (player == null && entity == null) {
+                return;
+            }
             Block target = resolveBlock(string(action, "block", ""));
             int tx = x + integer(action, "offset_x", 0);
             int ty = y + integer(action, "offset_y", 1);
@@ -397,9 +462,15 @@ public final class RuntimeConfigurationEngine {
             world.getWorldInfo().setThundering(false);
             world.getWorldInfo().setRainTime(6000);
         } else if ("explosion".equals(type)) {
+            if (player == null && entity == null) {
+                return;
+            }
             float power = Math.max(0.1F, Math.min(2.0F, (float) number(action, "power", 1.0D)));
             world.newExplosion(entity, x + 0.5D, y + 0.5D, z + 0.5D, power, false, true);
         } else if ("spawn_entity".equals(type)) {
+            if (player == null && entity == null) {
+                return;
+            }
             Entity spawned = EntityList.createEntityByName(string(action, "entity", ""), world);
             if (spawned != null) {
                 spawned.setPosition(x + 0.5D, y + 1.0D, z + 0.5D);
@@ -512,7 +583,9 @@ public final class RuntimeConfigurationEngine {
         static Rule parse(JsonObject json) {
             String id = string(json, "id", "");
             String event = string(json, "event", "");
-            if (id.isEmpty() || !(event.equals("player_interact") || event.equals("block_break") || event.equals("entity_tick") || event.equals("world_tick"))) {
+            if (id.isEmpty() || !(event.equals("player_interact") || event.equals("block_break") || event.equals("entity_tick") || event.equals("world_tick")
+                || event.equals("living_hurt") || event.equals("living_death") || event.equals("entity_join_world")
+                || event.equals("player_login") || event.equals("player_respawn"))) {
                 return null;
             }
             String block = string(json, "block", "");
