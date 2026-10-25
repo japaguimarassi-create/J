@@ -47,6 +47,7 @@ public final class MainActivity extends Activity {
     private static final String DEFAULT_MODEL = "gemma4:12b";
 
     private WebView webView;
+    private NativeBridge nativeBridge;
     private ValueCallback<Uri[]> fileCallback;
     private final ExecutorService aiExecutor = Executors.newSingleThreadExecutor();
     private SharedPreferences prefs;
@@ -73,14 +74,21 @@ public final class MainActivity extends Activity {
         settings.setDisplayZoomControls(false);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         settings.setJavaScriptCanOpenWindowsAutomatically(false);
-        webView.addJavascriptInterface(new NativeBridge(), "MotionForgeNative");
+        nativeBridge = new NativeBridge();
+        webView.addJavascriptInterface(nativeBridge, "MotionForgeNative");
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 Uri uri = request.getUrl();
                 String scheme = uri.getScheme() == null ? "" : uri.getScheme();
-                if ("file".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme) || "http".equalsIgnoreCase(scheme)) {
-                    view.loadUrl(uri.toString());
+                String target = uri.toString();
+                if ("file".equalsIgnoreCase(scheme) && target.startsWith("file:///android_asset/web/")) {
+                    view.loadUrl(target);
+                    return true;
+                }
+                if ("https".equalsIgnoreCase(scheme) || "http".equalsIgnoreCase(scheme)) {
+                    view.removeJavascriptInterface("MotionForgeNative");
+                    view.loadUrl(target);
                     return true;
                 }
                 return true;
@@ -89,7 +97,12 @@ public final class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-                view.evaluateJavascript("if(window.refreshNativeAIStatus)window.refreshNativeAIStatus();", null);
+                if (url != null && url.startsWith("file:///android_asset/web/")) {
+                    view.addJavascriptInterface(nativeBridge, "MotionForgeNative");
+                    view.evaluateJavascript("if(window.refreshNativeAIStatus)window.refreshNativeAIStatus();", null);
+                } else {
+                    view.removeJavascriptInterface("MotionForgeNative");
+                }
             }
         });
         webView.setWebChromeClient(new WebChromeClient() {
