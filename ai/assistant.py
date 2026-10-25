@@ -60,7 +60,7 @@ def load_corpus(paths: list[Path] | None = None) -> list[dict[str, str]]:
 
 
 def extract_forge(text: str) -> str | None:
-    match = re.search(r"~~~forge\\s*\\n(.*?)\\n~~~", text, re.IGNORECASE | re.DOTALL)
+    match = re.search(r"~~~forge\s*\n(.*?)\n~~~", text, re.IGNORECASE | re.DOTALL)
     return match.group(1).strip() if match else None
 
 
