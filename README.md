@@ -1,53 +1,75 @@
 # MotionForge Studio
 
-Editor experimental de animação 2D/3D, linguagem própria FORGE e auxiliar de IA local. Projeto criado e versionado no GitHub, com interface responsiva, parser determinístico, treinamento reproduzível e testes.
+MotionForge é um editor web responsivo para animação 2D/3D, com linguagem própria FORGE, timeline de quadros-chave e uma IA auxiliar local. O código canônico fica em `web/`; o backend e a IA ficam em `server.py` e `ai/`.
 
-## O que existe nesta primeira versão
+## Recursos implementados
 
-- Editor web responsivo com exemplos 2D/3D, timeline, pré-visualização e exportação do script .forge.
-- FORGE v0.1: declara cena, objetos, movimentos, rotações, escala e easing linear/suave.
-- Modelo-aluno Transformer próprio com 247.890 parâmetros treináveis, aproximadamente 250 mil.
-- Assistente que recupera exemplos verificados e usa os pesos treinados para reordená-los. Não apresenta geração livre incoerente como resposta confiável.
-- Brainstorm local em três etapas: Qwen, Gemma e gpt-oss propõem, criticam e depois aprovam/reprovam a síntese; apenas aprovação unânime entra no corpus de destilação.
-- Pesquisa web acionada pelo usuário, com URLs para conferência.
-- GitHub Actions para executar testes e treinar o aluno.
+- Editor visual responsivo com Canvas 2D, viewport 3D, câmera controlável, timeline, seleção de objetos, inspetor de propriedades, edição de script e exportação para JSON e `.forge`.
+- Linguagem declarativa FORGE v0.1 com `scene`, `background`, `circle`, `rect`, `text`, `cube`, `key` e `key3`. O parser valida comandos permitidos, nomes e keyframes; não executa JavaScript.
+- Um único modelo-aluno inicializado do zero com **249.984 parâmetros treináveis**, Transformer causal de 2 camadas, vocabulário byte-BPE de 7.000 tokens e contexto de 256 tokens.
+- Assistente do aluno baseado em exemplos revisados e reordenação neural. Quando a correspondência é baixa, o aluno se abstém; texto livre gerado pelo protótipo não é tratado como confiável.
+- Brainstorm de três professores locais — Qwen3.6 27B, Gemma 4 12B e gpt-oss 20B. Cada um propõe, avalia os três candidatos e vota de novo na resposta final. Uma amostra só pode entrar no corpus de treino quando **os três aprovam a síntese final com nota mínima 4/5**.
+- Pesquisa web acionada pelo usuário, com títulos, trechos e URLs para conferir na fonte original.
+- GitHub Actions para testes, contagem de parâmetros, treino reproduzível e publicação do checkpoint como artefato.
 
-## Limite técnico importante
+## Estado do treinamento
 
-Os 247.890 parâmetros são pesos novos do aluno, não a soma ou uma cópia dos modelos-professores. O corpus inicial tem exemplos-curtos de domínio; a perda de validação menor mostra adaptação a esse corpus, mas não prova competência geral. O teste local de referência (41 exemplos, 160 passos em CPU) reduziu a perda de validação de 28,1880 para 2,7475; geração livre ainda não é confiável. O brainstorm dos três modelos está implementado, mas os modelos-professores precisam ser instalados e executados localmente para produzir exemplos reais de consenso.
+O aluno tem pesos próprios; os parâmetros dos professores não são somados nem copiados. A destilação é supervisionada por texto, não por logits dos professores. O corpus semente em `data/seed.jsonl` tem exemplos curtos escritos para a gramática FORGE. Exemplos produzidos no brainstorm são auditados em `data/brainstorm-audit.jsonl` e só entram em `data/distilled.jsonl` após a aprovação unânime e se a opção de salvar estiver marcada.
 
-## Executar e treinar
+A queda da perda de treino/validação não prova competência geral. Um aluno de 249.984 parâmetros não equivale a modelos de dezenas de bilhões; por isso, a IA usa recuperação de exemplos e recusa assuntos fora da cobertura conhecida.
 
-Instale Python 3.11+, Node.js e as dependências:
+## Executar localmente
 
-    python -m venv .venv
-    . .venv/bin/activate
-    pip install -r ai/requirements.txt
-    python ai/train.py --steps 160 --batch-size 4
-    python ai/chat_server.py
+Requisitos: Python 3.11+, PyTorch compatível com o sistema e Node.js 22 para rodar os testes. No ambiente Python:
 
-Abra app/index.html por um servidor estático. O Three.js é carregado por CDN para a visualização 3D; o editor 2D e o parser são executados no navegador. O servidor local fica restrito a 127.0.0.1:8765.\n\n## Publicar o editor no GitHub Pages\n\nO workflow de Pages fica inativo por padrão porque o token conectado não consegue habilitar o Pages no repositório automaticamente. No GitHub, abra **Settings → Pages** e selecione **GitHub Actions** como fonte de build. Depois abra **Settings → Secrets and variables → Actions → Variables**, crie a variável `MOTIONFORGE_PAGES_ENABLED` com o valor `true` e execute o workflow Deploy MotionForge Studio. Isso é uma configuração única no repositório. O site estático funciona no modo 2D sem backend; os endpoints de IA local e pesquisa só funcionam no aparelho que está executando `ai/chat_server.py`, não numa página pública hospedada.
+```bash
+python -m pip install -r requirements.txt
+python -m unittest discover -s tests -v
+node --test tests/test_forge.mjs
+python -m ai.student
+```
 
-## Três modelos-professores locais
+Inicie o servidor local:
 
-Com Ollama instalado, obtenha modelos compatíveis com o seu hardware:
+```bash
+python server.py
+```
 
-    ollama pull qwen3:8b
-    ollama pull gemma4:e4b
-    ollama pull gpt-oss:20b
-    python ai/teacher_brainstorm.py "Crie uma animação 3D de uma esfera saltando"
+Abra [http://127.0.0.1:8000](http://127.0.0.1:8000). O servidor se limita a `127.0.0.1`; não o exponha à rede sem autenticação. A visualização 3D carrega Three.js por CDN. A pesquisa usa a internet apenas quando chamada explicitamente.
 
-Os três modelos são consultados sequencialmente para reduzir o pico de memória. Esses modelos têm vários bilhões de parâmetros e não são viáveis simultaneamente em um celular comum. Depois de revisar as fontes e o exemplo aprovado:
+## Brainstorm com os três modelos locais
 
-    python ai/train.py --extra-data data/teacher_generated.jsonl --steps 800 --batch-size 4
+Instale o [Ollama](https://ollama.com/) e baixe os pesos apropriados para a máquina:
 
-O arquivo de auditoria de brainstorming guarda propostas, críticas, notas e decisões.
+```bash
+ollama pull qwen3.6:27b
+ollama pull gemma4:12b
+ollama pull gpt-oss:20b
+ollama list
+python server.py
+```
 
-## Pesquisa e revisão
+No editor, abra Forge AI, escreva a tarefa e clique em **Brainstorm**. Para guardar a resposta para destilação, marque **Guardar consenso para treinar o aluno**. Se qualquer um dos três revisores finais reprovar, a resposta é mostrada para leitura, mas não é adicionada ao corpus.
 
-A pesquisa externa só é feita quando o usuário aciona essa função. Os resultados são pistas para leitura, não fatos automaticamente verificados. Não execute código baixado da web. Execute todos os testes antes de publicar:
+Os tamanhos de download publicados são aproximadamente 18–19 GB para Qwen3.6:27b, 7,7–8 GB para Gemma4:12b e 14 GB para gpt-oss:20b. Os três são chamados em sequência para limitar o pico de memória, mas ainda exigem muito armazenamento e memória; não é realista executar esse trio em um celular comum. Referências: [Qwen3.6 no Ollama](https://ollama.com/library/qwen3.6), [Gemma 4 no Ollama](https://ollama.com/library/gemma4), [gpt-oss no Ollama](https://ollama.com/library/gpt-oss).
 
-    python -m unittest discover -s tests -v
-    node --test tests/forge.test.mjs
+## Treinar o modelo-aluno de 249.984 parâmetros
 
-Veja docs/architecture.md, docs/forge-language.md e docs/research-notes.md para a arquitetura, sintaxe e fontes de pesquisa.
+```bash
+python -m ai.train --data data/seed.jsonl --data data/distilled.jsonl --out artifacts/student.pt --epochs 8 --batch-size 2
+```
+
+O segundo arquivo pode ainda não existir; nesse caso, o treino usa o corpus semente. O processo salva `artifacts/student.pt` com estado do modelo e tokenizer, além de `artifacts/student.metrics.json`. Você também pode clicar em **Treinar aluno** no editor; essa ação chama o mesmo treinamento local.
+
+O workflow **Train MotionForge student** executa testes e treinamento no GitHub Actions, depois publica o checkpoint como artefato por 30 dias. Baixe-o em [Actions](https://github.com/japaguimarassi-create/J/actions) → execução do workflow → **Artifacts**.
+
+## GitHub Pages
+
+O deploy estático é opcional. Para ativá-lo, abra **Settings → Pages** e escolha **GitHub Actions** como fonte de build. Em **Settings → Secrets and variables → Actions → Variables**, crie `MOTIONFORGE_PAGES_ENABLED=true`, e execute o workflow **Deploy MotionForge Studio**. A página estática oferece a interface e o preview, mas as rotas `/api/...` precisam do backend local; GitHub Pages não hospeda `server.py` nem os modelos do Ollama.
+
+## Limites conhecidos
+
+- FORGE v0.1 não tem loops, variáveis, rigging, partículas, áudio ou renderização final de vídeo.
+- O preview 3D da primeira versão depende de Three.js por CDN e WebGL.
+- O brainstorm exige os três modelos instalados localmente.
+- Consenso entre modelos é uma barreira de qualidade, não uma prova de verdade; confira fontes e código antes de treinar com novos exemplos.

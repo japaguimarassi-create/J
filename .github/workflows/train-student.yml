@@ -33,7 +33,7 @@ jobs:
         run: python -m pip install --upgrade pip && pip install -r requirements.txt --index-url https://download.pytorch.org/whl/cpu
       - name: Python unit tests
         run: python -m unittest discover -s tests -v
-      - name: FORGE parser tests
+      - name: FORGE parser and corpus tests
         run: node --test tests/test_forge.mjs
       - name: Syntax checks
         run: python -m py_compile server.py ai/student.py ai/assistant.py ai/train.py

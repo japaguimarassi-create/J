@@ -1,8 +1,9 @@
 .venv/
+venv/
 __pycache__/
 *.py[cod]
-models/*.pt
-models/*.metrics.json
-data/teacher_generated.jsonl
-data/teacher_brainstorm.jsonl
+artifacts/*.pt
+artifacts/*.metrics.json
+data/distilled.jsonl
+data/brainstorm-audit.jsonl
 .DS_Store
