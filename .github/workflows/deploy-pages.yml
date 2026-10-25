@@ -4,7 +4,7 @@ on:
   push:
     branches: [motionforge-editor]
     paths:
-      - 'app/**'
+      - 'web/**'
       - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
 
@@ -32,7 +32,7 @@ jobs:
       - name: Upload static editor
         uses: actions/upload-pages-artifact@v4
         with:
-          path: app
+          path: web
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
