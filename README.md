@@ -133,3 +133,24 @@ gradle --no-daemon assembleDebug
 ```
 
 O APK gerado fica em `android/app/build/outputs/apk/debug/app-debug.apk`. É um APK de depuração; não é uma versão assinada para distribuição na Play Store.
+
+## Backend remoto com GitHub Models
+
+O projeto inclui `cloud_backend.py`, uma API leve para o APK. Ela não baixa nem carrega pesos grandes: encaminha os pedidos ao GitHub Models usando um token guardado no servidor. O modo padrão usa `openai/gpt-4o`; opcionalmente, `MOTIONFORGE_GITHUB_MODELS` aceita até três IDs de modelos separados por vírgula. Com mais de um modelo, o backend pede propostas independentes e depois sintetiza o resultado, consumindo mais chamadas e limites de inferência.
+
+### Implantar a API remota
+
+1. Abra o [Render](https://render.com/) e conecte a conta GitHub.
+2. Escolha **New → Blueprint**, selecione este repositório e a branch `motionforge-editor`. O arquivo `render.yaml` configura o serviço `motionforge-cloud-backend`.
+3. Nas variáveis de ambiente do serviço, defina `GITHUB_MODELS_TOKEN` com um token GitHub autorizado para inferência em GitHub Models (permissão `models:read`) e `MOTIONFORGE_API_KEY` com uma chave longa exclusiva para proteger o backend. Não coloque o token de inferência no APK ou no repositório.
+4. Aguarde a implantação e copie a URL HTTPS atribuída ao serviço pelo Render.
+5. No APK, abra **Configurar IA local**, selecione **Backend MotionForge · local/remoto**, cole a URL HTTPS como endereço base, informe a mesma `MOTIONFORGE_API_KEY` no campo de chave e toque em **Testar conexão**. Depois, salve.
+
+O endpoint `/health` verifica a disponibilidade pública do serviço; `/api/status` e `/api/brainstorm` exigem a chave de acesso. A chave enviada pelo APK protege o endpoint contra acessos casuais, mas uma chave incluída em um APK pode ser extraída. Não redistribua uma versão privada do app com uma chave compartilhada; para distribuição pública, use autenticação por usuário e limites de uso por conta.
+
+### Limites
+
+- O backend remoto usa inferência hospedada do GitHub Models; não executa fisicamente o trio Qwen/Gemma/GPT-OSS local do projeto.
+- Os limites gratuitos de GitHub Models variam por modelo e podem causar respostas HTTP 429. Usar mais de um modelo consome mais chamadas.
+- O plano gratuito do Render pode suspender a instância após 15 minutos sem tráfego; a primeira solicitação posterior pode demorar cerca de um minuto para despertar. É adequado para testes, não para disponibilidade contínua.
+- O APK e o editor continuam funcionando para montagem e exportação mesmo quando a API está indisponível.
