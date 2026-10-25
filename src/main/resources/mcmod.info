@@ -1,0 +1,16 @@
+[
+  {
+    "modid": "realityengineai",
+    "name": "Reality Engine AI",
+    "description": "Local chat-driven procedural creation prototype for Minecraft 1.7.10.",
+    "version": "${version}",
+    "mcversion": "${mcversion}",
+    "url": "",
+    "updateUrl": "",
+    "authorList": ["Reality Engine AI contributors"],
+    "credits": "",
+    "logoFile": "",
+    "screenshots": [],
+    "dependencies": []
+  }
+]
