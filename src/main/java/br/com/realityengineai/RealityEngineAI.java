@@ -14,16 +14,11 @@ import java.util.regex.Pattern;
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
-import cpw.mods.fml.common.network.NetworkRegistry;
 import cpw.mods.fml.common.registry.EntityRegistry;
 import cpw.mods.fml.common.registry.GameRegistry;
-import cpw.mods.fml.relauncher.Side;
-import cpw.mods.fml.relauncher.SideOnly;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import net.minecraft.block.Block;
-import net.minecraft.block.BlockContainer;
 import net.minecraft.block.material.Material;
-import net.minecraft.client.renderer.texture.IIconRegister;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityCreature;
@@ -45,7 +40,6 @@ import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.ChatComponentText;
-import net.minecraft.util.IIcon;
 import net.minecraft.util.MathHelper;
 import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.util.Vec3;
@@ -66,7 +60,6 @@ public final class RealityEngineAI {
     public static final String MOD_ID = "realityengineai";
     public static final String NAME = "Reality Engine AI";
     public static final String VERSION = "0.3.0";
-    public static final int GUI_COMPUTER = 7201;
     public static final Logger LOG = LogManager.getLogger(NAME);
     private static final Pattern DIMENSION_ID = Pattern.compile("(?:dimens[aã]o\\s*)?(\\d+)");
     private static final Map<Integer, String> DIMENSION_DESCRIPTIONS = new HashMap<Integer, String>();
@@ -86,7 +79,6 @@ public final class RealityEngineAI {
     public static ItemRealityPickaxe realityPickaxe;
     public static ItemRealityFood realityFood;
     public static BlockReality realityBlock;
-    public static BlockComputer computerBlock;
     public static BlockCrystal crystalBlock;
 
     @Mod.EventHandler
@@ -106,19 +98,15 @@ public final class RealityEngineAI {
 
         realityBlock = new BlockReality();
         GameRegistry.registerBlock(realityBlock, "reality_block");
-        computerBlock = new BlockComputer();
-        GameRegistry.registerBlock(computerBlock, "reality_computer");
         crystalBlock = new BlockCrystal();
         GameRegistry.registerBlock(crystalBlock, "reality_crystal");
         GameRegistry.registerTileEntity(TileEntityReality.class, MOD_ID + ":reality_block");
-        GameRegistry.registerTileEntity(TileEntityComputer.class, MOD_ID + ":reality_computer");
         GameRegistry.registerTileEntity(TileEntityCrystal.class, MOD_ID + ":reality_crystal");
 
         EntityRegistry.registerModEntity(EntityReality.class, "reality_entity", 1, this, 64, 3, true);
         registerDimensionProvider();
         loadDimensions(event.getModConfigurationDirectory());
 
-        NetworkRegistry.INSTANCE.registerGuiHandler(this, new ComputerGuiHandler());
         MinecraftForge.EVENT_BUS.register(new ChatCreationHandler());
         if (PROXY != null) {
             PROXY.registerRenderers();
@@ -268,6 +256,11 @@ public final class RealityEngineAI {
             }
 
             String intent = resolveIntent(prompt, normalized);
+            if ("computer_prototype_removed".equals(intent)) {
+                player.addChatMessage(new ChatComponentText("Reality Engine: removi o computador demonstrativo porque ele só simulava uma interface. Nenhum bloco falso foi criado."));
+                player.addChatMessage(new ChatComponentText("A camada de configurações de runtime permite implementar comportamentos por eventos, mas um computador programável real ainda exige uma implementação própria."));
+                return;
+            }
             if ("ambiguous".equals(intent)) {
                 player.addChatMessage(new ChatComponentText("Reality Engine: não vou gerar um objeto aleatório. Especifique o tipo: item, bloco/computador, criatura ou dimensão."));
                 player.addChatMessage(new ChatComponentText("Exemplos: crie um computador em bloco | crie uma espada | crie um dragão | crie uma dimensão de neve"));
@@ -296,7 +289,7 @@ public final class RealityEngineAI {
 
     private static String resolveIntent(String prompt, String normalized) {
         if (containsAny(normalized, "computador", "computer", "terminal em bloco", "pc em bloco", "maquina de computacao", "maquina computacional")) {
-            return "block_computer";
+            return "computer_prototype_removed";
         }
         if (containsAny(normalized, "dimensao", "planeta", "universo", "mundo novo")) {
             if (containsAny(normalized, "deserto", "areia", "duna")) {
@@ -359,8 +352,8 @@ public final class RealityEngineAI {
     }
 
     private static void sendHelp(EntityPlayer player) {
-        player.addChatMessage(new ChatComponentText("Reality Engine AI 0.2.0 - cérebro offline: " + (BRAIN != null && BRAIN.isReady() ? BRAIN.getParameterCount() + " parâmetros" : "pesos indisponíveis") + "."));
-        player.addChatMessage(new ChatComponentText("Criações: computador em bloco, bloco de cristal, bloco, espada, picareta, comida, criatura e dimensão temática."));
+        player.addChatMessage(new ChatComponentText("Reality Engine AI 0.3.0 - cérebro offline: " + (BRAIN != null && BRAIN.isReady() ? BRAIN.getParameterCount() + " parâmetros" : "pesos indisponíveis") + "."));
+        player.addChatMessage(new ChatComponentText("Criações: bloco de cristal, bloco, espada, picareta, comida, criatura e dimensão temática."));
         player.addChatMessage(new ChatComponentText("Conhecimento de mods: crie lista de mods instalados | crie liste os blocos registrados | crie buscar registro <namespace ou nome>."));
         player.addChatMessage(new ChatComponentText("Criar dimensão não teleporta. Use 'crie entrar na dimensão ID' depois de criar."));
     }
@@ -400,9 +393,7 @@ public final class RealityEngineAI {
             return;
         }
         Block chosen;
-        if ("block_computer".equals(intent)) {
-            chosen = computerBlock;
-        } else if ("block_crystal".equals(intent)) {
+        if ("block_crystal".equals(intent)) {
             chosen = crystalBlock;
         } else {
             chosen = realityBlock;
@@ -412,17 +403,13 @@ public final class RealityEngineAI {
             return;
         }
         TileEntity tile = world.getTileEntity(position.x, position.y, position.z);
-        if (tile instanceof TileEntityComputer) {
-            ((TileEntityComputer) tile).setDescription(prompt);
-        } else if (tile instanceof TileEntityCrystal) {
+        if (tile instanceof TileEntityCrystal) {
             ((TileEntityCrystal) tile).setDescription(prompt);
         } else if (tile instanceof TileEntityReality) {
             ((TileEntityReality) tile).setDescription(prompt);
         }
         player.addChatMessage(new ChatComponentText("Reality Engine: bloco colocado à frente em " + position.x + ", " + position.y + ", " + position.z + "."));
-        if ("block_computer".equals(intent)) {
-            player.addChatMessage(new ChatComponentText("Clique com o botão direito no computador para abrir o painel interativo."));
-        } else if ("block_crystal".equals(intent)) {
+        if ("block_crystal".equals(intent)) {
             player.addChatMessage(new ChatComponentText("Cristal personalizado criado; o bloco emite luz e guarda a descrição."));
         }
     }
@@ -644,57 +631,6 @@ public final class RealityEngineAI {
         }
     }
 
-    public static final class BlockComputer extends BlockContainer {
-        @SideOnly(Side.CLIENT)
-        private IIcon front;
-        @SideOnly(Side.CLIENT)
-        private IIcon side;
-        @SideOnly(Side.CLIENT)
-        private IIcon top;
-
-        public BlockComputer() {
-            super(Material.iron);
-            setBlockName("reality_computer");
-            setHardness(3.0F);
-            setResistance(12.0F);
-            setStepSound(soundTypeMetal);
-            setCreativeTab(CreativeTabs.tabRedstone);
-        }
-
-        @SideOnly(Side.CLIENT)
-        @Override
-        public void registerBlockIcons(IIconRegister register) {
-            front = register.registerIcon(MOD_ID + ":computer_front");
-            side = register.registerIcon(MOD_ID + ":computer_side");
-            top = register.registerIcon(MOD_ID + ":computer_top");
-        }
-
-        @SideOnly(Side.CLIENT)
-        @Override
-        public IIcon getIcon(int sideHit, int metadata) {
-            if (sideHit == 1 || sideHit == 0) {
-                return top;
-            }
-            if (sideHit == 2) {
-                return front;
-            }
-            return side;
-        }
-
-        @Override
-        public TileEntity createNewTileEntity(World world, int metadata) {
-            return new TileEntityComputer();
-        }
-
-        @Override
-        public boolean onBlockActivated(World world, int x, int y, int z, EntityPlayer player, int sideHit, float hitX, float hitY, float hitZ) {
-            if (!world.isRemote && INSTANCE != null) {
-                player.openGui(INSTANCE, GUI_COMPUTER, world, x, y, z);
-            }
-            return true;
-        }
-    }
-
     public static final class BlockCrystal extends BlockContainer {
         public BlockCrystal() {
             super(Material.glass);
@@ -730,31 +666,6 @@ public final class RealityEngineAI {
             if (worldObj != null && !worldObj.isRemote) {
                 worldObj.markBlockForUpdate(xCoord, yCoord, zCoord);
             }
-        }
-
-        public String getDescription() {
-            return description;
-        }
-
-        @Override
-        public void readFromNBT(NBTTagCompound tag) {
-            super.readFromNBT(tag);
-            description = tag.getString("RealityDescription");
-        }
-
-        @Override
-        public void writeToNBT(NBTTagCompound tag) {
-            super.writeToNBT(tag);
-            tag.setString("RealityDescription", description);
-        }
-    }
-
-    public static final class TileEntityComputer extends TileEntity {
-        private String description = "";
-
-        public void setDescription(String value) {
-            description = value == null ? "" : value;
-            markDirty();
         }
 
         public String getDescription() {

@@ -45,7 +45,6 @@ jobs:
               required = [
                   'assets/realityengineai/brain/weights.bin',
                   'assets/realityengineai/textures/items/reality_artifact.png',
-                  'assets/realityengineai/textures/blocks/computer_front.png',
                   'assets/realityengineai/textures/entity/reality_creature.png',
               ]
               missing = [name for name in required if name not in names]

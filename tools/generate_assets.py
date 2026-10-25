@@ -56,42 +56,12 @@ def crystal(draw, image):
     draw.polygon([(7, 1), (8, 7), (5, 5)], fill=(225, 209, 255, 255))
     draw.polygon([(11, 6), (13, 9), (9, 13), (8, 7)], fill=(71, 219, 248, 255))
 
-def computer_front(draw, image):
-    draw.rectangle((0, 0, 15, 15), fill=(36, 48, 63, 255))
-    draw.rectangle((1, 1, 14, 13), fill=(20, 31, 43, 255))
-    draw.rectangle((2, 2, 13, 10), fill=(14, 65, 86, 255))
-    draw.rectangle((3, 3, 12, 9), fill=(16, 91, 111, 255))
-    draw.line((4, 5, 8, 5), fill=(100, 239, 255, 255), width=1)
-    draw.line((4, 7, 11, 7), fill=(62, 194, 235, 255), width=1)
-    draw.point((10, 5), fill=(255, 215, 108, 255))
-    draw.rectangle((5, 11, 10, 12), fill=(97, 113, 133, 255))
-    draw.point((12, 12), fill=(76, 235, 156, 255))
-
-def computer_side(draw, image):
-    draw.rectangle((0, 0, 15, 15), fill=(31, 43, 57, 255))
-    draw.rectangle((2, 1, 13, 14), fill=(49, 67, 86, 255))
-    draw.line((3, 3, 12, 3), fill=(88, 215, 236, 255), width=1)
-    draw.rectangle((4, 5, 11, 10), fill=(24, 34, 46, 255))
-    draw.point((6, 7), fill=(73, 218, 241, 255))
-    draw.point((8, 8), fill=(73, 218, 241, 255))
-    draw.line((3, 12, 12, 12), fill=(105, 130, 148, 255), width=1)
-
-def computer_top(draw, image):
-    draw.rectangle((0, 0, 15, 15), fill=(35, 47, 61, 255))
-    draw.rectangle((2, 2, 13, 13), fill=(54, 76, 95, 255))
-    draw.rectangle((4, 4, 11, 11), fill=(19, 70, 90, 255))
-    draw.line((5, 5, 10, 10), fill=(95, 230, 248, 255), width=1)
-    draw.line((10, 5, 5, 10), fill=(95, 230, 248, 255), width=1)
-
 save_icon("items/reality_artifact.png", artifact)
 save_icon("items/reality_sword.png", sword)
 save_icon("items/reality_pickaxe.png", pickaxe)
 save_icon("items/reality_food.png", food)
 save_icon("blocks/reality_block.png", base_block)
 save_icon("blocks/reality_crystal.png", crystal)
-save_icon("blocks/computer_front.png", computer_front)
-save_icon("blocks/computer_side.png", computer_side)
-save_icon("blocks/computer_top.png", computer_top)
 
 skin = Image.new("RGBA", (64, 64), (19, 35, 52, 255))
 d = ImageDraw.Draw(skin)
