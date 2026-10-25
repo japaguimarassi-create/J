@@ -59,6 +59,11 @@ def load_corpus(paths: list[Path] | None = None) -> list[dict[str, str]]:
     return rows
 
 
+def extract_forge(text: str) -> str | None:
+    match = re.search(r"~~~forge\\s*\\n(.*?)\\n~~~", text, re.IGNORECASE | re.DOTALL)
+    return match.group(1).strip() if match else None
+
+
 def lexical_score(query: str, candidate: str) -> float:
     query_words, candidate_words = normalize_words(query), normalize_words(candidate)
     if query.strip().casefold() == candidate.strip().casefold():
@@ -124,7 +129,7 @@ class StudentAssistant:
             if related:
                 response += "\n\nExemplo relacionado: " + related["item"]["response"]
             return {
-                "response": response, "mode": "student", "confidence": round(candidates[0]["lexical"], 3) if candidates else 0.0,
+                "response": response, "forge": None, "mode": "student", "confidence": round(candidates[0]["lexical"], 3) if candidates else 0.0,
                 "lexical_score": round(candidates[0]["lexical"], 3) if candidates else 0.0,
                 "student_score": round(float(candidates[0]["neural"]), 4) if model is not None and candidates else None,
                 "matched_prompt": related["item"]["prompt"] if related else None,
@@ -133,7 +138,7 @@ class StudentAssistant:
         candidates.sort(key=lambda row: row["combined"], reverse=True)
         best = candidates[0]
         return {
-            "response": best["item"]["response"], "mode": "student" if model is not None else "retrieval",
+            "response": best["item"]["response"], "forge": extract_forge(best["item"]["response"]), "mode": "student" if model is not None else "retrieval",
             "confidence": round(best["combined"], 3), "lexical_score": round(best["lexical"], 3),
             "student_score": round(float(best["neural"]), 4) if model is not None else None,
             "matched_prompt": best["item"]["prompt"], "source": best["item"].get("source", "curated"),
