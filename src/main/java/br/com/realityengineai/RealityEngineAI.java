@@ -35,7 +35,6 @@ import net.minecraft.entity.ai.EntityAIWatchClosest;
 import net.minecraft.entity.ai.EntityAILookIdle;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.item.EnumToolMaterial;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemFood;
 import net.minecraft.item.ItemPickaxe;
@@ -578,7 +577,7 @@ public final class RealityEngineAI {
 
     public static final class ItemRealitySword extends ItemSword {
         public ItemRealitySword() {
-            super(EnumToolMaterial.EMERALD);
+            super(Item.ToolMaterial.EMERALD);
             setUnlocalizedName("reality_sword");
             setTextureName(MOD_ID + ":reality_sword");
             setCreativeTab(CreativeTabs.tabCombat);
@@ -587,7 +586,7 @@ public final class RealityEngineAI {
 
     public static final class ItemRealityPickaxe extends ItemPickaxe {
         public ItemRealityPickaxe() {
-            super(EnumToolMaterial.EMERALD);
+            super(Item.ToolMaterial.EMERALD);
             setUnlocalizedName("reality_pickaxe");
             setTextureName(MOD_ID + ":reality_pickaxe");
             setCreativeTab(CreativeTabs.tabTools);
@@ -835,13 +834,13 @@ public final class RealityEngineAI {
         }
 
         @Override
-        protected void readEntityFromNBT(NBTTagCompound tag) {
+        public void readEntityFromNBT(NBTTagCompound tag) {
             super.readEntityFromNBT(tag);
             setDescription(tag.getString("RealityDescription"));
         }
 
         @Override
-        protected void writeEntityToNBT(NBTTagCompound tag) {
+        public void writeEntityToNBT(NBTTagCompound tag) {
             super.writeEntityToNBT(tag);
             tag.setString("RealityDescription", getEntityData().getString("RealityDescription"));
         }
