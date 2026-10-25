@@ -5,6 +5,7 @@ import os
 import secrets
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -146,6 +147,16 @@ def pull_missing_models(base_url: str, models: list[str], installed: list[str]) 
     return ollama_tags(base_url)
 
 
+def detect_lan_ip() -> str | None:
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.connect(("8.8.8.8", 80))
+            address = probe.getsockname()[0]
+            return address if address and not address.startswith("127.") else None
+    except OSError:
+        return None
+
+
 def ensure_api_key() -> str:
     key = os.environ.get("MOTIONFORGE_API_KEY", "").strip()
     if key:
@@ -192,7 +203,11 @@ def run() -> int:
     port = os.environ.get("PORT", "8000")
     print("\nMotionForge Orchestrator pronto.")
     print("Três modelos disponíveis: " + ", ".join(models))
-    print("Backend: http://" + host_bind + ":" + port)
+    print("Backend bind: http://" + host_bind + ":" + port)
+    if host_bind == "0.0.0.0":
+        address = detect_lan_ip()
+        if address:
+            print("URL sugerida para celular na mesma rede: http://" + address + ":" + port)
     print("Configure no APK a URL acessível por ele e a chave de acesso mostrada acima.")
     print("O orquestrador chama os modelos sequencialmente e entrega a síntese ao editor.")
     process = subprocess.Popen([sys.executable, str(ROOT / "server.py")], cwd=ROOT, env=os.environ.copy())
