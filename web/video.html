@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0e14">
+<title>MotionForge Cut — Editor de vídeo</title>
+<link rel="stylesheet" href="./video.css">
+</head>
+<body>
+<div class="studio">
+<header class="top">
+<a class="brand" href="./index.html"><span class="logo">M<span>F</span></span><span><b>motionforge</b><small>CUT / VIDEO STUDIO</small></span></a>
+<div class="project"><span class="pulse"></span><input id="projectName" value="Projeto sem título" aria-label="Nome do projeto"><small id="saveState">LOCAL</small></div>
+<div class="top-actions"><button id="newProject" class="btn ghost">Novo</button><button id="saveProject" class="btn ghost">Salvar projeto</button><button id="exportVideo" class="btn accent">Exportar vídeo ↗</button></div>
+</header>
+<main class="workspace">
+<aside class="media-panel">
+<div class="panel-head"><span>01 / MÍDIA</span><span id="assetCount">0 arquivos</span></div>
+<label class="dropzone" id="dropzone" for="mediaInput"><span class="upload-icon">↑</span><b>Importar arquivos</b><small>Imagens · Vídeos · Áudios · ZIP</small><small>Toque para escolher ou arraste aqui</small></label>
+<input id="mediaInput" type="file" multiple accept="image/*,video/*,audio/*,.zip,application/zip,application/x-zip-compressed" hidden>
+<div class="media-actions"><button id="addText" class="btn ghost">＋ Texto</button><button id="clearMedia" class="btn ghost">Limpar mídia</button></div>
+<div class="asset-list" id="assetList"><div class="empty">Seus arquivos aparecerão aqui.</div></div>
+<div class="media-foot"><span class="pulse"></span> Seus arquivos ficam no aparelho</div>
+</aside>
+<section class="cut-area">
+<div class="cut-toolbar"><div class="tool-label"><span>02 / MONITOR</span><small id="resolutionLabel">1920 × 1080 · 30 FPS</small></div><div class="aspect"><button class="aspect-btn active" data-ratio="16:9">16:9</button><button class="aspect-btn" data-ratio="9:16">9:16</button><button class="aspect-btn" data-ratio="1:1">1:1</button></div></div>
+<div class="preview-shell"><div class="preview" id="preview"><canvas id="previewCanvas" width="1280" height="720"></canvas><div class="preview-empty" id="previewEmpty"><div class="empty-mark">▶</div><b>Seu próximo vídeo começa aqui</b><span>Importe mídias e organize as faixas na timeline.</span></div></div></div>
+<div class="playback"><div class="transport"><button id="toStart" title="Início">|◀</button><button id="play" class="play-btn" title="Reproduzir">▶</button><button id="toEnd" title="Fim">▶|</button></div><div class="clock"><b id="currentTime">00:00.00</b><span>/</span><span id="totalTime">00:10.00</span></div><input id="scrubber" type="range" min="0" max="10" step=".01" value="0" aria-label="Posição do vídeo"><button id="mute" class="btn ghost">Som ligado</button></div>
+<div class="timeline-head"><div><span>03 / TIMELINE</span><small>Camadas simultâneas · arraste os clipes para reposicionar</small></div><div class="timeline-actions"><button id="zoomOut" class="btn ghost">−</button><button id="zoomIn" class="btn ghost">＋</button></div></div>
+<div class="timeline-wrap" id="timelineWrap"><div class="timeline" id="timeline"><div class="time-ruler" id="timeRuler"></div><div class="track" data-track="video"><div class="track-name"><i class="track-dot video-dot"></i>Vídeo</div><div class="track-lane" id="videoLane"></div></div><div class="track" data-track="image"><div class="track-name"><i class="track-dot image-dot"></i>Imagem</div><div class="track-lane" id="imageLane"></div></div><div class="track" data-track="audio"><div class="track-name"><i class="track-dot audio-dot"></i>Áudio / Música</div><div class="track-lane" id="audioLane"></div></div><div class="track" data-track="text"><div class="track-name"><i class="track-dot text-dot"></i>Texto / Legenda</div><div class="track-lane" id="textLane"></div></div><div class="playhead" id="playhead"></div></div></div>
+<div class="bottom-status"><span><i class="pulse"></i><span id="status">Pronto para editar</span></span><span>PROJETO LOCAL · <b id="clipCount">0 clipes</b></span></div>
+</section>
+<aside class="ai-panel">
+<div class="ai-head"><div class="ai-orb">✦</div><div><small>ASSISTENTE MULTIMÍDIA</small><h2>Forge AI</h2></div><span class="online-tag">LOCAL</span></div>
+<p class="ai-intro">Explique a ideia, selecione seus materiais e peça um plano de montagem. A IA pode usar quadros de imagens/vídeos e as descrições dos arquivos.</p>
+<div class="ai-status"><span class="pulse"></span><span id="aiStatus">Aguardando instrução</span></div>
+<label for="idea">O que vamos criar?</label><textarea id="idea" rows="4" placeholder="Ex.: monte um trailer épico de 30 segundos, cortes rápidos, minhas imagens na tela, vídeo principal ao centro e música crescendo até o final."></textarea>
+<label for="mediaNotes">Contexto dos arquivos / transcrição de áudio (opcional)</label><textarea id="mediaNotes" rows="3" placeholder="Explique o que acontece no vídeo ou cole a letra/transcrição do áudio para a IA considerar."></textarea>
+<label class="check"><input id="sendFrames" type="checkbox" checked> Incluir quadros visuais de referência</label>
+<button id="askAI" class="btn accent full">✦ Planejar montagem com IA</button>
+<div class="ai-result" id="aiResult"><div class="result-empty">O plano de montagem aparecerá aqui.</div></div>
+<div class="ai-actions"><button id="applyPlan" class="btn ghost full" disabled>Aplicar plano à timeline</button><button id="makeCaption" class="btn ghost full">＋ Criar texto/legenda</button></div>
+<div class="ai-note">A montagem e a exportação são processadas no navegador. A análise por IA usa o backend local MotionForge/Ollama quando disponível. Áudios entram na mixagem; para a IA compreender a fala, forneça uma transcrição no campo de contexto.</div>
+</aside>
+</main>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="./video.js"></script>
+</body>
+</html>
