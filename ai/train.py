@@ -42,7 +42,7 @@ def read_examples(paths: list[Path]) -> list[dict[str, str]]:
                 key = (prompt.casefold(), response.casefold())
                 if key not in seen:
                     seen.add(key)
-                    rows.append({"prompt": prompt, "response": response})
+                    rows.append({"prompt": prompt, "response": response, "source": str(item.get("source", "curated"))})
     if len(rows) < 5:
         raise ValueError("São necessários pelo menos 5 exemplos únicos; corpus atual: " + str(len(rows)))
     return rows
@@ -139,7 +139,7 @@ def train(args: argparse.Namespace) -> dict[str, Any]:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     metrics: dict[str, Any] = {
         "status": "trained",
-        "architecture": "12M? no; 2-layer causal Transformer, 32 hidden, tied 7k BPE embeddings",
+        "architecture": "2-layer causal Transformer, 32 hidden, tied 7k BPE embeddings",
         "device": device,
         "parameters": parameter_count,
         "expected_parameters": EXPECTED_PARAMS,
