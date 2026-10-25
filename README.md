@@ -95,3 +95,16 @@ O material guardado na biblioteca fica no navegador. As imagens só são transmi
 - O preview 3D da primeira versão depende de Three.js por CDN e WebGL.
 - O brainstorm exige os três modelos instalados localmente.
 - Consenso entre modelos é uma barreira de qualidade, não uma prova de verdade; confira fontes e código antes de treinar com novos exemplos.
+
+## MotionForge Cut — edição e montagem de vídeo
+
+Abra o [MotionForge Cut](./web/video.html) pelo botão **Editor de vídeo** na interface principal. O editor oferece um monitor de prévia, timeline multifaixa e um fluxo voltado também para telas de celular.
+
+- Importa imagens, vídeos, áudio/música e arquivos ZIP com mídias. A extração ZIP ocorre no navegador, com limite de 150 entradas e 500 MB descompactados por arquivo ZIP.
+- Monta faixas simultâneas de vídeo, imagem, música/áudio e texto/legendas; clipes podem ser arrastados para mudar o tempo e redimensionados pelo menu de duração.
+- Permite proporções 16:9, 9:16 e 1:1, reprodução, ajuste de posição na timeline, texto sobreposto, exportação WebM em tempo real e salvamento do plano em JSON.
+- A Forge AI pode receber o pedido de edição, metadados das mídias, notas/transcrição digitadas e até quatro quadros visuais reduzidos de imagens/vídeos. A análise depende do backend local e dos três modelos Ollama configurados.
+- Os arquivos de mídia ficam no navegador durante a sessão. O JSON salvo guarda a estrutura da montagem, não incorpora os arquivos originais; mantenha os arquivos de origem para reabrir o projeto.
+- Limites atuais: o áudio é usado na timeline e na exportação, mas não é transcrito automaticamente nem entendido diretamente pelo modelo. Para análise de fala/letra, cole uma transcrição nas notas. A exportação usa WebM e renderiza em tempo real; mantenha a aba aberta até terminar. O suporte a codecs depende do navegador.
+
+Para abrir localmente, execute `python server.py` e acesse `http://127.0.0.1:8000/video.html`. O botão da interface principal também abre o editor.
