@@ -6,5 +6,6 @@ public final class ClientProxy extends CommonProxy {
     @Override
     public void registerRenderers() {
         RenderingRegistry.registerEntityRenderingHandler(RealityEngineAI.EntityReality.class, new RenderRealityEntity());
+        RenderingRegistry.registerEntityRenderingHandler(EntityRealityBot.class, new RenderRealityBot());
     }
 }

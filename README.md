@@ -1,4 +1,4 @@
-# Reality Engine AI 0.3.0
+# Reality Engine AI 0.4.0
 
 Experimental Minecraft Java 1.7.10 / Forge 10.13.4.1614 mod, built for Java 8.
 
@@ -91,3 +91,18 @@ A generated rule is validated and appended to `runtime-rules.json`, then reloade
 Registry IDs may refer to blocks/items registered by other Forge mods, for example `othermod:machine_block`, provided that mod is loaded and its registry ID is correct. Entity spawning currently uses entity names exposed through Minecraft's entity registry; some modded entities may not be registered there.
 
 **Scope limit:** a configuration engine cannot implement literally every possible change to Minecraft's internals. Features needing new rendering pipelines, new engine algorithms, new packets, or transformations of private vanilla methods may require a dedicated Forge integration or an ASM coremod. Those can still run without changing the original Minecraft JAR, but they are separate, version-sensitive code and are not silently synthesized by this rules engine.
+
+
+## Bot de execução de prompts (0.4.0)
+
+O comando `/bot` cria uma entidade visível que acompanha o jogador:
+- `/bot` — gera o bot.
+- `/bot crie um mapa do zero raio 24` — gera terreno procedural numa região do mundo atual.
+- `/bot crie uma casa`, `/bot crie um castelo de pedra`, `/bot crie uma torre`, `/bot crie uma ponte`, `/bot crie uma cidade`, `/bot crie um labirinto`, `/bot crie um computador` — usa módulos declarativos de construção.
+- `/bot status`, `/bot parar`, `/bot remover`, `/bot recarregar`, `/bot modulos`, `/bot ajuda`.
+
+O executor modifica o mundo no ciclo de ticks do servidor e gera operações sob demanda. Não dispara um milhão de comandos simultâneos: isso travaria o servidor. A fila aceita até 1.000.000 operações por tarefa, processando-as em lotes de 128 por tick por padrão. Os limites podem ser editados em `config/realityengineai/bot-settings.json`, dentro dos limites impostos pelo código.
+
+Na primeira execução, o mod cria `config/realityengineai/modules/` e os arquivos `starter-builders.json` e `README.txt`. Os módulos incluem configurações para casas, castelos, torres, pontes, muros, plataformas, arenas, labirintos, cidades, computadores e veículos. Para acrescentar um módulo, use por exemplo `/bot crie um módulo chamado garagem 15x9x7`; depois edite o JSON gerado e rode `/bot recarregar`.
+
+**Limites reais:** o bot é uma entidade de IA do Minecraft, não uma instância genuína de `EntityPlayer`. Ele se movimenta e segue seu proprietário, e o executor constrói com operações permitidas. Um mapa é uma região de terreno no mundo carregado, não um arquivo de mundo separado. O computador é uma construção de blocos, não um PC com sistema operacional real. Executar aplicativos externos ou Fortnite ainda exige uma ponte externa compatível.

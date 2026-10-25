@@ -12,6 +12,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import cpw.mods.fml.common.Mod;
+import cpw.mods.fml.common.FMLCommonHandler;
+import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.registry.EntityRegistry;
@@ -60,7 +62,7 @@ import org.apache.logging.log4j.Logger;
 public final class RealityEngineAI {
     public static final String MOD_ID = "realityengineai";
     public static final String NAME = "Reality Engine AI";
-    public static final String VERSION = "0.3.0";
+    public static final String VERSION = "0.4.0";
     public static final Logger LOG = LogManager.getLogger(NAME);
     private static final Pattern DIMENSION_ID = Pattern.compile("(?:dimens[aã]o\\s*)?(\\d+)");
     private static final Map<Integer, String> DIMENSION_DESCRIPTIONS = new HashMap<Integer, String>();
@@ -87,6 +89,8 @@ public final class RealityEngineAI {
         BRAIN = new OfflineBrain();
         RuntimeConfigurationEngine.INSTANCE.initialize(event.getModConfigurationDirectory());
         MinecraftForge.EVENT_BUS.register(RuntimeConfigurationEngine.INSTANCE);
+        BotPromptEngine.INSTANCE.initialize(event.getModConfigurationDirectory());
+        FMLCommonHandler.instance().bus().register(BotPromptEngine.INSTANCE);
 
         realityArtifact = new ItemRealityArtifact();
         GameRegistry.registerItem(realityArtifact, "reality_artifact");
@@ -105,6 +109,7 @@ public final class RealityEngineAI {
         GameRegistry.registerTileEntity(TileEntityCrystal.class, MOD_ID + ":reality_crystal");
 
         EntityRegistry.registerModEntity(EntityReality.class, "reality_entity", 1, this, 64, 3, true);
+        EntityRegistry.registerModEntity(EntityRealityBot.class, "reality_bot", 2, this, 64, 3, true);
         registerDimensionProvider();
         loadDimensions(event.getModConfigurationDirectory());
 
@@ -114,6 +119,11 @@ public final class RealityEngineAI {
         }
         LOG.info("Reality Engine AI 0.3.0 initialized. brainReady=" + (BRAIN != null && BRAIN.isReady())
             + ", parameters=" + (BRAIN == null ? 0 : BRAIN.getParameterCount()));
+    }
+
+    @Mod.EventHandler
+    public void serverStarting(FMLServerStartingEvent event) {
+        event.registerServerCommand(new BotCommand());
     }
 
     private static void registerDimensionProvider() {
@@ -225,7 +235,7 @@ public final class RealityEngineAI {
         }
     }
 
-    private static void executeCreation(EntityPlayer player, String prompt) {
+    static void executeCreation(EntityPlayer player, String prompt) {
         if (player == null || player.worldObj == null || player.worldObj.isRemote || prompt == null || prompt.trim().isEmpty()) {
             return;
         }

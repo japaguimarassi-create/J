@@ -17,7 +17,7 @@ apply plugin: 'java'
 apply plugin: 'forge'
 
 group = 'br.com.realityengineai'
-version = '0.3.0'
+version = '0.4.0'
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
