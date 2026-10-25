@@ -37,17 +37,17 @@ python server.py
 
 Abra [http://127.0.0.1:8000](http://127.0.0.1:8000). O servidor se limita a `127.0.0.1`; não o exponha à rede sem autenticação. A visualização 3D carrega Three.js por CDN. A pesquisa usa a internet apenas quando chamada explicitamente.
 
-## Primeiro treino-base confirmado no GitHub Actions
+## Treino-base confirmado no GitHub Actions
 
-Execução de treino: [workflow #40201599019](https://github.com/japaguimarassi-create/J/actions/runs/40201599019). O checkpoint e o arquivo de métricas estão disponíveis como artefato do workflow.
+Execução mais recente: [workflow #40202721759](https://github.com/japaguimarassi-create/J/actions/runs/40202721759). O checkpoint treinado e as métricas estão disponíveis como artefato dessa execução.
 
-- Parâmetros treináveis: **249.984** (contagem exata validada).
-- Corpus: 41 exemplos, divididos em 35 de treino e 6 de validação.
-- Passos executados: 32 no CPU; aproximadamente 0,88 s nesta execução do runner.
-- Perda de validação: 24,00772 antes → 18,68307 depois.
-- Exemplos consensuais dos professores incluídos: **0**. Este é o treino-base dos exemplos semente; a destilação real só começa depois que os três professores locais aprovarem amostras.
+- Parâmetros treináveis: **249.984**; contagem exata validada.
+- Corpus: **54 exemplos**; 46 treino e 8 validação.
+- Passos efetivos: **48**, em CPU.
+- Perda de validação: **23,38756 antes → 15,93496 depois**, uma redução de aproximadamente 31,9%.
+- Exemplos de consenso dos professores incluídos: **0**. Esta é a rodada-base baseada no corpus de exemplo revisado; a destilação de saídas reais começa apenas após o brainstorm local com aprovação final unânime.
 
-Essas métricas mostram que o modelo se ajustou melhor ao corpus pequeno, não que já seja um gerador geral de qualidade. O checkpoint está disponível em [Artifacts do workflow](https://github.com/japaguimarassi-create/J/actions/runs/40201599019); o artefato expira em 30 dias.
+A métrica demonstra ajuste ao corpus pequeno, não competência geral nem percepção visual própria. O aluno de 249.984 parâmetros aprende texto e scripts, não pixels. O artefato do checkpoint está em [Artifacts do workflow](https://github.com/japaguimarassi-create/J/actions/runs/40202721759) e expira após 30 dias.
 
 ## Brainstorm com os três modelos locais
 
