@@ -26,7 +26,7 @@ Instale Python 3.11+, Node.js e as dependências:
     python ai/train.py --steps 160 --batch-size 4
     python ai/chat_server.py
 
-Abra app/index.html por um servidor estático. O Three.js é carregado por CDN para a visualização 3D; o editor 2D e o parser são executados no navegador. O servidor local fica restrito a 127.0.0.1:8765.
+Abra app/index.html por um servidor estático. O Three.js é carregado por CDN para a visualização 3D; o editor 2D e o parser são executados no navegador. O servidor local fica restrito a 127.0.0.1:8765.\n\n## Publicar o editor no GitHub Pages\n\nO workflow de Pages fica inativo por padrão porque o token conectado não consegue habilitar o Pages no repositório automaticamente. No GitHub, abra **Settings → Pages** e selecione **GitHub Actions** como fonte de build. Depois abra **Settings → Secrets and variables → Actions → Variables**, crie a variável `MOTIONFORGE_PAGES_ENABLED` com o valor `true` e execute o workflow Deploy MotionForge Studio. Isso é uma configuração única no repositório. O site estático funciona no modo 2D sem backend; os endpoints de IA local e pesquisa só funcionam no aparelho que está executando `ai/chat_server.py`, não numa página pública hospedada.
 
 ## Três modelos-professores locais
 
