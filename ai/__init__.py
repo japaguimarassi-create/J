@@ -1,0 +1,1 @@
+"""MotionForge local AI and student training package."""
