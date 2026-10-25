@@ -3,7 +3,7 @@
     "modid": "realityengineai",
     "name": "Reality Engine AI",
     "description": "Offline creation assistant for Minecraft 1.7.10 with registered-mod discovery, custom textures, functional blocks and an exact 300k-parameter intent model.",
-    "version": "0.2.0",
+    "version": "${version}",
     "mcversion": "1.7.10",
     "url": "",
     "updateUrl": "",

@@ -65,7 +65,7 @@ import org.apache.logging.log4j.Logger;
 public final class RealityEngineAI {
     public static final String MOD_ID = "realityengineai";
     public static final String NAME = "Reality Engine AI";
-    public static final String VERSION = "0.2.0";
+    public static final String VERSION = "0.3.0";
     public static final int GUI_COMPUTER = 7201;
     public static final Logger LOG = LogManager.getLogger(NAME);
     private static final Pattern DIMENSION_ID = Pattern.compile("(?:dimens[aã]o\\s*)?(\\d+)");
@@ -92,6 +92,8 @@ public final class RealityEngineAI {
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
         BRAIN = new OfflineBrain();
+        RuntimeConfigurationEngine.INSTANCE.initialize(event.getModConfigurationDirectory());
+        MinecraftForge.EVENT_BUS.register(RuntimeConfigurationEngine.INSTANCE);
 
         realityArtifact = new ItemRealityArtifact();
         GameRegistry.registerItem(realityArtifact, "reality_artifact");
@@ -121,7 +123,7 @@ public final class RealityEngineAI {
         if (PROXY != null) {
             PROXY.registerRenderers();
         }
-        LOG.info("Reality Engine AI 0.2.0 initialized. brainReady=" + (BRAIN != null && BRAIN.isReady())
+        LOG.info("Reality Engine AI 0.3.0 initialized. brainReady=" + (BRAIN != null && BRAIN.isReady())
             + ", parameters=" + (BRAIN == null ? 0 : BRAIN.getParameterCount()));
     }
 
@@ -225,6 +227,9 @@ public final class RealityEngineAI {
             event.setCanceled(true);
             if (!result.hasPrompt()) {
                 event.player.addChatMessage(new ChatComponentText("Reality Engine: use 'crie <pedido>'. Exemplos: crie um computador em bloco; crie uma espada; crie uma dimensão de neve; crie lista de mods instalados."));
+                return;
+            }
+            if (RuntimeConfigurationEngine.INSTANCE.handleCreationPrompt(event.player, result.getPrompt())) {
                 return;
             }
             executeCreation(event.player, result.getPrompt());
