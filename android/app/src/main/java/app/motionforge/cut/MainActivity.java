@@ -77,6 +77,18 @@ public final class MainActivity extends Activity {
         getWindow().setNavigationBarColor(Color.rgb(9, 12, 18));
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        if (!prefs.getBoolean("orchestrator_mode_migrated", false)) {
+            String oldMode = prefs.getString("mode", null);
+            String oldEndpoint = prefs.getString("endpoint", "");
+            SharedPreferences.Editor migration = prefs.edit().putBoolean("orchestrator_mode_migrated", true);
+            if (oldMode == null || "ollama".equals(oldMode)) {
+                migration.putString("mode", "backend");
+                if (oldEndpoint.isEmpty() || oldEndpoint.endsWith(":11434")) {
+                    migration.putString("endpoint", DEFAULT_ENDPOINT);
+                }
+            }
+            migration.apply();
+        }
 
         webView = new WebView(this);
         webView.setBackgroundColor(Color.rgb(9, 12, 18));
@@ -487,7 +499,7 @@ public final class MainActivity extends Activity {
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("POST");
             connection.setConnectTimeout(12000);
-            connection.setReadTimeout(600000);
+            connection.setReadTimeout(1800000);
             connection.setDoOutput(true);
             connection.setRequestProperty("Content-Type", "application/json; charset=utf-8");
             connection.setRequestProperty("Accept", "application/json");
@@ -645,7 +657,7 @@ public final class MainActivity extends Activity {
         layout.setPadding(pad, dp(6), pad, dp(4));
 
         TextView intro = new TextView(this);
-        intro.setText("A Forge AI usa o orquestrador MotionForge, que coordena Qwen 3.6, Gemma 4 e GPT-OSS instalados em um servidor Ollama compatível. O APK só envia o pedido e recebe a síntese; os pesos não ficam no celular.");
+        intro.setText("A Forge AI coordena Qwen 3.6, Gemma 4 e GPT-OSS em um servidor compatível com Ollama. Os modelos não rodam dentro do celular. Informe o endereço acessível pelo aparelho e a chave de acesso mostrada pelo agente no servidor.");
         intro.setTextSize(13);
         intro.setTextColor(Color.LTGRAY);
         intro.setPadding(0, 0, 0, dp(12));
@@ -674,7 +686,7 @@ public final class MainActivity extends Activity {
         EditText endpointInput = new EditText(this);
         endpointInput.setSingleLine(true);
         endpointInput.setText(endpoint());
-        endpointInput.setHint("http://127.0.0.1:11434");
+        endpointInput.setHint("http://IP-DO-SERVIDOR:8000");
         endpointInput.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
         layout.addView(endpointInput);
 
