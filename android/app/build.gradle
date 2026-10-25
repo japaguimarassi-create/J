@@ -1,0 +1,40 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "app.motionforge.cut"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "app.motionforge.cut"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packaging {
+        resources {
+            excludes += ["/META-INF/AL2.0", "/META-INF/LGPL2.1"]
+        }
+    }
+}
+
+def webSource = file("$rootDir/../web")
+def webAssets = file("$projectDir/src/main/assets/web")
+
+tasks.register("copyWebAssets", Sync) {
+    from(webSource)
+    into(webAssets)
+    include("**/*")
+}
+
+tasks.named("preBuild").configure {
+    dependsOn("copyWebAssets")
+}
