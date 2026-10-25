@@ -227,8 +227,8 @@ $("referenceFiles").addEventListener("change",function(){
 });
 $("addReference").addEventListener("click",saveSelectedReferences);
 $("planWithReferences").addEventListener("click",function(){
- $("aiPrompt").value="Atue como um professor de animação. Use as referências anexadas e suas notas para me ensinar a transformar essa ideia em uma cena FORGE. Primeiro descreva o que observou; depois faça um plano curto de storyboard, defina poses-chave e timing, gere um script compatível com a gramática atual, valide-o e explique uma próxima prática. Não invente detalhes que não aparecem nas referências. Minha ideia: [escreva sua ideia no campo de instrução depois de abrir Forge AI].";
- panelView("ai");$("aiPrompt").focus();toast("Escreva a sua ideia e envie um Brainstorm para estudar as referências.");
+ $("aiPrompt").value="Estude minhas referências visuais e notas. Ensine-me a transformar minha ideia em uma cena FORGE: descreva o que realmente observou, faça um storyboard curto, defina poses-chave e timing, gere um script válido e proponha um exercício pequeno. Não invente detalhes ausentes. Minha ideia: ";
+ panelView("ai");$("aiPrompt").focus();$("aiPrompt").setSelectionRange($("aiPrompt").value.length,$("aiPrompt").value.length);toast("Escreva sua ideia depois de “Minha ideia:” e envie um Brainstorm.");
 });
 renderReferenceList();
 
