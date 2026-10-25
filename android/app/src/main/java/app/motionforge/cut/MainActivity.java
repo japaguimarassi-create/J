@@ -2,15 +2,21 @@ package app.motionforge.cut;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.Gravity;
+import android.view.View;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
+import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -20,6 +26,8 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
@@ -42,13 +50,23 @@ import java.util.concurrent.Executors;
 
 public final class MainActivity extends Activity {
     private static final int FILE_PICKER_REQUEST = 7412;
+    private static final int BROWSER_FILE_PICKER_REQUEST = 7413;
     private static final String PREFS = "motionforge_ai";
     private static final String DEFAULT_ENDPOINT = "http://127.0.0.1:11434";
     private static final String DEFAULT_MODEL = "gemma4:12b";
 
     private WebView webView;
+    private WebView browserView;
     private NativeBridge nativeBridge;
     private ValueCallback<Uri[]> fileCallback;
+    private ValueCallback<Uri[]> browserFileCallback;
+    private LinearLayout rootLayout;
+    private LinearLayout browserToolbar;
+    private HorizontalScrollView browserShortcuts;
+    private EditText browserAddress;
+    private Button editorTab;
+    private Button browserTab;
+    private boolean browserVisible = false;
     private final ExecutorService aiExecutor = Executors.newSingleThreadExecutor();
     private SharedPreferences prefs;
 
@@ -87,8 +105,7 @@ public final class MainActivity extends Activity {
                     return true;
                 }
                 if ("https".equalsIgnoreCase(scheme) || "http".equalsIgnoreCase(scheme)) {
-                    view.removeJavascriptInterface("MotionForgeNative");
-                    view.loadUrl(target);
+                    showBrowser(target, false);
                     return true;
                 }
                 return true;
@@ -127,7 +144,8 @@ public final class MainActivity extends Activity {
                 }
             }
         });
-        setContentView(webView);
+        createInternalBrowser();
+        buildRootLayout();
         webView.loadUrl("file:///android_asset/web/video.html");
     }
 
@@ -135,7 +153,11 @@ public final class MainActivity extends Activity {
     @SuppressWarnings("deprecation")
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode != FILE_PICKER_REQUEST || fileCallback == null) return;
+        boolean editorPicker = requestCode == FILE_PICKER_REQUEST;
+        boolean browserPicker = requestCode == BROWSER_FILE_PICKER_REQUEST;
+        if (!editorPicker && !browserPicker) return;
+        ValueCallback<Uri[]> callback = editorPicker ? fileCallback : browserFileCallback;
+        if (callback == null) return;
         Uri[] results = null;
         if (resultCode == RESULT_OK && data != null) {
             if (data.getClipData() != null) {
@@ -146,13 +168,17 @@ public final class MainActivity extends Activity {
                 results = new Uri[]{data.getData()};
             }
         }
-        fileCallback.onReceiveValue(results);
-        fileCallback = null;
+        callback.onReceiveValue(results);
+        if (editorPicker) fileCallback = null;
+        else browserFileCallback = null;
     }
 
     @Override
     public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) {
+        if (browserVisible) {
+            if (browserView != null && browserView.canGoBack()) browserView.goBack();
+            else showEditor();
+        } else if (webView != null && webView.canGoBack()) {
             webView.goBack();
         } else {
             super.onBackPressed();
@@ -166,8 +192,228 @@ public final class MainActivity extends Activity {
             webView.destroy();
             webView = null;
         }
+        if (browserView != null) {
+            browserView.destroy();
+            browserView = null;
+        }
         aiExecutor.shutdownNow();
         super.onDestroy();
+    }
+
+    private void createInternalBrowser() {
+        browserView = new WebView(this);
+        browserView.setBackgroundColor(Color.rgb(9, 12, 18));
+        WebSettings settings = browserView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setDatabaseEnabled(true);
+        settings.setAllowFileAccess(false);
+        settings.setAllowContentAccess(false);
+        settings.setSupportZoom(true);
+        settings.setBuiltInZoomControls(true);
+        settings.setDisplayZoomControls(false);
+        settings.setJavaScriptCanOpenWindowsAutomatically(true);
+        settings.setSupportMultipleWindows(false);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+        CookieManager cookies = CookieManager.getInstance();
+        cookies.setAcceptCookie(true);
+        cookies.setAcceptThirdPartyCookies(browserView, true);
+        browserView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
+                if (browserFileCallback != null) browserFileCallback.onReceiveValue(null);
+                browserFileCallback = callback;
+                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType("*/*");
+                intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, false);
+                try {
+                    startActivityForResult(intent, BROWSER_FILE_PICKER_REQUEST);
+                    return true;
+                } catch (Exception error) {
+                    browserFileCallback = null;
+                    return false;
+                }
+            }
+        });
+        browserView.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                Uri uri = request.getUrl();
+                String scheme = uri.getScheme() == null ? "" : uri.getScheme();
+                if ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme)) return false;
+                return true;
+            }
+
+            @Override
+            public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+                super.onPageStarted(view, url, favicon);
+                if (browserAddress != null && url != null) browserAddress.setText(url);
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                if (browserAddress != null && url != null) browserAddress.setText(url);
+            }
+        });
+    }
+
+    private Button makeToolbarButton(String label) {
+        Button button = new Button(this);
+        button.setText(label);
+        button.setAllCaps(false);
+        button.setTextSize(12);
+        button.setTextColor(Color.WHITE);
+        button.setMinHeight(dp(36));
+        button.setMinWidth(dp(42));
+        button.setPadding(dp(5), 0, dp(5), 0);
+        button.setBackgroundColor(Color.rgb(35, 43, 57));
+        return button;
+    }
+
+    private void buildRootLayout() {
+        rootLayout = new LinearLayout(this);
+        rootLayout.setOrientation(LinearLayout.VERTICAL);
+        rootLayout.setBackgroundColor(Color.rgb(9, 12, 18));
+
+        LinearLayout tabs = new LinearLayout(this);
+        tabs.setOrientation(LinearLayout.HORIZONTAL);
+        tabs.setPadding(dp(5), dp(3), dp(5), dp(3));
+        tabs.setBackgroundColor(Color.rgb(14, 19, 28));
+        editorTab = makeToolbarButton("Editor");
+        browserTab = makeToolbarButton("Navegador IA");
+        tabs.addView(editorTab, new LinearLayout.LayoutParams(0, dp(42), 1));
+        tabs.addView(browserTab, new LinearLayout.LayoutParams(0, dp(42), 1));
+        editorTab.setOnClickListener(v -> showEditor());
+        browserTab.setOnClickListener(v -> showBrowser(browserView.getUrl() == null ? "https://chatgpt.com/" : browserView.getUrl(), false));
+        rootLayout.addView(tabs, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
+
+        browserToolbar = new LinearLayout(this);
+        browserToolbar.setGravity(Gravity.CENTER_VERTICAL);
+        browserToolbar.setPadding(dp(4), dp(3), dp(4), dp(3));
+        browserToolbar.setBackgroundColor(Color.rgb(14, 19, 28));
+        Button back = makeToolbarButton("‹");
+        Button forward = makeToolbarButton("›");
+        Button reload = makeToolbarButton("↻");
+        Button go = makeToolbarButton("Ir");
+        browserAddress = new EditText(this);
+        browserAddress.setSingleLine(true);
+        browserAddress.setTextSize(12);
+        browserAddress.setTextColor(Color.WHITE);
+        browserAddress.setHintTextColor(Color.GRAY);
+        browserAddress.setHint("https://chatgpt.com");
+        browserAddress.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
+        browserAddress.setImeOptions(EditorInfo.IME_ACTION_GO);
+        browserAddress.setPadding(dp(7), 0, dp(7), 0);
+        browserAddress.setSelectAllOnFocus(false);
+        back.setOnClickListener(v -> { if (browserView.canGoBack()) browserView.goBack(); });
+        forward.setOnClickListener(v -> { if (browserView.canGoForward()) browserView.goForward(); });
+        reload.setOnClickListener(v -> { if (browserView.getUrl() != null) browserView.reload(); });
+        go.setOnClickListener(v -> navigateBrowser());
+        browserAddress.setOnEditorActionListener((view, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_ACTION_DONE) {
+                navigateBrowser();
+                return true;
+            }
+            return false;
+        });
+        browserToolbar.addView(back, new LinearLayout.LayoutParams(dp(38), dp(40)));
+        browserToolbar.addView(forward, new LinearLayout.LayoutParams(dp(38), dp(40)));
+        browserToolbar.addView(reload, new LinearLayout.LayoutParams(dp(38), dp(40)));
+        browserToolbar.addView(browserAddress, new LinearLayout.LayoutParams(0, dp(40), 1));
+        browserToolbar.addView(go, new LinearLayout.LayoutParams(dp(40), dp(40)));
+        browserToolbar.setVisibility(View.GONE);
+        rootLayout.addView(browserToolbar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(46)));
+
+        HorizontalScrollView shortcutScroll = new HorizontalScrollView(this);
+        shortcutScroll.setHorizontalScrollBarEnabled(false);
+        shortcutScroll.setFillViewport(false);
+        LinearLayout shortcuts = new LinearLayout(this);
+        shortcuts.setOrientation(LinearLayout.HORIZONTAL);
+        shortcuts.setPadding(dp(4), dp(2), dp(4), dp(2));
+        addShortcut(shortcuts, "ChatGPT", "https://chatgpt.com/");
+        addShortcut(shortcuts, "Gemini", "https://gemini.google.com/");
+        addShortcut(shortcuts, "Claude", "https://claude.ai/");
+        addShortcut(shortcuts, "Copilot", "https://copilot.microsoft.com/");
+        addShortcut(shortcuts, "HuggingChat", "https://huggingface.co/chat/");
+        shortcutScroll.addView(shortcuts);
+        browserShortcuts = shortcutScroll;
+        browserShortcuts.setVisibility(View.GONE);
+        rootLayout.addView(browserShortcuts, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(42)));
+
+        FrameLayout content = new FrameLayout(this);
+        content.addView(webView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        FrameLayout.LayoutParams browserParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        content.addView(browserView, browserParams);
+        browserView.setVisibility(View.GONE);
+        rootLayout.addView(content, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
+        setContentView(rootLayout);
+        updateTabColors();
+    }
+
+    private void addShortcut(LinearLayout row, String label, String url) {
+        Button button = makeToolbarButton(label);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(36));
+        params.setMargins(dp(3), 0, dp(3), 0);
+        button.setOnClickListener(v -> showBrowser(url, false));
+        row.addView(button, params);
+    }
+
+    private void updateTabColors() {
+        if (editorTab == null || browserTab == null) return;
+        editorTab.setBackgroundColor(browserVisible ? Color.rgb(35, 43, 57) : Color.rgb(22, 115, 180));
+        browserTab.setBackgroundColor(browserVisible ? Color.rgb(22, 115, 180) : Color.rgb(35, 43, 57));
+    }
+
+    private void showEditor() {
+        browserVisible = false;
+        if (browserView != null) browserView.setVisibility(View.GONE);
+        if (webView != null) {
+            webView.setVisibility(View.VISIBLE);
+            webView.evaluateJavascript("window.refreshNativeAIStatus&&window.refreshNativeAIStatus()", null);
+        }
+        if (browserToolbar != null) browserToolbar.setVisibility(View.GONE);
+        if (browserShortcuts != null) browserShortcuts.setVisibility(View.GONE);
+        updateTabColors();
+    }
+
+    private void showBrowser(String url, boolean unused) {
+        String target = url == null || url.trim().isEmpty() ? "https://chatgpt.com/" : url.trim();
+        if (!target.startsWith("https://") && !target.startsWith("http://")) target = "https://" + target;
+        browserVisible = true;
+        if (webView != null) webView.setVisibility(View.GONE);
+        if (browserView != null) {
+            browserView.setVisibility(View.VISIBLE);
+            String current = browserView.getUrl();
+            if (!target.equals(current)) browserView.loadUrl(target);
+        }
+        if (browserToolbar != null) browserToolbar.setVisibility(View.VISIBLE);
+        if (browserShortcuts != null) browserShortcuts.setVisibility(View.VISIBLE);
+        if (browserAddress != null) browserAddress.setText(target);
+        updateTabColors();
+    }
+
+    private void navigateBrowser() {
+        if (browserAddress == null) return;
+        String target = browserAddress.getText().toString().trim();
+        if (target.isEmpty()) return;
+        if (!(target.startsWith("https://") || target.startsWith("http://"))) {
+            if (target.contains(" ") || !target.contains(".")) target = "https://www.google.com/search?q=" + Uri.encode(target);
+            else target = "https://" + target;
+        }
+        if (!target.startsWith("https://") && !target.startsWith("http://")) {
+            android.widget.Toast.makeText(this, "Use um endereço HTTPS ou HTTP.", android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+        browserAddress.setText(target);
+        browserView.loadUrl(target);
+        View current = getCurrentFocus();
+        if (current != null) {
+            InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+            if (imm != null) imm.hideSoftInputFromWindow(current.getWindowToken(), 0);
+            current.clearFocus();
+        }
     }
 
     private String mode() {
@@ -349,6 +595,38 @@ public final class MainActivity extends Activity {
         @JavascriptInterface
         public void configureAI() {
             runOnUiThread(MainActivity.this::showAISettings);
+        }
+
+        @JavascriptInterface
+        public void openAIBrowserWithPrompt(String prompt) {
+            String safePrompt = prompt == null ? "" : prompt.trim();
+            if (safePrompt.length() > 20000) safePrompt = safePrompt.substring(0, 20000);
+            String finalPrompt = safePrompt;
+            runOnUiThread(() -> {
+                if (!finalPrompt.isEmpty()) {
+                    ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                    if (clipboard != null) clipboard.setPrimaryClip(ClipData.newPlainText("MotionForge AI prompt", finalPrompt));
+                }
+                showBrowser("https://chatgpt.com/", false);
+                if (!finalPrompt.isEmpty()) {
+                    android.widget.Toast.makeText(MainActivity.this, "Pedido copiado. Cole no chat da IA. Para trazer a resposta, copie-a e toque em Importar resposta no Editor.", android.widget.Toast.LENGTH_LONG).show();
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public String readClipboardText() {
+            try {
+                ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                if (clipboard == null || !clipboard.hasPrimaryClip()) return "";
+                ClipData clip = clipboard.getPrimaryClip();
+                if (clip == null || clip.getItemCount() == 0) return "";
+                CharSequence text = clip.getItemAt(0).coerceToText(MainActivity.this);
+                String value = text == null ? "" : text.toString();
+                return value.length() > 50000 ? value.substring(0, 50000) : value;
+            } catch (Exception ex) {
+                return "";
+            }
         }
     }
 
