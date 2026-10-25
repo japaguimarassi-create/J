@@ -29,9 +29,6 @@ class BrainstormTests(unittest.TestCase):
             "Proposta técnica A",
             "Proposta visual B",
             "Proposta de revisão C",
-            json.dumps(review_payload()),
-            json.dumps(review_payload()),
-            json.dumps(review_payload()),
             'Resumo consolidado\n\n~~~forge\nscene "Teste" fps=24 width=960 height=540\ncircle orb x=40 y=50 radius=12 color=#65e8d4\n~~~',
             *final_votes,
         ]
