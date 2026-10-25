@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0e14">
+<meta name="description" content="MotionForge Studio: editor 2D/3D, linguagem FORGE e IA local.">
+<title>MotionForge Studio</title><link rel="stylesheet" href="./style.css">
+</head>
+<body><div class="app">
+<header class="topbar">
+<a class="brand" href="#"><span class="mark"><i></i><i></i><i></i></span><span><b>motionforge</b><small>STUDIO / 0.1</small></span></a>
+<div class="project-label"><i class="live-dot"></i><span id="projectName">Orbit Study</span><small id="saveState">Salvo localmente</small></div>
+<div class="top-actions"><button class="icon-button" id="newBtn" title="Novo projeto">＋</button><button class="button ghost" id="openBtn">Abrir JSON</button><input type="file" id="openFile" accept=".json,application/json" hidden><button class="button ghost" id="saveBtn">Exportar projeto</button><button class="button primary" id="exportBtn">Baixar FORGE ↗</button></div>
+</header>
+<main class="layout">
+<aside class="sidebar"><div class="section-head"><span>01 / PROJETO</span><button id="addBtn" class="small-add" title="Adicionar círculo">+</button></div>
+<div class="project-card"><div class="thumb"><span></span><i></i></div><div><b id="sideName">Orbit Study</b><small>2D + 3D · 24 FPS</small></div></div>
+<div class="section-label">CENA ATIVA <span id="objectCount">04</span></div><div id="objectList" class="object-list"></div><div class="side-bottom"><i class="live-dot"></i> Workspace local</div></aside>
+<section class="editor">
+<div class="viewbar"><div class="tabs"><button class="viewtab active" data-view="2d">◉ Canvas 2D</button><button class="viewtab" data-view="3d">◇ Viewport 3D</button><button class="viewtab" data-view="code">⌘ FORGE</button></div><div class="frame-info"><span id="frameInfo">FRAME 000 / 048</span><button id="fitBtn" title="Ajustar visualização">⤢</button></div></div>
+<div class="stage-wrap">
+<section class="stage active" id="stage2d"><div class="stage-caption"><span><i class="live-dot"></i> LIVE PREVIEW</span><span>960 × 540</span></div><canvas id="canvas2d" width="960" height="540" aria-label="Pré-visualização 2D"></canvas><div class="stage-foot">＋ <span>Pré-visualização da cena</span></div></section>
+<section class="stage" id="stage3d"><div class="stage-caption"><span><i class="live-dot"></i> 3D VIEWPORT</span><span id="threeStatus">Preparando WebGL…</span></div><div id="threeCanvas"></div><div class="stage-foot">＋ <span>Arraste para girar · roda para zoom</span></div></section>
+<section class="stage code-stage" id="stageCode"><div class="stage-caption"><span><i class="live-dot"></i> FORGE SOURCE</span><span id="lineCount">0 LINHAS</span></div><textarea id="forgeSource" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Código FORGE"></textarea></section>
+</div>
+<div class="transport"><div class="transport-buttons"><button id="firstBtn" title="Primeiro quadro">|◀</button><button id="playBtn" class="play">▶</button><button id="lastBtn" title="Último quadro">▶|</button></div><div class="time-label"><b>Timeline</b><span id="timeReadout">00:00:00</span></div><div class="time-right"><span>24 FPS</span><i></i><span id="durationReadout">2.0 s</span></div></div>
+<div class="timeline"><div id="ruler" class="ruler"></div><input id="frameSlider" type="range" min="0" max="48" value="0" aria-label="Quadro atual"><div id="tracks" class="tracks"></div></div>
+<div class="statusbar"><span><i class="live-dot"></i><span id="statusText">Pronto para animar</span></span><span>FORGE 0.1 · <b id="parseState">SEM ERROS</b></span></div>
+</section>
+<aside class="rightbar">
+<nav class="right-tabs"><button class="righttab active" data-panel="inspector">Inspector</button><button class="righttab" data-panel="ai">✦ Forge AI</button></nav>
+<section id="inspector" class="panel"><div class="panel-title"><div><small>PROPRIEDADES</small><h2>Inspector</h2></div><span id="objectType">2D OBJECT</span></div>
+<label for="selectedObject">Objeto selecionado</label><select id="selectedObject"></select>
+<div class="property-grid"><h3>Transformação <span>⌘</span></h3><label for="propX">Posição X</label><input id="propX" type="number" value="120"><label for="propY">Posição Y</label><input id="propY" type="number" value="270"><label for="propScale">Escala</label><input id="propScale" type="number" step=".1" value="1"><h3>Aparência <span>◈</span></h3><label for="propColor">Cor principal</label><div class="color-row"><input id="propColor" type="color" value="#65e8d4"><span id="colorValue">#65E8D4</span></div><button id="applyProps" class="button full">Adicionar keyframe no código ↗</button></div>
+<p class="note"><b>DICA</b> Altere propriedades por quadro e use keyframes para animar posição, escala e rotação.</p></section>
+<section id="aiPanel" class="panel hidden"><div class="ai-heading"><span>✦</span><div><small>LOCAL-FIRST ASSISTANT</small><h2>Forge AI</h2></div><i class="live-dot"></i></div>
+<p class="ai-intro">Planeje cenas, gere scripts FORGE e revise projetos. O brainstorming usa três modelos locais, com avaliação cruzada, antes de uma resposta consolidada.</p>
+<div class="model-status"><b id="modelTitle">IA local</b><span id="modelInfo">Verificando o backend…</span></div>
+<div id="chatLog" class="chat-log"><article class="message"><b>✦</b><div><strong>Forge AI</strong><p>Peça uma ideia de cena, uma animação ou uma revisão do seu script.</p></div></article></div>
+<label class="save-check"><input id="saveForTraining" type="checkbox" checked> Guardar consenso para treinar o aluno</label>
+<div class="ai-buttons"><button id="brainstormBtn" class="button ghost full">✦ Brainstorm com 3 modelos</button><button id="searchBtn" class="button ghost full">⌕ Pesquisar na web</button><button id="trainBtn" class="button ghost full">⚙ Treinar aluno 250K</button></div>
+<div id="sources" class="sources hidden"></div><label for="aiPrompt">Sua instrução</label><textarea id="aiPrompt" rows="3" placeholder="Ex.: anime uma esfera saltando e girando…"></textarea><button id="sendBtn" class="button primary full">Enviar para Forge AI ↗</button><small class="privacy">Sem chave de API · Ollama local · pesquisa web opcional</small></section>
+</aside></main></div><div id="toast" role="status" aria-live="polite"></div><script type="module" src="./app.js"></script></body></html>
