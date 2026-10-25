@@ -1,3 +1,4 @@
+import base64
 import json
 import tempfile
 import unittest
@@ -57,6 +58,28 @@ class BrainstormTests(unittest.TestCase):
             with patch.object(server, "DATA", Path(folder)), patch.object(server, "ollama_chat", side_effect=self.responses([vote(), vote(True, 3), vote()])):
                 result = server.run_brainstorm("Explique keyframes")
                 self.assertFalse(result["approved_for_training"])
+
+
+    def test_reference_validator_accepts_only_small_jpeg_frames(self):
+        image = base64.b64encode(bytes((255, 216, 255, 217))).decode("ascii")
+        self.assertEqual(server.validate_reference_images([image]), [image])
+        with self.assertRaises(ValueError):
+            server.validate_reference_images(["not-base64"])
+        with self.assertRaises(ValueError):
+            server.validate_reference_images([base64.b64encode(b"PNG data").decode("ascii")])
+        with self.assertRaises(ValueError):
+            server.validate_reference_images([image] * 5)
+
+    def test_visual_payload_is_attached_only_to_gemma(self):
+        sample_image = base64.b64encode(bytes((255, 216, 255, 217))).decode("ascii")
+        messages = [{"role": "system", "content": "System"}, {"role": "user", "content": "Look"}]
+        with patch.object(server, "http_json", return_value={"message": {"content": "ok"}}) as request:
+            server.ollama_chat("qwen3.6:27b", messages, images=[sample_image])
+            payload = request.call_args.args[1]
+            self.assertNotIn("images", payload["messages"][-1])
+            server.ollama_chat("gemma4:12b", messages, images=[sample_image])
+            payload = request.call_args.args[1]
+            self.assertEqual(payload["messages"][-1]["images"], [sample_image])
 
 
 if __name__ == "__main__":
