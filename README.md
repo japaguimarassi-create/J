@@ -108,3 +108,28 @@ Abra o [MotionForge Cut](./web/video.html) pelo botão **Editor de vídeo** na i
 - Limites atuais: o áudio é usado na timeline e na exportação, mas não é transcrito automaticamente nem entendido diretamente pelo modelo. Para análise de fala/letra, cole uma transcrição nas notas. A exportação usa WebM e renderiza em tempo real; mantenha a aba aberta até terminar. O suporte a codecs depende do navegador.
 
 Para abrir localmente, execute `python server.py` e acesse `http://127.0.0.1:8000/video.html`. O botão da interface principal também abre o editor.
+
+## APK Android com navegador interno e IA local
+
+O projeto Android fica em `android/`. O aplicativo abre o MotionForge Cut dentro de um WebView nativo, sem mandar o usuário para o Chrome, e oferece seletor de arquivos Android para importar mídia e ZIP. A interface de edição e os controles de IA ficam no próprio app.
+
+O botão **Configurar IA local** permite escolher:
+- **Ollama direto**: chama `/api/chat` no endereço definido e usa o modelo indicado, com quadros visuais quando o modelo aceitar imagens.
+- **Backend MotionForge**: chama `/api/brainstorm` no servidor Python e usa o fluxo de três professores descrito acima.
+
+Para Ollama no mesmo telefone, o endereço padrão é `http://127.0.0.1:11434`. Se o serviço estiver em outro computador/dispositivo da mesma rede, informe o IP local dele e a porta `11434`. Para o backend de três professores, use a porta do servidor MotionForge (normalmente `8000`). Os dispositivos precisam alcançar o endereço configurado; o teste no botão de configuração verifica `/api/tags` ou `/api/status`.
+
+**Os pesos dos modelos não estão embutidos no APK.** O aplicativo contém o editor e a ponte Android para conversar com o serviço local configurado. Para usar Gemma 4, Qwen e gpt-oss, os pesos desses modelos precisam estar instalados em um serviço Ollama compatível e acessível; o fluxo de três professores precisa também do backend Python. Isso evita afirmar que modelos de vários gigabytes cabem no APK ou rodam automaticamente em um celular com memória limitada.
+
+### Construir o APK
+
+O workflow [MotionForge Android APK](https://github.com/japaguimarassi-create/J/actions/workflows/android-apk.yml) compila o APK de depuração a cada alteração relevante no branch `motionforge-editor`. Quando terminar, abra a execução mais recente e baixe o artefato **MotionForge-Cut-Android-debug**. Os artefatos ficam disponíveis por 30 dias.
+
+Build manual em um ambiente com Android SDK, Java 17 e Gradle 8.9:
+
+```bash
+cd android
+gradle --no-daemon assembleDebug
+```
+
+O APK gerado fica em `android/app/build/outputs/apk/debug/app-debug.apk`. É um APK de depuração; não é uma versão assinada para distribuição na Play Store.
