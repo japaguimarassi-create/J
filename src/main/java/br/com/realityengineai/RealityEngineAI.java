@@ -25,6 +25,7 @@ import net.minecraft.block.material.Material;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityCreature;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.EntityAIPanic;
 import net.minecraft.entity.ai.EntityAISwimming;
@@ -62,7 +63,7 @@ import org.apache.logging.log4j.Logger;
 public final class RealityEngineAI {
     public static final String MOD_ID = "realityengineai";
     public static final String NAME = "Reality Engine AI";
-    public static final String VERSION = "0.5.0";
+    public static final String VERSION = "0.6.0";
     public static final Logger LOG = LogManager.getLogger(NAME);
     private static final Pattern DIMENSION_ID = Pattern.compile("(?:dimens[aã]o\\s*)?(\\d+)");
     private static final Map<Integer, String> DIMENSION_DESCRIPTIONS = new HashMap<Integer, String>();
@@ -459,20 +460,140 @@ public final class RealityEngineAI {
         } else {
             selected = realityArtifact;
         }
+        CreationBlueprint blueprint = CreationBlueprint.parse(prompt, CreationPlan.resolve(prompt));
         ItemStack stack = new ItemStack(selected, 1);
-        String name = shorten(prompt, 56);
+        String name = blueprint.objectName;
         stack.setStackDisplayName("§b" + name);
         NBTTagCompound tag = stack.getTagCompound();
         if (tag == null) {
             tag = new NBTTagCompound();
         }
-        tag.setString("RealityDescription", prompt);
-        tag.setString("RealityKind", intent);
+        tag.setString("RealityPrompt", blueprint.fullPrompt);
+        tag.setString("RealityDescription", blueprint.fullPrompt);
+        tag.setString("RealityObjectName", blueprint.objectName);
+        tag.setString("RealityPurpose", blueprint.purpose);
+        tag.setString("RealityMaterial", blueprint.material);
+        tag.setString("RealityEffects", blueprint.effects);
+        tag.setString("RealityKind", blueprint.kind);
+        tag.setString("RealityArchetype", blueprint.archetype);
+        tag.setString("RealityBaseTemplate", selected.getUnlocalizedName());
+        tag.setString("RealityIntent", intent);
         stack.setTagCompound(tag);
         if (!player.inventory.addItemStackToInventory(stack)) {
             player.dropPlayerItemWithRandomChoice(stack, false);
         }
-        player.addChatMessage(new ChatComponentText("Reality Engine: criado " + name + ". Tipo funcional: " + intent + "."));
+        player.addChatMessage(new ChatComponentText("Reality Engine: criou '" + name + "' usando a base " + blueprint.archetype + "."));
+        player.addChatMessage(new ChatComponentText("Material: " + blueprint.material + " | capacidades: "
+            + (blueprint.effects.isEmpty() ? "nenhuma capacidade explícita" : blueprint.getEffectSummary()) + "."));
+        if (!blueprint.purpose.isEmpty()) {
+            player.addChatMessage(new ChatComponentText("Finalidade extraída do pedido completo: " + shorten(blueprint.purpose, 100) + "."));
+        }
+    }
+
+    private static boolean activateBlueprintEffects(ItemStack stack, EntityPlayer player) {
+        if (stack == null || player == null) return false;
+        NBTTagCompound tag = stack.getTagCompound();
+        String prompt = tag == null ? "" : tag.getString("RealityPrompt");
+        if (prompt.isEmpty() && tag != null) prompt = tag.getString("RealityDescription");
+        CreationBlueprint blueprint = CreationBlueprint.parse(prompt);
+        String effects = tag != null && tag.hasKey("RealityEffects") ? tag.getString("RealityEffects") : blueprint.effects;
+        if (effects == null || effects.trim().isEmpty()) return false;
+        boolean applied = false;
+        if (hasEffect(effects, "heal")) {
+            player.heal(8.0F);
+            applied = true;
+        }
+        if (hasEffect(effects, "speed")) {
+            player.addPotionEffect(new PotionEffect(Potion.moveSpeed.id, 600, 1));
+            applied = true;
+        }
+        if (hasEffect(effects, "strength")) {
+            player.addPotionEffect(new PotionEffect(Potion.damageBoost.id, 600, 0));
+            applied = true;
+        }
+        if (hasEffect(effects, "resistance")) {
+            player.addPotionEffect(new PotionEffect(Potion.resistance.id, 600, 0));
+            applied = true;
+        }
+        if (hasEffect(effects, "regeneration")) {
+            player.addPotionEffect(new PotionEffect(Potion.regeneration.id, 200, 0));
+            applied = true;
+        }
+        if (hasEffect(effects, "jump")) {
+            player.addPotionEffect(new PotionEffect(Potion.jump.id, 600, 1));
+            applied = true;
+        }
+        if (hasEffect(effects, "fire_resistance")) {
+            player.addPotionEffect(new PotionEffect(Potion.fireResistance.id, 600, 0));
+            applied = true;
+        }
+        if (hasEffect(effects, "night_vision")) {
+            player.addPotionEffect(new PotionEffect(Potion.nightVision.id, 600, 0));
+            applied = true;
+        }
+        if (hasEffect(effects, "water_breathing")) {
+            player.addPotionEffect(new PotionEffect(Potion.waterBreathing.id, 600, 0));
+            applied = true;
+        }
+        if (hasEffect(effects, "invisibility")) {
+            player.addPotionEffect(new PotionEffect(Potion.invisibility.id, 600, 0));
+            applied = true;
+        }
+        if (hasEffect(effects, "mining_speed")) {
+            player.addPotionEffect(new PotionEffect(Potion.digSpeed.id, 600, 0));
+            applied = true;
+        }
+        if (applied) {
+            player.addChatMessage(new ChatComponentText("Reality Engine: ativou capacidades definidas no pedido: "
+                + blueprint.getEffectSummary() + "."));
+        } else {
+            player.addChatMessage(new ChatComponentText("Reality Engine: capacidades registradas: " + blueprint.getEffectSummary()
+                + ". Este modelo-base não executa todas as ações solicitadas por clique; não vou simular uma ação que não foi implementada."));
+        }
+        return true;
+    }
+
+    private static boolean hasEffect(String effects, String expected) {
+        return effects != null && ("," + effects + ",").contains("," + expected + ",");
+    }
+
+    private static void applyWeaponEffects(ItemStack stack, EntityPlayer player, Entity target) {
+        if (stack == null || player == null || target == null || player.worldObj.isRemote) return;
+        NBTTagCompound tag = stack.getTagCompound();
+        String prompt = tag == null ? "" : tag.getString("RealityPrompt");
+        if (prompt.isEmpty() && tag != null) prompt = tag.getString("RealityDescription");
+        CreationBlueprint blueprint = CreationBlueprint.parse(prompt);
+        String effects = tag != null && tag.hasKey("RealityEffects") ? tag.getString("RealityEffects") : blueprint.effects;
+        boolean applied = false;
+        if (hasEffect(effects, "fire_attack")) {
+            target.setFire(4);
+            applied = true;
+        }
+        if (target instanceof EntityLivingBase) {
+            EntityLivingBase living = (EntityLivingBase) target;
+            if (hasEffect(effects, "freeze_attack")) {
+                living.addPotionEffect(new PotionEffect(Potion.moveSlowdown.id, 100, 2));
+                applied = true;
+            }
+            if (hasEffect(effects, "poison_attack")) {
+                living.addPotionEffect(new PotionEffect(Potion.poison.id, 100, 0));
+                applied = true;
+            }
+            if (hasEffect(effects, "lightning_attack")) {
+                living.addPotionEffect(new PotionEffect(Potion.weakness.id, 100, 1));
+                applied = true;
+            }
+        }
+        if (hasEffect(effects, "knockback")) {
+            double dx = target.posX - player.posX;
+            double dz = target.posZ - player.posZ;
+            double length = Math.sqrt(dx * dx + dz * dz);
+            if (length > 0.001D) target.addVelocity(dx / length * 0.8D, 0.25D, dz / length * 0.8D);
+            applied = true;
+        }
+        if (applied) {
+            player.addChatMessage(new ChatComponentText("Reality Engine: efeito de combate executado: " + blueprint.getEffectSummary() + "."));
+        }
     }
 
     private static void createBlock(EntityPlayer player, String prompt, String intent) {
@@ -637,21 +758,8 @@ public final class RealityEngineAI {
 
         @Override
         public ItemStack onItemRightClick(ItemStack stack, World world, EntityPlayer player) {
-            if (!world.isRemote) {
-                NBTTagCompound tag = stack.getTagCompound();
-                String description = tag == null ? "" : ModKnowledgeBase.normalize(tag.getString("RealityDescription"));
-                if (description.contains("cura") || description.contains("heal") || description.contains("vida")) {
-                    player.heal(8.0F);
-                    player.addChatMessage(new ChatComponentText("Artefato: restaurou 8 pontos de vida."));
-                } else if (description.contains("velocidade") || description.contains("speed")) {
-                    player.addPotionEffect(new PotionEffect(Potion.moveSpeed.id, 20 * 20, 1));
-                    player.addChatMessage(new ChatComponentText("Artefato: velocidade aumentada por 20 segundos."));
-                } else if (description.contains("forca") || description.contains("strength")) {
-                    player.addPotionEffect(new PotionEffect(Potion.damageBoost.id, 20 * 20, 1));
-                    player.addChatMessage(new ChatComponentText("Artefato: força aumentada por 20 segundos."));
-                } else {
-                    player.addChatMessage(new ChatComponentText("Artefato ativo: nenhum poder reconhecido com segurança. Descrição salva no item."));
-                }
+            if (!world.isRemote && !activateBlueprintEffects(stack, player)) {
+                player.addChatMessage(new ChatComponentText("Artefato: nenhuma capacidade explícita foi reconhecida. O pedido completo continua salvo no item."));
             }
             return stack;
         }
@@ -663,6 +771,11 @@ public final class RealityEngineAI {
             setUnlocalizedName("reality_sword");
             setTextureName(MOD_ID + ":reality_sword");
             setCreativeTab(CreativeTabs.tabCombat);
+        }
+        @Override
+        public boolean onLeftClickEntity(ItemStack stack, EntityPlayer player, Entity entity) {
+            applyWeaponEffects(stack, player, entity);
+            return false;
         }
     }
 
@@ -691,6 +804,11 @@ public final class RealityEngineAI {
             setTextureName(MOD_ID + ":reality_dagger");
             setCreativeTab(CreativeTabs.tabCombat);
         }
+        @Override
+        public boolean onLeftClickEntity(ItemStack stack, EntityPlayer player, Entity entity) {
+            applyWeaponEffects(stack, player, entity);
+            return false;
+        }
     }
 
     public static final class ItemRealityStaff extends Item {
@@ -702,10 +820,10 @@ public final class RealityEngineAI {
         }
         @Override
         public ItemStack onItemRightClick(ItemStack stack, World world, EntityPlayer player) {
-            if (!world.isRemote) {
+            if (!world.isRemote && !activateBlueprintEffects(stack, player)) {
                 player.addPotionEffect(new PotionEffect(Potion.moveSpeed.id, 600, 1));
                 player.addPotionEffect(new PotionEffect(Potion.damageBoost.id, 300, 0));
-                player.addChatMessage(new ChatComponentText("Cajado de realidade: velocidade e força ativadas."));
+                player.addChatMessage(new ChatComponentText("Cajado-base: velocidade e força ativadas; o pedido não especificou outras capacidades reconhecidas."));
             }
             return stack;
         }
@@ -720,10 +838,10 @@ public final class RealityEngineAI {
         }
         @Override
         public ItemStack onItemRightClick(ItemStack stack, World world, EntityPlayer player) {
-            if (!world.isRemote) {
+            if (!world.isRemote && !activateBlueprintEffects(stack, player)) {
                 player.addPotionEffect(new PotionEffect(Potion.resistance.id, 600, 0));
                 player.addPotionEffect(new PotionEffect(Potion.regeneration.id, 200, 0));
-                player.addChatMessage(new ChatComponentText("Amuleto de realidade: resistência e regeneração ativadas."));
+                player.addChatMessage(new ChatComponentText("Amuleto-base: resistência e regeneração ativadas; o pedido não especificou outras capacidades reconhecidas."));
             }
             return stack;
         }
