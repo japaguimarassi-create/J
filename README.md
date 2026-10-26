@@ -143,3 +143,17 @@ O gerador procedural cria texturas próprias para cajado, amuleto e adaga; bloco
 - Intent classification evaluation dataset paper: https://aclanthology.org/D19-1131/
 
 Consulte tools/RESEARCH_SOURCES.md para fontes e o método de avaliação. O modelo continua especializado e limitado ao domínio/corpus usado.
+
+
+## Version 0.6.0 — Semantic Creation Blueprint
+
+The creation flow preserves the full prompt and derives a structured blueprint before creating an item. The blueprint separates:
+
+- **Object identity:** display name, item category and base archetype.
+- **Design inputs:** material/style inferred from the entire request.
+- **Purpose and abilities:** action clauses plus a list of independently recognized effects.
+- **Source prompt:** the original full request remains stored on the generated stack for later inspection.
+
+For example, `crie uma espada de gelo que congela inimigos e cura o jogador` creates an item named `Espada de gelo`, keeps the entire instruction in NBT, records the ice design and healing/freezing abilities separately, and executes supported abilities instead of using the entire sentence as the display name. Sword and dagger templates can apply their recognized combat effects on hit; compatible self-effects activate on right-click for artifact, staff and amulet templates.
+
+This is template-based customization of registered Forge 1.7.10 items, not arbitrary registration of a brand-new Minecraft item class, a generated 3D model, or unlimited behavior. Effects are explicitly recognized and only supported actions are executed. Unimplemented abilities remain recorded and are reported rather than falsely claimed as working. Training/evaluation and the Forge CI build remain required checks.
