@@ -86,7 +86,7 @@ public final class CreationPlan {
 
         if(isMapPrompt(v)) return plan(MAP,"procedural","generate_world_region",v,parseRadius(v,16),0.99F);
         if(isTerrainPrompt(v)) {
-            if(contains(v,"deserto","areia","duna")) return plan(TERRAIN,"desert","generate_terrain",v,parseRadius(v,12),0.98F);
+            if(contains(v,"deserto","desertico","areia","duna")) return plan(TERRAIN,"desert","generate_terrain",v,parseRadius(v,12),0.98F);
             if(contains(v,"neve","gelo","congelado","snow","ice")) return plan(TERRAIN,"snow","generate_terrain",v,parseRadius(v,12),0.98F);
             if(contains(v,"montanha","montanhoso","serra","cordilheira","mountain")) return plan(TERRAIN,"mountain","generate_terrain",v,parseRadius(v,12),0.98F);
             if(contains(v,"vulcao","lava","infernal","nether")) return plan(TERRAIN,"volcanic","generate_terrain",v,parseRadius(v,12),0.98F);

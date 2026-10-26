@@ -101,7 +101,7 @@ public final class OfflineBrain {
         while(matcher.find()) words.add(matcher.group());
         Set<Integer> features=new HashSet<Integer>();
         for(String word:words) features.add(Integer.valueOf(hashBucket(word)));
-        for(int i=0;i+1<words.size();i++) features.add(Integer.valueOf(hashBucket(words.get(i)+" "+words.get(i+1)));
+        for(int i=0;i+1<words.size();i++) features.add(Integer.valueOf(hashBucket(words.get(i)+" "+words.get(i+1))));
         return features;
     }
 
