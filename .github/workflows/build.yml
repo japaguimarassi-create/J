@@ -7,6 +7,7 @@ on:
       - reality-engine-ai-v4-runtime-config
       - reality-engine-ai-v0.4-bot-prompt-engine
       - reality-engine-ai-v0.5-trained-intents
+      - reality-engine-ai-v0.6-semantic-blueprint
   pull_request:
   workflow_dispatch:
 
@@ -46,7 +47,7 @@ jobs:
         run: |
           python - <<'PY'
           import zipfile
-          jar = 'build/libs/RealityEngineAI-0.5.0.jar'
+          jar = 'build/libs/RealityEngineAI-0.6.0.jar'
           with zipfile.ZipFile(jar) as archive:
               names = set(archive.namelist())
               required = [
@@ -78,6 +79,6 @@ jobs:
       - name: Upload mod JAR
         uses: actions/upload-artifact@v4
         with:
-          name: RealityEngineAI-1.7.10-v0.5.0
+          name: RealityEngineAI-1.7.10-v0.6.0
           path: build/libs/RealityEngineAI-*.jar
           if-no-files-found: error
