@@ -158,6 +158,11 @@ public final class CreationBlueprint {
         addIf(result, text, "invisibility", "invisibilidade", "ficar invisivel", "invisivel");
         addIf(result, text, "mining_speed", "mineracao rapida", "minerar mais rapido", "velocidade de mineracao");
         addIf(result, text, "fire_attack", "fogo", "chamas", "incendiar", "queimar", "queima", "flamejante", "incendiario");
+        if ((hasTerm(text, "resistencia ao fogo") || hasTerm(text, "protecao contra fogo"))
+                && !hasTerm(text, "espada de fogo") && !hasTerm(text, "adaga de fogo")
+                && !hasTerm(text, "queima") && !hasTerm(text, "chamas") && !hasTerm(text, "incendiar")) {
+            result.remove("fire_attack");
+        }
         addIf(result, text, "freeze_attack", "gelo", "congelar", "congela", "congelamento", "gelido");
         addIf(result, text, "poison_attack", "veneno", "envenenar", "envenena", "venenoso");
         addIf(result, text, "knockback", "repulsao", "empurrar", "arremessar", "afastar inimigos");
