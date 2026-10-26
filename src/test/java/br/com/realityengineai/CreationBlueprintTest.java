@@ -11,8 +11,11 @@ public final class CreationBlueprintTest {
         String prompt = "crie uma espada de gelo que congela inimigos e cura o jogador";
         CreationBlueprint blueprint = CreationBlueprint.parse(prompt);
         assertEquals("Espada de gelo", blueprint.objectName);
-        assertEquals("base", "item");
-        assertEquals("cura,congelar", "unused");
+        assertEquals(CreationPlan.ITEM, blueprint.kind);
+        assertEquals("sword", blueprint.archetype);
+        assertTrue(blueprint.hasEffect("freeze_attack"));
+        assertTrue(blueprint.hasEffect("heal"));
+        assertTrue(blueprint.purpose.contains("congela"));
     }
 
     @Test
