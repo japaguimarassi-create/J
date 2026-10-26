@@ -437,7 +437,7 @@ public final class RealityEngineAI {
     }
 
     private static void sendHelp(EntityPlayer player) {
-        player.addChatMessage(new ChatComponentText("Reality Engine AI 0.5.0 - classificador: " + (BRAIN != null && BRAIN.isReady() ? BRAIN.getParameterCount() + " parâmetros" : "pesos indisponíveis") + "."));
+        player.addChatMessage(new ChatComponentText("Reality Engine AI 0.6.0 - classificador: " + (BRAIN != null && BRAIN.isReady() ? BRAIN.getParameterCount() + " parâmetros" : "pesos indisponíveis") + "."));
         player.addChatMessage(new ChatComponentText("Tipos: item, bloco, entidade, construção, terreno, mapa procedural, dimensão e pesquisa web."));
         player.addChatMessage(new ChatComponentText("Conhecimento de mods: crie lista de mods instalados | crie liste os blocos registrados | crie buscar registro <namespace ou nome>."));
         player.addChatMessage(new ChatComponentText("Criar dimensão não teleporta. Use 'crie entrar na dimensão ID' depois de criar."));
