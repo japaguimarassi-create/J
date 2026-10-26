@@ -52,6 +52,51 @@ RAW = {
 "item_amulet":"crie um amuleto de proteção|amuleto mágico como item|amulet item|colar de energia para inventário|talismã de defesa|amuleto que protege o jogador|pingente de cristal|relíquia de proteção|acessório mágico em item|amuleto que aplica resistência|talismã personalizado",
 "item_dagger":"crie uma adaga de cristal|punhal como item|dagger item|adaga corpo a corpo|faca de combate como item|punhal de energia|lâmina curta para o inventário|adaga mágica|adaga de pedra|item de arma curta|punhal personalizado"
 }
+EXTRA = {
+"entity_car":"automóvel com movimento como entidade|carro que anda sozinho pelo mundo|entidade de caminhão com rodas|veículo dirigível no mundo|mob parecido com carro|crie um automóvel móvel",
+"block_crystal":"cristal brilhante no mundo como bloco|bloco de cristal para iluminar cavernas|bloco de gema luminosa|bloco de cristal azul sólido|bloco de ametista que emite luz|material cristalino registrado como bloco",
+"block_generic":"bloco sólido chamado basalto|bloco de tijolo verde para construir|bloco de pedra com alta resistência|cubo de madeira com textura própria|bloco customizado para colocar no chão|novo bloco de minério",
+"entity_dragon":"adicionar dragão voador ao mundo|dragão que patrulha a área|mob de dragão grande|dragão com textura de escamas|entidade alada parecida com dragão|criatura réptil com asas",
+"entity_hostile":"monstro que procura jogadores para atacar|mob inimigo com IA de perseguição|boss agressivo para a arena|criatura hostil contra o jogador|zumbi que luta contra jogadores|entidade perigosa que causa dano",
+"entity_creature":"animal pacífico que caminha e olha ao redor|mob amigável com skin própria|criatura que vaga sem atacar|novo animal para o Minecraft|entidade dócil que acompanha jogador|personagem NPC amigável",
+"item_sword":"adicionar katana ao inventário|lâmina de obsidiana como item|item de espada lendária|espada dourada que causa dano|arma espada com textura exclusiva|sabre no inventário do jogador",
+"item_tool":"adicionar picareta ao inventário|machado customizado como item|ferramenta que minera blocos|item de pá de pedra|picareta com textura própria|ferramenta para quebrar minérios",
+"item_food":"item comestível para recuperar fome|comida que restaura pontos de fome|alimento customizado de Minecraft|item de maçã comestível|pão restaurador no inventário|fruta que recupera vida e fome",
+"item_generic":"relíquia para guardar no inventário|objeto chamado Núcleo Antigo|item genérico mágico|essência registrada como item|objeto carregável no inventário|item simples com nome próprio",
+"dimension_desert":"mundo separado com areia e dunas|dimensão com bioma desértico|planeta dimensional de areia|mundo dimensional de arenito|outra dimensão seca|dimensão coberta por cactos",
+"dimension_cold":"dimensão nova com gelo|mundo separado coberto por neve|planeta dimensional congelado|dimensão com geleiras azuis|outra dimensão gelada|mundo de inverno permanente",
+"dimension_forest":"mundo separado de mata densa|dimensão com árvores gigantes|planeta coberto de floresta|outra dimensão cheia de selva|mundo dimensional verde|dimensão de árvores e cipós",
+"dimension_space":"mundo separado no espaço sideral|dimensão cósmica com vazio|planeta sem céu normal|outra dimensão de estrelas|mundo espacial com baixa gravidade visual|dimensão lunar",
+"dimension_infernal":"outro mundo de netherrack e lava|dimensão vulcânica hostil|planeta com rios de lava|mundo separado de fogo|dimensão de cinzas e rocha quente|bioma dimensional infernal",
+"dimension_generic":"crie um espaço dimensional próprio|outro mundo separado do principal|mundo adicional com regras próprias|nova área dimensional|planeta independente para explorar|dimensão customizada sem tema",
+"query_mods":"mostrar os mods Forge carregados agora|consultar lista de modificações instaladas|quais extensões estão ativas|mostrar nomes e identificadores dos mods|ver mods que estão funcionando|imprimir catálogo de mods",
+"query_blocks":"pesquisar os blocos disponíveis no registro|mostrar identificadores de blocos|quais blocos foram registrados pelos mods|imprimir todos os blocos disponíveis|buscar bloco pelo nome|consultar IDs de blocos",
+"query_items":"pesquisar os itens disponíveis no registro|mostrar identificadores dos itens|quais itens foram registrados pelos mods|imprimir catálogo completo de itens|buscar item pelo nome|consultar IDs de itens",
+"query_entities":"pesquisar entidades do registro|mostrar tipos de criatura carregados|quais entidades os mods adicionaram|imprimir lista de entidades|consultar identificadores de mobs|buscar criatura registrada",
+"query_dimensions":"quais dimensões foram registradas|mostrar IDs dos mundos dimensionais|pesquisar dimensão disponível|imprimir catálogo de dimensões|listar mundos extras do mod|consultar dimensão por ID",
+"command_enter":"teleporte-me para dimensão 8|viajar até a dimensão 5|mude meu mundo para dimensão 4|entrar no mundo dimensional de neve|ir ao mundo criado anteriormente|usar o portal para outra dimensão",
+"ask_help":"me mostre como usar o Reality Engine|quero aprender os comandos desta IA|explique o que posso criar|listar funções disponíveis|como funciona o comando de criação|ensine os comandos básicos",
+"ambiguous":"faça algo sem explicar o tipo|quero que invente qualquer coisa|crie alguma coisa legal|não especifiquei o que criar|me surpreenda sem detalhes|execute uma criação aleatória",
+"structure_house":"construa um abrigo com paredes e telhado|uma cabana para morar|casa compacta com porta e janelas|edifício residencial de madeira|construa uma moradia pequena|uma residência de blocos de pedra",
+"structure_castle":"forte medieval com torres e muralhas|construa uma cidadela fortificada|castelo com ameias no alto|fortaleza de pedra com portão|castelo medieval para o mundo|um bastião com quatro torres",
+"structure_tower":"construa torre de observação alta|estrutura estreita e vertical|torre de vigia feita de pedra|prédio alto em forma de torre|torre com pavimentos|torre alta com topo aberto",
+"structure_bridge":"ponte para conectar duas margens|estrutura que cruza um rio|passarela elevada de madeira|construa um viaduto de blocos|ponte com corrimões|ponte comprida sobre um vale",
+"structure_city":"bairro com ruas e edifícios|uma área urbana com avenidas|cidade organizada em quarteirões|centro urbano com casas|construa uma pequena metrópole|vila com ruas e prédios",
+"structure_maze":"labirinto com caminhos e paredes|corredores entre muros altos|estrutura de labirinto para explorar|maze com rotas confusas|construa um percurso de paredes|labirinto fechado de pedra",
+"terrain_plain":"terreno aberto nivelado|gere uma superfície plana com grama|planície sem prédios nem casas|área de solo plano para construir|terreno de terra sem relevo alto|nivelar o solo de um campo",
+"terrain_desert":"paisagem seca com dunas onduladas|gere areia e arenito como relevo|terreno árido sem edifícios|solo desértico com elevações naturais|crie uma região de dunas|terreno arenoso e seco",
+"terrain_mountain":"cadeia de picos rochosos|terreno alto com vales profundos|região montanhosa com elevação natural|gere uma serra de pedra|paisagem de picos e encostas|terreno de montanhas íngremes",
+"terrain_snow":"solo coberto de blocos de neve|terreno nevado sem edifícios|paisagem de inverno montanhosa|gere uma área congelada|superfície branca de neve|terreno frio com camada de neve",
+"terrain_volcanic":"solo de rocha vulcânica|terreno de netherrack com ondas|região com pedra quente e lava visual|paisagem com picos vulcânicos|chão infernal de rocha escura|terreno vulcânico irregular",
+"map_procedural":"crie uma região inédita no mapa|gere uma área explorável do mundo|mapa novo procedural para aventura|mapa de mundo aberto|crie um território inteiro|construir uma região nova com relevo",
+"block_machine":"bloco de circuito eletrônico|bloco tecnológico interativo|bloco de máquina industrial|um bloco eletrônico que responde ao clique|bloco computacional com luz|máquina registrada como bloco",
+"block_corrupted":"bloco infectado roxo|bloco com rachaduras corruptas|bloco de matéria contaminada|bloco escuro de corrupção|bloco corrompido com linhas luminosas|bloco que parece infectado",
+"item_staff":"cajado de energia no inventário|bastão mágico clicável|item de cajado que concede poderes|vara arcana como item|staff mágico para segurar|cajado que ativa efeitos ao usar",
+"item_amulet":"talismã de resistência como item|amuleto que protege ao usar|objeto de amuleto no inventário|pingente de proteção mágico|item de proteção chamado amuleto|talismã com efeito de resistência",
+"item_dagger":"adaga curta como item de arma|punhal personalizado no inventário|faca de combate do tipo adaga|adaga metálica com textura própria|arma curta de cristal|item de punhal para lutar"
+}
+for label, extra in EXTRA.items():
+    RAW[label] += "|" + extra
 EXAMPLES = {key: list(dict.fromkeys(value.split("|"))) for key, value in RAW.items()}
 
 def normalize(text):
@@ -126,7 +171,7 @@ def train():
     m = [np.zeros_like(v) for v in params]; v = [np.zeros_like(x) for x in params]
     max_generations = max(1, int(os.getenv("REAI_MAX_EPOCHS", "500000")))
     time_budget = max(15, int(os.getenv("REAI_MAX_TRAIN_SECONDS", "90")))
-    patience_limit, no_improvement, min_delta = 18, 0, .0001
+    patience_limit, no_improvement, min_delta = 24, 0, .00005
     best_loss, best_params, best_gen = float("inf"), None, 0
     step, generations, stop_reason = 0, 0, "generation_budget"
     start_time, batch_size = time.monotonic(), 64
