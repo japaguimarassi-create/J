@@ -69,7 +69,7 @@ public final class CreationPlan {
             return plan(ITEM,"artifact","recognized_effects_only","",0,0.92F);
         }
 
-        boolean entity=has(v,"entidade","mob","criatura","npc","personagem","ser vivo")||contains(v,"como entidade","como mob","como criatura");
+        boolean entity=has(v,"entidade","mob","criatura","monstro","monstros","boss","npc","personagem","ser vivo")||contains(v,"como entidade","como mob","como criatura");
         boolean corruption=has(v,"corrompe","corromper","corrompendo","corrompida","corrompido","infecta","infectar","contamina","contaminar","transforma","transformar","corruptor","corruption");
         boolean nearby=has(v,"bloco","blocos","construcao","construcoes","terreno");
         if(entity) {
