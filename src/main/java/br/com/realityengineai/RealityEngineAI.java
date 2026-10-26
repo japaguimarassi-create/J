@@ -62,7 +62,7 @@ import org.apache.logging.log4j.Logger;
 public final class RealityEngineAI {
     public static final String MOD_ID = "realityengineai";
     public static final String NAME = "Reality Engine AI";
-    public static final String VERSION = "0.4.0";
+    public static final String VERSION = "0.5.0";
     public static final Logger LOG = LogManager.getLogger(NAME);
     private static final Pattern DIMENSION_ID = Pattern.compile("(?:dimens[aã]o\\s*)?(\\d+)");
     private static final Map<Integer, String> DIMENSION_DESCRIPTIONS = new HashMap<Integer, String>();
@@ -83,6 +83,12 @@ public final class RealityEngineAI {
     public static ItemRealityFood realityFood;
     public static BlockReality realityBlock;
     public static BlockCrystal crystalBlock;
+    public static ItemRealityStaff realityStaff;
+    public static ItemRealityAmulet realityAmulet;
+    public static ItemRealityDagger realityDagger;
+    public static BlockRealityVariant realityTechBlock;
+    public static BlockRealityVariant realityMetalBlock;
+    public static BlockRealityVariant realityCorruptedBlock;
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
@@ -91,6 +97,8 @@ public final class RealityEngineAI {
         MinecraftForge.EVENT_BUS.register(RuntimeConfigurationEngine.INSTANCE);
         BotPromptEngine.INSTANCE.initialize(event.getModConfigurationDirectory());
         FMLCommonHandler.instance().bus().register(BotPromptEngine.INSTANCE);
+        OnlineResearchEngine.INSTANCE.initialize(event.getModConfigurationDirectory());
+        FMLCommonHandler.instance().bus().register(OnlineResearchEngine.INSTANCE);
 
         realityArtifact = new ItemRealityArtifact();
         GameRegistry.registerItem(realityArtifact, "reality_artifact");
@@ -100,6 +108,12 @@ public final class RealityEngineAI {
         GameRegistry.registerItem(realityPickaxe, "reality_pickaxe");
         realityFood = new ItemRealityFood();
         GameRegistry.registerItem(realityFood, "reality_food");
+        realityStaff = new ItemRealityStaff();
+        GameRegistry.registerItem(realityStaff, "reality_staff");
+        realityAmulet = new ItemRealityAmulet();
+        GameRegistry.registerItem(realityAmulet, "reality_amulet");
+        realityDagger = new ItemRealityDagger();
+        GameRegistry.registerItem(realityDagger, "reality_dagger");
 
         realityBlock = new BlockReality();
         GameRegistry.registerBlock(realityBlock, "reality_block");
@@ -107,6 +121,12 @@ public final class RealityEngineAI {
         GameRegistry.registerBlock(crystalBlock, "reality_crystal");
         GameRegistry.registerTileEntity(TileEntityReality.class, MOD_ID + ":reality_block");
         GameRegistry.registerTileEntity(TileEntityCrystal.class, MOD_ID + ":reality_crystal");
+        realityTechBlock = new BlockRealityVariant("reality_tech", "reality_tech", Material.iron, 2.5F, 1);
+        GameRegistry.registerBlock(realityTechBlock, "reality_tech");
+        realityMetalBlock = new BlockRealityVariant("reality_metal", "reality_metal", Material.iron, 4.0F, 0);
+        GameRegistry.registerBlock(realityMetalBlock, "reality_metal");
+        realityCorruptedBlock = new BlockRealityVariant("reality_corrupted", "reality_corrupted", Material.rock, 3.0F, 2);
+        GameRegistry.registerBlock(realityCorruptedBlock, "reality_corrupted");
 
         EntityRegistry.registerModEntity(EntityReality.class, "reality_entity", 1, this, 64, 3, true);
         EntityRegistry.registerModEntity(EntityRealityBot.class, "reality_bot", 2, this, 64, 3, true);
@@ -117,7 +137,7 @@ public final class RealityEngineAI {
         if (PROXY != null) {
             PROXY.registerRenderers();
         }
-        LOG.info("Reality Engine AI 0.3.0 initialized. brainReady=" + (BRAIN != null && BRAIN.isReady())
+        LOG.info("Reality Engine AI 0.5.0 initialized. brainReady=" + (BRAIN != null && BRAIN.isReady())
             + ", parameters=" + (BRAIN == null ? 0 : BRAIN.getParameterCount()));
     }
 
@@ -266,7 +286,22 @@ public final class RealityEngineAI {
                 return;
             }
 
-            String intent = resolveIntent(prompt, normalized);
+            CreationPlan semanticPlan = CreationPlan.resolve(prompt);
+            if (CreationPlan.QUERY.equals(semanticPlan.kind) && "internet_research".equals(semanticPlan.archetype)) {
+                OnlineResearchEngine.INSTANCE.research(player, semanticPlan.query);
+                return;
+            }
+            if (CreationPlan.MAP.equals(semanticPlan.kind) || CreationPlan.TERRAIN.equals(semanticPlan.kind)
+                || CreationPlan.STRUCTURE.equals(semanticPlan.kind)) {
+                EntityRealityBot bot = BotPromptEngine.INSTANCE.spawnBot(player);
+                if (bot == null) {
+                    player.addChatMessage(new ChatComponentText("Reality Engine: não foi possível gerar o bot executor; nada foi construído."));
+                    return;
+                }
+                BotPromptEngine.INSTANCE.submit(player, bot, prompt);
+                return;
+            }
+            String intent = intentFromPlan(semanticPlan, prompt, normalized);
             if ("computer_prototype_removed".equals(intent)) {
                 player.addChatMessage(new ChatComponentText("Reality Engine: removi o computador demonstrativo porque ele só simulava uma interface. Nenhum bloco falso foi criado."));
                 player.addChatMessage(new ChatComponentText("A camada de configurações de runtime permite implementar comportamentos por eventos, mas um computador programável real ainda exige uma implementação própria."));
@@ -298,8 +333,46 @@ public final class RealityEngineAI {
         }
     }
 
+    private static String intentFromPlan(CreationPlan plan, String prompt, String normalized) {
+        if (plan == null) return resolveIntent(prompt, normalized);
+        if (CreationPlan.BLOCK.equals(plan.kind)) {
+            if ("crystal".equals(plan.archetype)) return "block_crystal";
+            if ("machine".equals(plan.archetype)) return "block_machine";
+            if ("corrupted".equals(plan.archetype)) return "block_corrupted";
+            if (containsAny(normalized, "metal", "metalico", "ferro", "aco", "onix")) return "block_metal";
+            return "block_generic";
+        }
+        if (CreationPlan.ITEM.equals(plan.kind)) {
+            if ("sword".equals(plan.archetype)) return "item_sword";
+            if ("tool".equals(plan.archetype)) return "item_tool";
+            if ("food".equals(plan.archetype)) return "item_food";
+            if ("staff".equals(plan.archetype)) return "item_staff";
+            if ("amulet".equals(plan.archetype)) return "item_amulet";
+            if ("dagger".equals(plan.archetype)) return "item_dagger";
+            return "item_generic";
+        }
+        if (CreationPlan.ENTITY.equals(plan.kind)) {
+            if ("corruptor".equals(plan.archetype)) return "entity_corruptor";
+            if ("car".equals(plan.archetype)) return "entity_car";
+            if ("dragon".equals(plan.archetype)) return "entity_dragon";
+            if ("hostile_creature".equals(plan.archetype)) return "entity_hostile";
+            return "entity_creature";
+        }
+        if (CreationPlan.DIMENSION.equals(plan.kind)) return "dimension_" + plan.archetype;
+        if (CreationPlan.QUERY.equals(plan.kind)) {
+            if ("query_mods".equals(plan.archetype)) return "query_mods";
+            if ("query_registry".equals(plan.archetype) || "query_registry_search".equals(plan.archetype)) return "query_blocks";
+            if ("query_entities".equals(plan.archetype)) return "query_entities";
+            if ("query_dimensions".equals(plan.archetype)) return "query_dimensions";
+            if ("enter_dimension".equals(plan.archetype)) return "command_enter";
+            if ("help".equals(plan.archetype)) return "ask_help";
+        }
+        return resolveIntent(prompt, normalized);
+    }
+
     private static String resolveIntent(String prompt, String normalized) {
         if (containsAny(normalized, "computador", "computer", "terminal em bloco", "pc em bloco", "maquina de computacao", "maquina computacional")) {
+            if (containsAny(normalized, "bloco de computador", "computador como bloco", "como bloco", "em bloco", "em forma de bloco")) return "block_machine";
             return "computer_prototype_removed";
         }
         if (containsAny(normalized, "dimensao", "planeta", "universo", "mundo novo")) {
@@ -327,15 +400,15 @@ public final class RealityEngineAI {
             }
             return containsAny(normalized, "dragao") ? "entity_dragon" : "entity_creature";
         }
-        if (containsAny(normalized, "bloco de cristal", "bloco cristalino", "cristal em bloco", "cristal luminoso")) {
-            return "block_crystal";
-        }
-        if (containsAny(normalized, "bloco", "block", "maquina", "estrutura em bloco")) {
-            return "block_generic";
-        }
-        if (containsAny(normalized, "espada", "sabre", "katana", "lamina")) {
-            return "item_sword";
-        }
+        if (containsAny(normalized, "bloco de cristal", "bloco cristalino", "cristal em bloco", "cristal luminoso", "bloco de ametista")) return "block_crystal";
+        if (containsAny(normalized, "bloco de maquina", "maquina em bloco", "bloco tecnologico", "bloco de tecnologia", "bloco de circuito", "bloco de computador")) return "block_machine";
+        if (containsAny(normalized, "bloco corrompido", "bloco corrompida", "bloco de corrupcao", "bloco contaminado", "bloco infectado")) return "block_corrupted";
+        if (containsAny(normalized, "bloco de metal", "bloco metalico", "bloco de ferro", "bloco de aco")) return "block_metal";
+        if (containsAny(normalized, "bloco", "block", "maquina", "estrutura em bloco")) return "block_generic";
+        if (containsAny(normalized, "espada", "sabre", "katana", "lamina")) return "item_sword";
+        if (containsAny(normalized, "adaga", "punhal", "dagger")) return "item_dagger";
+        if (containsAny(normalized, "cajado", "bastao", "varinha", "staff")) return "item_staff";
+        if (containsAny(normalized, "amuleto", "talism", "amulet")) return "item_amulet";
         if (containsAny(normalized, "picareta", "machado", "ferramenta", "minerador", "mineracao")) {
             return "item_tool";
         }
@@ -363,8 +436,8 @@ public final class RealityEngineAI {
     }
 
     private static void sendHelp(EntityPlayer player) {
-        player.addChatMessage(new ChatComponentText("Reality Engine AI 0.3.0 - cérebro offline: " + (BRAIN != null && BRAIN.isReady() ? BRAIN.getParameterCount() + " parâmetros" : "pesos indisponíveis") + "."));
-        player.addChatMessage(new ChatComponentText("Criações: bloco de cristal, bloco, espada, picareta, comida, criatura e dimensão temática."));
+        player.addChatMessage(new ChatComponentText("Reality Engine AI 0.5.0 - classificador: " + (BRAIN != null && BRAIN.isReady() ? BRAIN.getParameterCount() + " parâmetros" : "pesos indisponíveis") + "."));
+        player.addChatMessage(new ChatComponentText("Tipos: item, bloco, entidade, construção, terreno, mapa procedural, dimensão e pesquisa web."));
         player.addChatMessage(new ChatComponentText("Conhecimento de mods: crie lista de mods instalados | crie liste os blocos registrados | crie buscar registro <namespace ou nome>."));
         player.addChatMessage(new ChatComponentText("Criar dimensão não teleporta. Use 'crie entrar na dimensão ID' depois de criar."));
     }
@@ -377,6 +450,12 @@ public final class RealityEngineAI {
             selected = realityPickaxe;
         } else if ("item_food".equals(intent)) {
             selected = realityFood;
+        } else if ("item_staff".equals(intent)) {
+            selected = realityStaff;
+        } else if ("item_amulet".equals(intent)) {
+            selected = realityAmulet;
+        } else if ("item_dagger".equals(intent)) {
+            selected = realityDagger;
         } else {
             selected = realityArtifact;
         }
@@ -404,11 +483,11 @@ public final class RealityEngineAI {
             return;
         }
         Block chosen;
-        if ("block_crystal".equals(intent)) {
-            chosen = crystalBlock;
-        } else {
-            chosen = realityBlock;
-        }
+        if ("block_crystal".equals(intent)) chosen = crystalBlock;
+        else if ("block_machine".equals(intent)) chosen = realityTechBlock;
+        else if ("block_corrupted".equals(intent)) chosen = realityCorruptedBlock;
+        else if ("block_metal".equals(intent)) chosen = realityMetalBlock;
+        else chosen = realityBlock;
         if (!world.setBlock(position.x, position.y, position.z, chosen, 0, 3)) {
             player.addChatMessage(new ChatComponentText("Reality Engine: o jogo recusou a colocação; nada foi criado."));
             return;
@@ -602,6 +681,82 @@ public final class RealityEngineAI {
             setUnlocalizedName("reality_food");
             setTextureName(MOD_ID + ":reality_food");
             setCreativeTab(CreativeTabs.tabFood);
+        }
+    }
+
+    public static final class ItemRealityDagger extends ItemSword {
+        public ItemRealityDagger() {
+            super(Item.ToolMaterial.EMERALD);
+            setUnlocalizedName("reality_dagger");
+            setTextureName(MOD_ID + ":reality_dagger");
+            setCreativeTab(CreativeTabs.tabCombat);
+        }
+    }
+
+    public static final class ItemRealityStaff extends Item {
+        public ItemRealityStaff() {
+            setUnlocalizedName("reality_staff");
+            setTextureName(MOD_ID + ":reality_staff");
+            setMaxStackSize(1);
+            setCreativeTab(CreativeTabs.tabTools);
+        }
+        @Override
+        public ItemStack onItemRightClick(ItemStack stack, World world, EntityPlayer player) {
+            if (!world.isRemote) {
+                player.addPotionEffect(new PotionEffect(Potion.moveSpeed.id, 600, 1));
+                player.addPotionEffect(new PotionEffect(Potion.damageBoost.id, 300, 0));
+                player.addChatMessage(new ChatComponentText("Cajado de realidade: velocidade e força ativadas."));
+            }
+            return stack;
+        }
+    }
+
+    public static final class ItemRealityAmulet extends Item {
+        public ItemRealityAmulet() {
+            setUnlocalizedName("reality_amulet");
+            setTextureName(MOD_ID + ":reality_amulet");
+            setMaxStackSize(1);
+            setCreativeTab(CreativeTabs.tabMisc);
+        }
+        @Override
+        public ItemStack onItemRightClick(ItemStack stack, World world, EntityPlayer player) {
+            if (!world.isRemote) {
+                player.addPotionEffect(new PotionEffect(Potion.resistance.id, 600, 0));
+                player.addPotionEffect(new PotionEffect(Potion.regeneration.id, 200, 0));
+                player.addChatMessage(new ChatComponentText("Amuleto de realidade: resistência e regeneração ativadas."));
+            }
+            return stack;
+        }
+    }
+
+    public static final class BlockRealityVariant extends Block {
+        private final int behavior;
+        public BlockRealityVariant(String name, String texture, Material material, float hardness, int behavior) {
+            super(material);
+            this.behavior = behavior;
+            setBlockName(name);
+            setBlockTextureName(MOD_ID + ":" + texture);
+            setHardness(hardness);
+            setResistance(10.0F);
+            setStepSound(soundTypeStone);
+            setCreativeTab(CreativeTabs.tabBlock);
+            if (behavior == 1) setLightLevel(0.2F);
+        }
+        @Override
+        public boolean onBlockActivated(World world, int x, int y, int z, EntityPlayer player, int side,
+                float hitX, float hitY, float hitZ) {
+            if (!world.isRemote) {
+                if (behavior == 1) {
+                    player.addPotionEffect(new PotionEffect(Potion.digSpeed.id, 240, 0));
+                    player.addChatMessage(new ChatComponentText("Bloco tecnológico: aceleração de mineração ativada."));
+                } else if (behavior == 2) {
+                    player.addPotionEffect(new PotionEffect(Potion.weakness.id, 100, 0));
+                    player.addChatMessage(new ChatComponentText("Bloco corrompido: efeito de fraqueza aplicado."));
+                } else {
+                    player.addChatMessage(new ChatComponentText("Bloco metálico da Reality Engine AI. Coordenadas: " + x + ", " + y + ", " + z + "."));
+                }
+            }
+            return true;
         }
     }
 

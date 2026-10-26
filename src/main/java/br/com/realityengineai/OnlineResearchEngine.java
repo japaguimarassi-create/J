@@ -41,8 +41,8 @@ public final class OnlineResearchEngine {
     private static final int MAX_QUERY_LENGTH = 180;
     private static final int MAX_RESULTS = 10;
     private static final int MAX_RESPONSE_BYTES = 524288;
-    private static final Pattern LINKS = Pattern.compile("(?is)<a[^>]*class=\\"[^\\"]*result__a[^\\"]*\\"[^>]*href=\\"([^\\"]+)\\"[^>]*>(.*?)</a>");
-    private static final Pattern SNIPPETS = Pattern.compile("(?is)class=\\"result__snippet\\"[^>]*>(.*?)</a>");
+    private static final Pattern LINKS = Pattern.compile("(?is)<a(?=[^>]*result__a)[^>]*href=([^ >]+)[^>]*>(.*?)</a>");
+    private static final Pattern SNIPPETS = Pattern.compile("(?is)class=.result__snippet.>(.*?)</a>");
     private final ExecutorService workers = Executors.newFixedThreadPool(3, new ThreadFactory() {
         private final AtomicInteger index = new AtomicInteger();
         public Thread newThread(Runnable task) {
@@ -171,7 +171,7 @@ public final class OnlineResearchEngine {
         List<ResearchResult> results = new ArrayList<ResearchResult>();
         Matcher matcher = LINKS.matcher(html);
         while (matcher.find() && results.size() < MAX_RESULTS) {
-            String href = normalizeUrl(decode(matcher.group(1)));
+            String href = normalizeUrl(decode(matcher.group(1).replace("\"", "")));
             String title = plainText(matcher.group(2));
             if (href.isEmpty() || title.isEmpty()) continue;
             String snippet = results.size() < snippets.size() ? snippets.get(results.size()) : "";
@@ -212,7 +212,7 @@ public final class OnlineResearchEngine {
 
     private static String normalizeUrl(String raw) {
         try {
-            String url = raw == null ? "" : raw.trim();
+            String url = raw == null ? "" : raw.trim().replace("\"", "");
             if (url.startsWith("//")) url = "https:" + url;
             if (url.startsWith("/l/?") || url.contains("duckduckgo.com/l/?")) {
                 int index = url.indexOf("uddg=");

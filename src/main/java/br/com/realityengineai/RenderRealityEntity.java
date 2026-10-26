@@ -14,6 +14,12 @@ public final class RenderRealityEntity extends RenderLiving {
 
     @Override
     protected ResourceLocation getEntityTexture(Entity entity) {
+        if (entity instanceof RealityEngineAI.EntityReality) {
+            String description = CreationPlan.normalize(entity.getEntityData().getString("RealityDescription"));
+            if (description.contains("dragao") || description.contains("dragon")) return new ResourceLocation(RealityEngineAI.MOD_ID, "textures/entity/reality_dragon.png");
+            if (description.contains("hostil") || description.contains("boss") || description.contains("monstro")) return new ResourceLocation(RealityEngineAI.MOD_ID, "textures/entity/reality_hostile.png");
+            if (description.contains("robo") || description.contains("robot") || description.contains("android")) return new ResourceLocation(RealityEngineAI.MOD_ID, "textures/entity/reality_robot.png");
+        }
         return TEXTURE;
     }
 }

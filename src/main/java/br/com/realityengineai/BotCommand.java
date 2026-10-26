@@ -12,7 +12,7 @@ public final class BotCommand extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/bot [crie <prompt>|status|parar|remover|recarregar|modulos|ajuda]";
+        return "/bot [crie <prompt>|pesquisar <assunto>|status|parar|remover|recarregar|modulos|ajuda]";
     }
 
     @Override
@@ -46,6 +46,11 @@ public final class BotCommand extends CommandBase {
             BotPromptEngine.INSTANCE.submit(player, bot, join(args, 1));
             return;
         }
+        if ("pesquisar".equals(action) || "pesquisa".equals(action) || "research".equals(action) || "estudar".equals(action)) {
+            if (args.length < 2) player.addChatMessage(new ChatComponentText("Uso: /bot pesquisar <assunto>."));
+            else OnlineResearchEngine.INSTANCE.research(player, join(args, 1));
+            return;
+        }
         if ("status".equals(action)) {
             EntityRealityBot bot = BotPromptEngine.INSTANCE.findOwnedBot(player);
             player.addChatMessage(new ChatComponentText("Bot=" + (bot == null ? "ausente" : "ativo")
@@ -75,7 +80,7 @@ public final class BotCommand extends CommandBase {
             return;
         }
         if ("ajuda".equals(action) || "help".equals(action)) {
-            player.addChatMessage(new ChatComponentText("/bot | /bot crie <prompt> | /bot status | /bot parar | /bot remover | /bot recarregar | /bot modulos"));
+            player.addChatMessage(new ChatComponentText("/bot | /bot crie <prompt> | /bot pesquisar <assunto> | /bot status | /bot parar | /bot remover | /bot recarregar | /bot modulos"));
             player.addChatMessage(new ChatComponentText("Exemplos: /bot crie um mapa do zero raio 24; /bot crie um castelo de pedra; /bot crie uma cidade; /bot crie um módulo chamado garagem 15x9x7"));
             return;
         }

@@ -166,8 +166,29 @@ public final class BotPromptEngine {
             }
             return true;
         }
-        if (isMapPrompt(normalized)) {
+        CreationPlan plan = CreationPlan.resolve(prompt);
+        if (CreationPlan.QUERY.equals(plan.kind) && "internet_research".equals(plan.archetype)) {
+            OnlineResearchEngine.INSTANCE.research(player, plan.query);
+            return true;
+        }
+        if (CreationPlan.MAP.equals(plan.kind)) {
             scheduleMap(player, bot, prompt, normalized);
+            return true;
+        }
+        if (CreationPlan.TERRAIN.equals(plan.kind)) {
+            scheduleTerrain(player, bot, prompt, normalized, plan.archetype, plan.radius);
+            return true;
+        }
+        if (CreationPlan.STRUCTURE.equals(plan.kind)) {
+            ModuleDefinition selected = findModule(normalized);
+            if (selected == null) selected = ModuleDefinition.genericFromPrompt(prompt, normalized);
+            scheduleStructure(player, bot, prompt, selected, normalized);
+            return true;
+        }
+        if (CreationPlan.QUERY.equals(plan.kind) || CreationPlan.ENTITY.equals(plan.kind)
+                || CreationPlan.BLOCK.equals(plan.kind) || CreationPlan.ITEM.equals(plan.kind)
+                || CreationPlan.DIMENSION.equals(plan.kind)) {
+            RealityEngineAI.executeCreation(player, prompt);
             return true;
         }
         ModuleDefinition module = findModule(normalized);
@@ -175,14 +196,9 @@ public final class BotPromptEngine {
             scheduleStructure(player, bot, prompt, module, normalized);
             return true;
         }
-        CreationPlan plan = CreationPlan.resolve(prompt);
-        if (plan != null && (CreationPlan.QUERY.equals(plan.kind) || plan.isCreation())) {
-            RealityEngineAI.executeCreation(player, prompt);
-            return true;
-        }
         ModuleDefinition generic = ModuleDefinition.genericFromPrompt(prompt, normalized);
         scheduleStructure(player, bot, prompt, generic, normalized);
-        player.addChatMessage(new ChatComponentText("Não havia módulo específico: o bot gerou uma estrutura tridimensional genérica. Crie módulos JSON para novos tipos."));
+        player.addChatMessage(new ChatComponentText("Bot: tipo não reconhecido; criei estrutura genérica em vez de alegar implementação específica. Personalize módulos JSON."));
         return true;
     }
 
@@ -276,6 +292,26 @@ public final class BotPromptEngine {
         int minY = Math.max(1, baseY - 4);
         int maxY = Math.min(250, baseY + 24);
         enqueue(player, bot, prompt, new MapGenerator(centerX, centerZ, baseY, radius, minY, maxY, surface, soil, stone));
+    }
+ 
+    private void scheduleTerrain(EntityPlayer player, EntityRealityBot bot, String prompt, String normalized, String type, int requestedRadius) {
+        int radius = Math.max(4, Math.min(32, requestedRadius > 0 ? requestedRadius : settings.defaultMapRadius / 2));
+        Vec3 look = player.getLookVec();
+        int centerX = MathHelper.floor_double(player.posX + look.xCoord * (radius + 6.0D));
+        int centerZ = MathHelper.floor_double(player.posZ + look.zCoord * (radius + 6.0D));
+        int baseY = Math.max(5, Math.min(220, player.worldObj.getTopSolidOrLiquidBlock(centerX, centerZ) - 1));
+        String surface = "minecraft:grass", soil = "minecraft:dirt", stone = "minecraft:stone";
+        int depth = 8, amplitude = 3;
+        if ("desert".equals(type)) {
+            surface = "minecraft:sand"; soil = "minecraft:sandstone"; stone = "minecraft:sandstone";
+        } else if ("snow".equals(type)) {
+            surface = "minecraft:snow_block";
+        } else if ("mountain".equals(type)) {
+            surface = "minecraft:stone"; soil = "minecraft:stone"; stone = "minecraft:stone"; depth = 22; amplitude = 14;
+        } else if ("volcanic".equals(type)) {
+            surface = "minecraft:netherrack"; soil = "minecraft:netherrack"; stone = "minecraft:netherrack"; amplitude = 6;
+        }
+        enqueue(player, bot, prompt, new TerrainGenerator(centerX, centerZ, baseY, radius, depth, amplitude, type, surface, soil, stone));
     }
 
     private void scheduleStructure(EntityPlayer player, EntityRealityBot bot, String prompt, ModuleDefinition module, String normalized) {
@@ -636,6 +672,40 @@ public final class BotPromptEngine {
         }
         public boolean isFinished() { return cursor >= total; }
         public long getTotal() { return total; }
+    }
+
+    private static final class TerrainGenerator implements Generator {
+        final int centerX, centerZ, baseY, radius, depth, amplitude;
+        final String type, surface, soil, stone;
+        final long total;
+        long cursor;
+        TerrainGenerator(int x, int z, int y, int radius, int depth, int amplitude, String type, String surface, String soil, String stone) {
+            centerX=x; centerZ=z; baseY=y; this.radius=radius; this.depth=depth; this.amplitude=amplitude;
+            this.type=type; this.surface=surface; this.soil=soil; this.stone=stone;
+            total=(long)(radius*2+1)*(radius*2+1)*(depth+amplitude+4);
+        }
+        public BlockEdit next() {
+            while(cursor<total) {
+                long index=cursor++;
+                int layers=depth+amplitude+4;
+                long column=index/layers;
+                int layer=(int)(index%layers);
+                int width=radius*2+1;
+                int x=centerX+(int)(column/width)-radius;
+                int z=centerZ+(int)(column%width)-radius;
+                double wave=Math.sin(x*.19D)*1.7D+Math.cos(z*.17D)*1.5D+Math.sin((x+z)*.08D);
+                if("mountain".equals(type)) wave=Math.sin(x*.12D)*5.0D+Math.cos(z*.15D)*4.0D+Math.sin((x+z)*.07D)*3.0D;
+                if("volcanic".equals(type)) wave=Math.sin(x*.14D)*2.5D+Math.cos(z*.11D)*2.5D+Math.sin((x-z)*.09D)*2.0D;
+                int top=baseY+(int)Math.round(wave*amplitude/4.0D);
+                int y=baseY-depth+layer;
+                if(y>top||y<=0||y>=255) continue;
+                String block=y==top?surface:y>=top-2?soil:stone;
+                return new BlockEdit(x,y,z,block,0);
+            }
+            return null;
+        }
+        public boolean isFinished(){return cursor>=total;}
+        public long getTotal(){return total;}
     }
 
     private static final class StructureGenerator implements Generator {

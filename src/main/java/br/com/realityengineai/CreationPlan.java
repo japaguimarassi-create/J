@@ -49,7 +49,7 @@ public final class CreationPlan {
             return plan(DIMENSION,"generic","vanilla_terrain","",0,0.96F);
         }
 
-        boolean explicitBlock=contains(v,"como bloco","em forma de bloco","bloco de","bloco chamado","bloco personalizado","bloco que","um bloco","novo bloco","custom block");
+        boolean explicitBlock=contains(v,"como bloco","em bloco","em forma de bloco","bloco de","bloco chamado","bloco personalizado","bloco que","um bloco","novo bloco","custom block");
         boolean explicitItem=contains(v,"como item","em forma de item","item chamado")
             ||has(v,"espada","sabre","katana","lamina","picareta","machado","ferramenta","comida","pao","fruta","alimento","carne","amuleto","varinha","cajado","bastao","adaga","punhal","armadura","capacete","item","artefato","objeto");
         if(explicitItem&&!contains(v,"como bloco","em forma de bloco")) {
@@ -146,7 +146,7 @@ public final class CreationPlan {
     private static boolean explicitStructure(String v) {
         if(contains(v,"construcao","construcoes","estrutura","estruturas","edificio","construa","construir","arquitetura","build a structure")) return true;
         if(has(v,"casa","casas","castelo","castelos","fortaleza","torre","ponte","cidade","labirinto","arena","garagem","templo","piramide","muro","base","arranha")) return true;
-        return has(v,"computador","computer","pc")&&!contains(v,"como bloco","em forma de bloco","como item");
+        return has(v,"computador","computer","pc")&&!contains(v,"como bloco","em bloco","em forma de bloco","como item");
     }
 
     private static boolean isMapPrompt(String v) {
