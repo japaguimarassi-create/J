@@ -6,6 +6,7 @@ on:
       - reality-engine-ai-v2
       - reality-engine-ai-v4-runtime-config
       - reality-engine-ai-v0.4-bot-prompt-engine
+      - reality-engine-ai-v0.5-trained-intents
   pull_request:
   workflow_dispatch:
 
@@ -28,7 +29,10 @@ jobs:
         run: python -m pip install --upgrade pip numpy pillow
       - name: Generate custom textures
         run: python tools/generate_assets.py
-      - name: Train exact 300k-parameter offline classifier
+      - name: Train 41-class intent model with held-out evaluation
+        env:
+          REAI_MAX_EPOCHS: '500000'
+          REAI_MAX_TRAIN_SECONDS: '90'
         run: python tools/train_brain.py
       - name: Set up Gradle 5.6.4
         uses: gradle/actions/setup-gradle@v4
@@ -40,23 +44,38 @@ jobs:
         run: |
           python - <<'PY'
           import zipfile
-          jar = 'build/libs/RealityEngineAI-0.4.0.jar'
+          jar = 'build/libs/RealityEngineAI-0.5.0.jar'
           with zipfile.ZipFile(jar) as archive:
               names = set(archive.namelist())
               required = [
                   'assets/realityengineai/brain/weights.bin',
+                  'assets/realityengineai/brain/training_report.json',
                   'assets/realityengineai/textures/items/reality_artifact.png',
+                  'assets/realityengineai/textures/items/reality_staff.png',
+                  'assets/realityengineai/textures/items/reality_amulet.png',
+                  'assets/realityengineai/textures/items/reality_dagger.png',
+                  'assets/realityengineai/textures/blocks/reality_tech.png',
+                  'assets/realityengineai/textures/blocks/reality_metal.png',
+                  'assets/realityengineai/textures/blocks/reality_corrupted.png',
                   'assets/realityengineai/textures/entity/reality_creature.png',
+                  'assets/realityengineai/textures/entity/reality_dragon.png',
+                  'assets/realityengineai/textures/entity/reality_hostile.png',
+                  'assets/realityengineai/textures/entity/reality_robot.png',
               ]
               missing = [name for name in required if name not in names]
               assert not missing, 'Missing JAR resources: ' + ', '.join(missing)
               weights = archive.read('assets/realityengineai/brain/weights.bin')
-              assert len(weights) == 9 + 300000 * 4, 'Unexpected weights size'
-              print('JAR resource verification passed; parameters=300000; bytes=', len(weights))
+              assert len(weights) == 9 + 300393 * 4, 'Unexpected weights size'
+              assert weights[:9] == b'REAI300K2', 'Unexpected model magic'
+              import json
+              report = json.loads(archive.read('assets/realityengineai/brain/training_report.json'))
+              assert len(report['metrics']['class_labels']) == 41, 'Unexpected class count'
+              assert report['metrics']['test_accuracy'] >= 0.20, 'Held-out test accuracy below minimum'
+              print('JAR verification passed; parameters=300393; labels=41; test_accuracy=', report['metrics']['test_accuracy'])
           PY
       - name: Upload mod JAR
         uses: actions/upload-artifact@v4
         with:
-          name: RealityEngineAI-1.7.10-v0.4.0
+          name: RealityEngineAI-1.7.10-v0.5.0
           path: build/libs/RealityEngineAI-*.jar
           if-no-files-found: error

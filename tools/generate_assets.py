@@ -56,12 +56,66 @@ def crystal(draw, image):
     draw.polygon([(7, 1), (8, 7), (5, 5)], fill=(225, 209, 255, 255))
     draw.polygon([(11, 6), (13, 9), (9, 13), (8, 7)], fill=(71, 219, 248, 255))
 
+def staff(draw, image):
+    draw.line((8, 2, 6, 14), fill=(75, 49, 35, 255), width=3)
+    draw.polygon([(5, 0), (8, 1), (11, 0), (12, 3), (8, 6), (4, 3)], fill=(92, 67, 205, 255))
+    draw.polygon([(7, 1), (8, 2), (9, 1), (8, 4)], fill=(219, 244, 255, 255))
+
+def amulet(draw, image):
+    draw.arc((3, 0, 12, 9), 185, 355, fill=(188, 205, 225, 255), width=2)
+    draw.polygon([(8, 5), (13, 9), (10, 14), (6, 14), (3, 9)], fill=(33, 85, 134, 255))
+    draw.polygon([(8, 6), (10, 9), (8, 12), (6, 9)], fill=(95, 236, 255, 255))
+    draw.point((8, 9), fill=(255, 255, 255, 255))
+
+def dagger(draw, image):
+    draw.polygon([(11, 0), (14, 3), (7, 10), (5, 7)], fill=(64, 99, 131, 255))
+    draw.line((10, 2, 6, 8), fill=(222, 249, 255, 255), width=1)
+    draw.line((3, 8, 8, 13), fill=(176, 92, 49, 255), width=3)
+    draw.line((2, 10, 6, 6), fill=(204, 210, 221, 255), width=2)
+
+def tech_block(draw, image):
+    for y in range(16):
+        for x in range(16):
+            shade = 25 + ((x * 13 + y * 7) % 30)
+            draw.point((x, y), fill=(shade, shade + 32, shade + 62, 255))
+    draw.rectangle((1, 1, 14, 14), outline=(57, 204, 238, 255), width=1)
+    draw.rectangle((3, 3, 12, 12), outline=(82, 235, 255, 255), width=1)
+    for y in (5, 8, 11):
+        draw.line((5, y, 10, y), fill=(190, 255, 253, 255), width=1)
+    draw.point((8, 8), fill=(255, 255, 255, 255))
+
+def metal_block(draw, image):
+    for y in range(16):
+        for x in range(16):
+            shade = 88 + ((x * 17 + y * 9) % 46)
+            draw.point((x, y), fill=(shade, shade + 5, min(255, shade + 15), 255))
+    draw.rectangle((1, 1, 14, 14), outline=(188, 202, 220, 255), width=1)
+    for y in (4, 11):
+        draw.line((2, y, 13, y), fill=(64, 81, 103, 255), width=1)
+    for point in ((3, 3), (12, 3), (3, 12), (12, 12)):
+        draw.point(point, fill=(232, 238, 249, 255))
+
+def corrupted_block(draw, image):
+    for y in range(16):
+        for x in range(16):
+            color = (59, 26, 87, 255) if (x * 3 + y * 5) % 7 < 3 else (30, 25, 42, 255)
+            draw.point((x, y), fill=color)
+    draw.line((2, 2, 6, 6, 4, 10, 8, 14), fill=(180, 70, 255, 255), width=2)
+    draw.line((13, 1, 10, 5, 13, 8, 9, 12), fill=(95, 231, 255, 255), width=1)
+    draw.point((8, 7), fill=(245, 215, 255, 255))
+
 save_icon("items/reality_artifact.png", artifact)
 save_icon("items/reality_sword.png", sword)
 save_icon("items/reality_pickaxe.png", pickaxe)
 save_icon("items/reality_food.png", food)
+save_icon("items/reality_staff.png", staff)
+save_icon("items/reality_amulet.png", amulet)
+save_icon("items/reality_dagger.png", dagger)
 save_icon("blocks/reality_block.png", base_block)
 save_icon("blocks/reality_crystal.png", crystal)
+save_icon("blocks/reality_tech.png", tech_block)
+save_icon("blocks/reality_metal.png", metal_block)
+save_icon("blocks/reality_corrupted.png", corrupted_block)
 
 skin = Image.new("RGBA", (64, 64), (19, 35, 52, 255))
 d = ImageDraw.Draw(skin)
@@ -121,4 +175,28 @@ for x in (20, 22, 24, 26):
 for y in (22, 25, 28):
     d.point((45, y), fill=light)
 skin.save(ROOT / "entity" / "reality_creature.png")
-print("Generated nine custom 16x16 sprites and one 64x64 entity skin.")
+
+def recolor_skin(source, path, dark_color, base_color, accent_color, glow_color):
+    target = Image.new("RGBA", source.size, dark_color)
+    source_pixels = source.load()
+    target_pixels = target.load()
+    for y in range(source.height):
+        for x in range(source.width):
+            r, g, b, a = source_pixels[x, y]
+            brightness = (r + g + b) / 3
+            if a == 0:
+                target_pixels[x, y] = (0, 0, 0, 0)
+            elif brightness < 55:
+                target_pixels[x, y] = dark_color
+            elif brightness < 105:
+                target_pixels[x, y] = base_color
+            elif brightness < 175:
+                target_pixels[x, y] = accent_color
+            else:
+                target_pixels[x, y] = glow_color
+    target.save(path)
+
+recolor_skin(skin, ROOT / "entity" / "reality_dragon.png", (26, 15, 48, 255), (80, 42, 142, 255), (136, 81, 229, 255), (196, 247, 255, 255))
+recolor_skin(skin, ROOT / "entity" / "reality_hostile.png", (28, 15, 24, 255), (112, 31, 46, 255), (214, 59, 83, 255), (255, 192, 98, 255))
+recolor_skin(skin, ROOT / "entity" / "reality_robot.png", (20, 31, 43, 255), (67, 88, 111, 255), (61, 184, 204, 255), (223, 250, 255, 255))
+print("Generated 7 item sprites, 5 block textures and 4 entity skins.")

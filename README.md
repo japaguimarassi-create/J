@@ -1,4 +1,4 @@
-# Reality Engine AI 0.4.0
+# Reality Engine AI 0.5.0
 
 Experimental Minecraft Java 1.7.10 / Forge 10.13.4.1614 mod, built for Java 8.
 
@@ -24,7 +24,7 @@ The first word must be exactly crie, case-insensitively. /crie, crielobo, and se
 - crie lista de mods instalados
 - crie liste os blocos registrados
 
-## Runtime configuration engine (0.3.0)
+## Runtime configuration engine (0.5.0)
 
 The mod now includes a data-driven runtime extension layer. It adds behavior through Forge events and registered mod APIs; it does **not** edit, overwrite, or repackage Minecraft's base JAR or source files. The configuration is loaded from:
 
@@ -106,3 +106,40 @@ O executor modifica o mundo no ciclo de ticks do servidor e gera operações sob
 Na primeira execução, o mod cria `config/realityengineai/modules/` e os arquivos `starter-builders.json` e `README.txt`. Os módulos incluem configurações para casas, castelos, torres, pontes, muros, plataformas, arenas, labirintos, cidades, computadores e veículos. Para acrescentar um módulo, use por exemplo `/bot crie um módulo chamado garagem 15x9x7`; depois edite o JSON gerado e rode `/bot recarregar`.
 
 **Limites reais:** o bot é uma entidade de IA do Minecraft, não uma instância genuína de `EntityPlayer`. Ele se movimenta e segue seu proprietário, e o executor constrói com operações permitidas. Um mapa é uma região de terreno no mundo carregado, não um arquivo de mundo separado. O computador é uma construção de blocos, não um PC com sistema operacional real. Executar aplicativos externos ou Fortnite ainda exige uma ponte externa compatível.
+
+
+## Classificador semântico 0.5.0
+
+O modelo local passou de 24 para 41 classes e usa 2.048 buckets de tokens/bigramas. As categorias separam itens, blocos, entidades, dimensões, construções, terrenos, mapas procedurais e consultas. O total do classificador é 300.393 parâmetros escalares, gravados em assets/realityengineai/brain/weights.bin.
+
+Exemplos de interpretação:
+- crie uma espada de pedra -> item/sword
+- crie um bloco de pedra -> block/generic
+- crie uma construção de pedra -> structure/generic
+- crie terreno montanhoso raio 16 -> terrain/mountain
+- crie um mapa do zero raio 24 -> map/procedural
+- crie uma dimensão de deserto -> dimension/desert
+- crie um bloco de máquina -> block/machine
+- crie um amuleto de proteção -> item/amulet
+
+tools/train_brain.py usa um corpus específico do projeto. Os exemplos-base são separados entre treino, validação e teste antes da ampliação sintética. A compilação gera training_report.json com perdas, acurácia de teste, macro-F1, F1 por classe, matriz de confusão, número real de gerações e motivo de parada. O limite configurado pode chegar a 500.000 gerações, mas o treino para por estagnação da validação ou pelo limite de tempo; não força a perda a zero nem declara gerações que não ocorreram.
+
+## Pesquisa web controlada
+
+Use /bot pesquisar <assunto> ou “crie pesquise na internet sobre <assunto>”. O recurso faz até três buscas paralelas, guarda URLs, títulos e trechos em config/realityengineai/knowledge/web-research/ e apresenta resultados no chat. As requisições usam timeouts, limite de tamanho da resposta e poucos workers para não bloquear os ticks nem sobrecarregar o dispositivo.
+
+Isso é pesquisa com fontes persistidas, não atualização automática dos pesos neurais a partir de snippets não verificados. O classificador continua sendo uma IA especializada em interpretação de intenções, não um modelo de linguagem genérico. Um serviço público de busca pode bloquear ou alterar as respostas; nesses casos o mod informa que não encontrou resultados.
+
+## Texturas expandidas
+
+O gerador procedural cria texturas próprias para cajado, amuleto e adaga; blocos tecnológico, metálico e corrompido; e skins separadas para criatura, dragão, criatura hostil e robô. Elas são conectadas a itens/blocos registrados ou selecionadas pelo renderer da entidade.
+
+## Referências técnicas consultadas
+
+- Forge 1.7.10 API Javadocs: https://skmedix.github.io/ForgeJavaDocs/javadoc/forge/1.7.10-10.13.4.1614/
+- Hugging Face Trainer: https://huggingface.co/docs/transformers/en/main_classes/trainer
+- Hugging Face Model Cards: https://huggingface.co/docs/hub/en/model-cards
+- scikit-learn Model Evaluation: https://scikit-learn.org/stable/modules/model_evaluation.html
+- Intent classification evaluation dataset paper: https://aclanthology.org/D19-1131/
+
+Consulte tools/RESEARCH_SOURCES.md para fontes e o método de avaliação. O modelo continua especializado e limitado ao domínio/corpus usado.
