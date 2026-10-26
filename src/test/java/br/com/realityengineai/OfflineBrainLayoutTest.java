@@ -3,16 +3,15 @@ package br.com.realityengineai;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-
 import org.junit.Test;
 import static org.junit.Assert.*;
 
 public final class OfflineBrainLayoutTest {
     @Test
-    public void parameterLayoutIsExactlyThreeHundredThousand() {
-        assertEquals(300000, 881 * 256 + 256 + 256 * 264 + 264 + 264 * 24 + 24);
-        assertEquals(300000, OfflineBrain.PARAMETER_COUNT);
-        assertEquals(24, OfflineBrain.LABELS.length);
+    public void parameterLayoutMatchesExpandedClassifier() {
+        assertEquals(300393, 2048 * 128 + 128 + 128 * 224 + 224 + 224 * 41 + 41);
+        assertEquals(300393, OfflineBrain.PARAMETER_COUNT);
+        assertEquals(41, OfflineBrain.LABELS.length);
     }
 
     @Test
@@ -24,17 +23,17 @@ public final class OfflineBrainLayoutTest {
     @Test
     public void trainedWeightsAreBundledWithExactSize() throws IOException {
         InputStream input = getClass().getResourceAsStream("/assets/realityengineai/brain/weights.bin");
-        assertNotNull("The CI training step must generate the weight file before tests.", input);
+        assertNotNull("CI must generate classifier weights before tests.", input);
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         byte[] chunk = new byte[4096];
         int read;
-        while ((read = input.read(chunk)) != -1) {
-            output.write(chunk, 0, read);
-        }
+        while ((read = input.read(chunk)) != -1) output.write(chunk, 0, read);
         input.close();
-        assertEquals(9 + 300000 * 4, output.toByteArray().length);
+        byte[] bytes = output.toByteArray();
+        assertEquals(9 + 300393 * 4, bytes.length);
+        assertEquals("REAI300K2", new String(bytes, 0, 9, "US-ASCII"));
         OfflineBrain brain = new OfflineBrain();
         assertTrue(brain.isReady());
-        assertEquals(300000, brain.getParameterCount());
+        assertEquals(300393, brain.getParameterCount());
     }
 }
