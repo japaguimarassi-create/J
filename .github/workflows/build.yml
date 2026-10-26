@@ -27,6 +27,8 @@ jobs:
           python-version: '3.11'
       - name: Install training and texture dependencies
         run: python -m pip install --upgrade pip numpy pillow
+      - name: Verify intent contract (50 scenarios / 1100 variants)
+        run: bash tools/prebuild_contract_tests.sh
       - name: Generate custom textures
         run: python tools/generate_assets.py
       - name: Train 41-class intent model with held-out evaluation

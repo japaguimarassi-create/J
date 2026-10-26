@@ -40,7 +40,8 @@ public final class CreationPlan {
         if(contains(v,"ajuda","o que sabe fazer","comandos","capacidades","como funciona"))
             return plan(QUERY,"help","none","",0,1.0F);
 
-        if(has(v,"dimensao","dimensoes","planeta","universo")||contains(v,"mundo novo")) {
+        if(isMapPrompt(v)) return plan(MAP,"procedural","generate_world_region",v,parseRadius(v,16),0.99F);
+        if(has(v,"dimensao","dimensoes","planeta","universo","mundo","world")||contains(v,"mundo novo","new world")) {
             if(contains(v,"deserto","areia","duna")) return plan(DIMENSION,"desert","vanilla_terrain","",0,0.99F);
             if(contains(v,"neve","gelo","frio","congelado")) return plan(DIMENSION,"cold","vanilla_terrain","",0,0.99F);
             if(contains(v,"floresta","arvore","selva")) return plan(DIMENSION,"forest","vanilla_terrain","",0,0.99F);
@@ -58,6 +59,7 @@ public final class CreationPlan {
             if(has(v,"comida","pao","fruta","alimento","carne")) return plan(ITEM,"food","edible","",0,0.99F);
             if(has(v,"adaga","punhal","dagger")) return plan(ITEM,"dagger","melee","",0,0.99F);
             if(has(v,"cajado","bastao","varinha","staff")) return plan(ITEM,"staff","right_click_spell","",0,0.99F);
+            if(contains(v,"artefato chamado amuleto","artefato chamado de amuleto")) return plan(ITEM,"artifact","recognized_effects_only","",0,0.92F);
             if(has(v,"amuleto","talism","amulet")) return plan(ITEM,"amulet","right_click_protection","",0,0.99F);
             return plan(ITEM,"artifact","recognized_effects_only","",0,0.92F);
         }
@@ -66,7 +68,7 @@ public final class CreationPlan {
         boolean corruption=has(v,"corrompe","corromper","corrompendo","corrompida","corrompido","infecta","infectar","contamina","contaminar","transforma","transformar","corruptor","corruption");
         boolean nearby=has(v,"bloco","blocos","construcao","construcoes","terreno");
         if(entity) {
-            if(corruption&&nearby) return plan(ENTITY,"corruptor","corrupt_nearby_blocks","",parseRadius(v,3),1.0F);
+            if(corruption&&nearby) return plan(ENTITY,"corruptor","corrupt_nearby_blocks","",parseCorruptRadius(v),1.0F);
             if(has(v,"carro","veiculo","automovel","caminhao","moto","motocicleta","bicicleta","onibus","tanque")) return plan(ENTITY,"car","vehicle","",0,0.99F);
             if(has(v,"dragao")) return plan(ENTITY,"dragon","basic_ai","",0,0.99F);
             if(has(v,"hostil","agressivo","agressiva","inimigo","inimiga","boss","ataca","atacar")) return plan(ENTITY,"hostile_creature","hostile_ai","",0,0.98F);
@@ -74,7 +76,8 @@ public final class CreationPlan {
         }
         if(explicitBlock) {
             if(contains(v,"cristal","cristalino","cristalina","ametista")) return plan(BLOCK,"crystal","emissive","",0,0.99F);
-            if(contains(v,"maquina","tecnologia","tecnologico","computador","redstone","circuito")) return plan(BLOCK,"machine","interactive_tech_block","",0,0.98F);
+            if(contains(v,"maquina em bloco") && !contains(v,"bloco de maquina","bloco de tecnologia","bloco tecnologico","bloco de circuito","bloco de computador")) return plan(BLOCK,"generic","limited_interaction","",0,0.92F);
+            if(contains(v,"bloco de maquina","bloco de tecnologia","bloco tecnologico","bloco de circuito","bloco de computador","redstone")) return plan(BLOCK,"machine","interactive_tech_block","",0,0.98F);
             if(contains(v,"corrompido","corrompida","corrupto","corrupta","infectado","infectada")) return plan(BLOCK,"corrupted","corruption_block","",0,0.98F);
             return plan(BLOCK,"generic","limited_interaction","",0,0.92F);
         }
@@ -150,7 +153,7 @@ public final class CreationPlan {
     }
 
     private static boolean isMapPrompt(String v) {
-        return contains(v,"mapa","mapas","map do zero","mundo do zero","novo mundo","continente","ilha grande","world map","generate a map","create a map");
+        return contains(v,"mapa","mapas","map do zero","mundo do zero","novo mundo","new world","continente","ilha grande","world map","generate a map","create a map");
     }
 
     private static boolean isTerrainPrompt(String v) {
@@ -185,6 +188,16 @@ public final class CreationPlan {
     private static boolean contains(String value,String... values) {
         for(String option:values) if(value.contains(normalize(option))) return true;
         return false;
+    }
+
+    private static int parseCorruptRadius(String value) {
+        Matcher matcher=RADIUS.matcher(value);
+        if(matcher.find()) {
+            String digits=matcher.group(1)==null?matcher.group(2):matcher.group(1);
+            try { return Math.max(1,Math.min(6,Integer.parseInt(digits))); }
+            catch(NumberFormatException ignored) { return 3; }
+        }
+        return 3;
     }
 
     private static int parseRadius(String value) { return parseRadius(value,16); }
