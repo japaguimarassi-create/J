@@ -62,9 +62,12 @@ public final class CreationBlueprint {
         String request = normalized.replaceFirst("^crie\\s+", "");
         request = request.replaceAll("\\b(por favor|por gentileza|no minecraft|dentro do jogo|no meu mundo|agora|imediatamente|para mim)\\b", " ");
         request = request.replaceAll("[,;:!?.]+$", "").replaceAll("\\s+", " ").trim();
+        String rawRequest = full.replaceFirst("(?i)^crie\\s+", "");
+        rawRequest = rawRequest.replaceAll("(?i)\\b(por favor|por gentileza|no minecraft|dentro do jogo|no meu mundo|agora|imediatamente|para mim)\\b", " ");
+        rawRequest = rawRequest.replaceAll("[,;:!?.]+$", "").replaceAll("\\s+", " ").trim();
 
         int boundary = findPurposeBoundary(request);
-        String namePart = boundary >= 0 ? request.substring(0, boundary).trim() : request;
+        String namePart = boundary >= 0 ? rawRequest.substring(0, Math.min(boundary, rawRequest.length())).trim() : rawRequest;
         String purpose = boundary >= 0 ? cleanPurpose(request.substring(boundary).trim()) : "";
         namePart = namePart.replaceFirst("^(um|uma|o|a|os|as|novo|nova|novos|novas)\\s+", "");
         namePart = namePart.replaceFirst("^(item chamado|objeto chamado|artefato chamado|bloco chamado|entidade chamada|criatura chamada)\\s+", "");
