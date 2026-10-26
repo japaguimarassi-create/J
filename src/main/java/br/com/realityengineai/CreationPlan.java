@@ -175,7 +175,7 @@ public final class CreationPlan {
 
     public static String normalize(String value) {
         String normalized=Normalizer.normalize(value==null?"":value.toLowerCase(Locale.ROOT),Normalizer.Form.NFD);
-        return normalized.replaceAll("\\p{M}","").replace('ё','e');
+        return normalized.replaceAll("\\p{M}","").replace('ё','e').replaceAll("\\s+"," ").trim();
     }
 
     private static boolean has(String value,String... words) {
