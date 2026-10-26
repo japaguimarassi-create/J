@@ -41,8 +41,13 @@ public final class CreationPlan {
             return plan(QUERY,"help","none","",0,1.0F);
 
         if(isMapPrompt(v)) return plan(MAP,"procedural","generate_world_region",v,parseRadius(v,16),0.99F);
-        if(has(v,"dimensao","dimensoes","planeta","universo","mundo","world")||contains(v,"mundo novo","new world")) {
-            if(contains(v,"deserto","areia","duna")) return plan(DIMENSION,"desert","vanilla_terrain","",0,0.99F);
+        if(contains(v,"mundo de lava","mundo de fogo","mundo infernal","mundo vulcanico")) return plan(DIMENSION,"infernal","vanilla_terrain","",0,0.99F);
+        if(contains(v,"mundo de deserto","mundo desertico","mundo de areia")) return plan(DIMENSION,"desert","vanilla_terrain","",0,0.99F);
+        if(contains(v,"mundo de neve","mundo de gelo","mundo congelado","mundo gelado")) return plan(DIMENSION,"cold","vanilla_terrain","",0,0.99F);
+        if(contains(v,"mundo de floresta","mundo de selva","mundo florestal")) return plan(DIMENSION,"forest","vanilla_terrain","",0,0.99F);
+        if(contains(v,"mundo no espaco","mundo espacial","mundo das estrelas")) return plan(DIMENSION,"space","vanilla_terrain","",0,0.99F);
+        if(has(v,"dimensao","dimensoes","planeta","universo")||contains(v,"mundo novo","new world")) {
+            if(contains(v,"deserto","desertico","areia","duna")) return plan(DIMENSION,"desert","vanilla_terrain","",0,0.99F);
             if(contains(v,"neve","gelo","frio","congelado")) return plan(DIMENSION,"cold","vanilla_terrain","",0,0.99F);
             if(contains(v,"floresta","arvore","selva")) return plan(DIMENSION,"forest","vanilla_terrain","",0,0.99F);
             if(contains(v,"espaco","vazio","galaxia","estrela")) return plan(DIMENSION,"space","vanilla_terrain","",0,0.99F);
