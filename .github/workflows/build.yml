@@ -34,7 +34,7 @@ jobs:
       - name: Train 41-class intent model with held-out evaluation
         env:
           REAI_MAX_EPOCHS: '500000'
-          REAI_MAX_TRAIN_SECONDS: '90'
+          REAI_MAX_TRAIN_SECONDS: '150'
         run: python tools/train_brain.py
       - name: Set up Gradle 5.6.4
         uses: gradle/actions/setup-gradle@v4

@@ -97,6 +97,51 @@ EXTRA = {
 }
 for label, extra in EXTRA.items():
     RAW[label] += "|" + extra
+EXTRA2 = {
+"entity_car":"carro que anda como mob|entidade de veículo com rodas|carro independente no mundo|moto como criatura mecânica|caminhão dirigível como entidade|automóvel com IA de movimento",
+"block_crystal":"bloco de quartzo brilhante|bloco de cristal lilás|bloco mineral luminoso|cristal grande como bloco sólido|bloco translúcido com luz|bloco de pedra preciosa",
+"block_generic":"bloco de basalto personalizado|bloco de tijolos escuros|bloco de cobre para construir|bloco sólido de obsidiana|bloco decorativo colocado no chão|bloco de material próprio",
+"entity_dragon":"criatura dragão voadora|mob de dragão que patrulha|dragão com cauda longa como entidade|ser alado gigantesco|entidade réptil que respira fogo|dragão NPC de Minecraft",
+"entity_hostile":"inimigo que ataca o jogador|mob hostil que persegue criaturas|boss agressivo com IA|entidade inimiga que causa dano|monstro que busca alvos|criatura que ataca ao se aproximar",
+"entity_creature":"animal dócil para o mundo|entidade que caminha e olha|mob amigável que segue o dono|criatura pacífica personalizada|ser vivo que não ataca|NPC animal com skin exclusiva",
+"item_sword":"espada de diamante personalizada|katana para combate|espada para o inventário|lâmina mágica como item|sabre de metal|arma espada com textura",
+"item_tool":"picareta especial como item|ferramenta de minerar no inventário|machado personalizado para cortar|item pá de madeira|picareta de cristal resistente|ferramenta que o jogador segura",
+"item_food":"alimento que recupera fome|carne cozida especial|maçã mágica comestível|comida no inventário|fruta restauradora como item|pão que o jogador pode comer",
+"item_generic":"objeto que caiba no inventário|item chamado núcleo antigo|artefato de magia simples|relíquia carregável|item decorativo sem bloco próprio|objeto personalizado como item",
+"dimension_desert":"região dimensional de dunas|dimensão arenosa e quente|novo planeta com desertos|mundo de areia e cactos separado|mundo extra com bioma árido|dimensão coberta de arenito",
+"dimension_cold":"mundo separado de inverno|dimensão de geleiras e neve|planeta com solo congelado|dimensão de gelo azul|mundo extra nevado|reino de neve",
+"dimension_forest":"dimensão de floresta tropical|mundo separado coberto de árvores|planeta de selva densa|dimensão com copa de árvores|mundo extra cheio de vegetação|selva dimensional",
+"dimension_space":"dimensão sem céu e com vazio|mundo espacial separado|planeta lunar dimensional|novo mundo sideral|dimensão de galáxias|mundo extra com tema espacial",
+"dimension_infernal":"dimensão de magma e netherrack|novo mundo de lava|planeta infernal extra|dimensão com fogo e cinzas|mundo de rocha vulcânica|reino de calor extremo",
+"dimension_generic":"dimensão independente|novo mundo com regras próprias|planeta sem tema específico|dimensão adicional para explorar|mundo separado personalizado|universo diferente no jogo",
+"query_mods":"quais mods do Forge estão carregados|mostrar lista de mods atual|consulta dos mods instalados|imprimir os nomes dos mods|buscar modificações em execução|mods nesta instância",
+"query_blocks":"mostrar nomes e IDs dos blocos|listar todos os blocos do registro|quais blocos posso usar|consultar registro de blocos|blocos adicionados por mods|pesquisar bloco pelo ID",
+"query_items":"mostrar nomes e IDs dos itens|listar todos os itens do registro|quais itens posso usar|consultar registro de itens|itens adicionados por mods|pesquisar item pelo ID",
+"query_entities":"mostrar nomes de entidades registradas|listar mobs instalados|quais criaturas existem no registro|consultar entidade pelo nome|entidades dos mods|ID de criatura",
+"query_dimensions":"mostrar IDs das dimensões registradas|quais mundos extras estão disponíveis|consulta do registro dimensional|exibir dimensões criadas|buscar dimensão pelo ID|listar mundos separados",
+"command_enter":"teleportar para dimensão 9|entrar no mundo dimensional 6|viajar para o mundo registrado|mover jogador para dimensão 10|ir à dimensão personalizada|visitar dimensão número 7",
+"ask_help":"ensine os comandos do mod|quais tarefas essa IA executa|instruções para usar o bot|explique como criar blocos e itens|mostre recursos disponíveis|como solicitar construção",
+"ambiguous":"faça algo interessante sem detalhes|não tenho ideia específica|escolha algo aleatório para criar|invente objeto sem especificação|realize criação surpresa|crie uma coisa qualquer",
+"structure_house":"casa com telhado inclinado|casa de madeira com janelas|chalé de pedra para morar|construção residencial com entrada|abrigo com paredes e cobertura|moradia pequena com cômodos",
+"structure_castle":"castelo com ponte levadiça|fortaleza com torres nos cantos|bastião medieval de pedra|castelo fortificado|castelo com ameias e portão|fortaleza com quatro torres",
+"structure_tower":"torre de pedra com vários andares|estrutura em pé muito alta|torre com topo|torre de observação|edifício estreito na vertical|farol em formato de torre",
+"structure_bridge":"passarela sobre água|ponte com dois pilares|viaduto que cruza um vale|passagem elevada entre margens|ponte de pedra com parapeito|estrutura para cruzar um rio",
+"structure_city":"cidade com quarteirões|bairro com prédios e avenidas|cidade com ruas e casas|conjunto urbano de edifícios|vila organizada com estradas|metrópole pequena com quadras",
+"structure_maze":"labirinto retangular de pedra|paredes formando um percurso|estrutura de corredores e becos|maze para explorar|labirinto com entrada e saída|caminhos complexos em paredes",
+"terrain_plain":"planície lisa de terra|superfície plana de grama|terreno aberto sem casas|solo nivelado para construir|campo plano de blocos|área de terreno sem prédios",
+"terrain_desert":"dunas de areia em relevo|terreno desértico ondulado|paisagem árida de arenito|solo arenoso com pequenas colinas|área de deserto sem construções|relevo natural de dunas",
+"terrain_mountain":"relevo com montanhas altas|serra com picos e encostas|paisagem de vales rochosos|terreno acidentado com cumes|cordilheira de pedra|região montanhosa natural",
+"terrain_snow":"relevo coberto de neve|paisagem congelada de inverno|terreno branco com ondulações|solo gelado e nevado|neve em terreno natural|área nevada sem edifícios",
+"terrain_volcanic":"solo vulcânico escuro|relevo de rocha infernal|paisagem com montículos vulcânicos|terreno de cinza e netherrack|área de pedra vulcânica|solo irregular de vulcão",
+"map_procedural":"mapa de aventura novo|nova região para explorar|mapa procedural com biomas|território inédito do mundo|terreno base de um mapa|região grande com relevo gerado",
+"block_machine":"bloco computadorizado interativo|bloco tecnológico com circuito|máquina como bloco|bloco de controle eletrônico|bloco futurista que responde ao clique|cubo mecânico com função",
+"block_corrupted":"bloco com energia corrupta|bloco infectado cheio de fissuras|bloco de contaminação roxa|matéria corrompida em forma de bloco|bloco sombrio de corrupção|bloco violeta com rachaduras",
+"item_staff":"item de cajado mágico|bastão mágico no inventário|cajado usável que dá velocidade|varinha de feitiço como item|bastão encantado|cajado de energia para segurar",
+"item_amulet":"talismã defensivo como item|amuleto usável pelo jogador|pingente que concede resistência|item mágico chamado amuleto|relíquia protetora no inventário|talismã de regeneração",
+"item_dagger":"punhal curto para combate|adaga de metal como item|arma semelhante a faca|lâmina curta no inventário|adaga que pode ser segurada|punhal de pedra como arma"
+}
+for label, extra in EXTRA2.items():
+    RAW[label] += "|" + extra
 EXAMPLES = {key: list(dict.fromkeys(value.split("|"))) for key, value in RAW.items()}
 
 def normalize(text):
@@ -170,8 +215,8 @@ def train():
               rng.normal(0, .045, (HIDDEN, OUTPUTS)).astype(np.float32), np.zeros(OUTPUTS, np.float32)]
     m = [np.zeros_like(v) for v in params]; v = [np.zeros_like(x) for x in params]
     max_generations = max(1, int(os.getenv("REAI_MAX_EPOCHS", "500000")))
-    time_budget = max(15, int(os.getenv("REAI_MAX_TRAIN_SECONDS", "90")))
-    patience_limit, no_improvement, min_delta = 24, 0, .00005
+    time_budget = max(15, int(os.getenv("REAI_MAX_TRAIN_SECONDS", "150")))
+    patience_limit, no_improvement, min_delta = 28, 0, .00005
     best_loss, best_params, best_gen = float("inf"), None, 0
     step, generations, stop_reason = 0, 0, "generation_budget"
     start_time, batch_size = time.monotonic(), 64
@@ -185,10 +230,12 @@ def train():
             x = np.empty((len(batch), EMBEDDING), np.float32)
             for row, ids in enumerate(feats): x[row] = params[0][ids].mean(axis=0)
             x += params[1]; z = x @ params[2] + params[3]; hidden = np.maximum(z, 0.0)
+            dropout_mask = (rng.random(hidden.shape) >= 0.20).astype(np.float32) / 0.80
+            hidden = hidden * dropout_mask
             p = softmax(hidden @ params[4] + params[5])
             gl = p.copy(); gl += .02/OUTPUTS; gl[np.arange(len(batch)), y] -= 1; gl /= len(batch)
-            gw2 = hidden.T @ gl + .00002*params[4]; gb2 = gl.sum(axis=0)
-            gh = gl @ params[4].T; gz = gh * (z > 0); gw1 = x.T @ gz + .00002*params[2]; gb1 = gz.sum(axis=0)
+            gw2 = hidden.T @ gl + .0001*params[4]; gb2 = gl.sum(axis=0)
+            gh = (gl @ params[4].T) * dropout_mask; gz = gh * (z > 0); gw1 = x.T @ gz + .0001*params[2]; gb1 = gz.sum(axis=0)
             gx = gz @ params[2].T; gbias = gx.sum(axis=0); ge = np.zeros_like(params[0])
             for row, ids in enumerate(feats): np.add.at(ge, ids, gx[row]/max(1, len(ids)))
             grads = [ge, gbias, gw1, gb1, gw2, gb2]
