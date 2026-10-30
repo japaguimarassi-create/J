@@ -1,0 +1,7 @@
+/.godot/
+/android/build/
+/build/
+voice-android/.gradle/
+voice-android/plugin/build/
+addons/VoiceInputAndroid/bin/
+*.keystore

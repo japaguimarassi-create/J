@@ -1,0 +1,112 @@
+name: Android APK
+
+on:
+  push:
+    branches:
+      - feature/lavoice-android-text-voice-ai
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-35 build-tools;35.0.1 cmdline-tools;latest ndk;28.1.13356709 cmake;3.10.2.4988404"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Build native Android speech bridge
+        run: |
+          gradle --no-daemon -p voice-android :plugin:assembleDebug :plugin:assembleRelease
+          mkdir -p addons/VoiceInputAndroid/bin/debug addons/VoiceInputAndroid/bin/release
+          cp voice-android/plugin/build/outputs/aar/plugin-debug.aar addons/VoiceInputAndroid/bin/debug/VoiceInputAndroid-debug.aar
+          cp voice-android/plugin/build/outputs/aar/plugin-release.aar addons/VoiceInputAndroid/bin/release/VoiceInputAndroid-release.aar
+
+      - name: Download Godot 4.7.2
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/godot"
+          curl --fail --location --retry 3 "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip" -o "$RUNNER_TEMP/godot-editor.zip"
+          unzip -q "$RUNNER_TEMP/godot-editor.zip" -d "$RUNNER_TEMP/godot"
+          GODOT_BIN="$(find "$RUNNER_TEMP/godot" -type f -name 'Godot_v4.7.2-stable_linux.x86_64' -print -quit)"
+          test -n "$GODOT_BIN"
+          chmod +x "$GODOT_BIN"
+          echo "GODOT_BIN=$GODOT_BIN" >> "$GITHUB_ENV"
+
+      - name: Install matching Android export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/4.7.2.stable"
+          mkdir -p "$TEMPLATE_DIR" "$RUNNER_TEMP/godot-templates"
+          curl --fail --location --retry 3 "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz" -o "$RUNNER_TEMP/godot-templates.tpz"
+          unzip -q "$RUNNER_TEMP/godot-templates.tpz" -d "$RUNNER_TEMP/godot-templates"
+          if [ -d "$RUNNER_TEMP/godot-templates/templates" ]; then
+            cp -a "$RUNNER_TEMP/godot-templates/templates/." "$TEMPLATE_DIR/"
+          else
+            find "$RUNNER_TEMP/godot-templates" -type f -maxdepth 2 -exec cp -t "$TEMPLATE_DIR" {} +
+          fi
+          printf '%s' "4.7.2.stable" > "$TEMPLATE_DIR/version.txt"
+          test -f "$TEMPLATE_DIR/android_source.zip"
+
+      - name: Configure Godot Android paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
+          [resource]
+          resource_name = "EditorSettings"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/android_sdk_path = "$ANDROID_HOME"
+          EOF
+
+      - name: Validate project and parser
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$GODOT_BIN" --headless --editor --path . --import
+          "$GODOT_BIN" --headless --path . --script res://tests/parser_smoke.gd
+
+      - name: Install Android Gradle template
+        run: "$GODOT_BIN" --headless --editor --path . --install-android-build-template --quit
+
+      - name: Export ARM64 debug APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          "$GODOT_BIN" --headless --editor --path . --export-debug "Android" build/LAVOICE-ForgeArena-debug.apk
+          test -s build/LAVOICE-ForgeArena-debug.apk
+          unzip -tq build/LAVOICE-ForgeArena-debug.apk
+          "$ANDROID_HOME/build-tools/35.0.1/aapt" dump badging build/LAVOICE-ForgeArena-debug.apk | grep -E "package: name='com.japaguimarassi.lavoiceforge'|sdkVersion:'26'"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: LAVOICE-ForgeArena-Android-APK
+          path: build/LAVOICE-ForgeArena-debug.apk
+          if-no-files-found: error
+          retention-days: 14
