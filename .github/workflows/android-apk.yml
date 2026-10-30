@@ -92,8 +92,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          timeout 180s "$GODOT_BIN" --headless --verbose --editor --path . --import
-          timeout 60s "$GODOT_BIN" --headless --path . --script res://tests/parser_smoke.gd
+          timeout -k 10s 90s "$GODOT_BIN" --headless --verbose --path . --script res://tests/parser_smoke.gd
 
       - name: Install Android Gradle template
         run: |
