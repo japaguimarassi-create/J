@@ -91,7 +91,8 @@ jobs:
           "$GODOT_BIN" --headless --path . --script res://tests/parser_smoke.gd
 
       - name: Install Android Gradle template
-        run: "$GODOT_BIN" --headless --editor --path . --install-android-build-template --quit
+        run: |
+          "$GODOT_BIN" --headless --editor --path . --install-android-build-template --quit
 
       - name: Export ARM64 debug APK
         shell: bash
