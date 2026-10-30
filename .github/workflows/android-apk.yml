@@ -1,5 +1,9 @@
 name: Android APK
 
+concurrency:
+  group: lavoice-android-arm64
+  cancel-in-progress: true
+
 on:
   push:
     branches:
@@ -40,6 +44,7 @@ jobs:
         run: |
           gradle --no-daemon -p voice-android :plugin:assembleDebug :plugin:assembleRelease
           mkdir -p addons/VoiceInputAndroid/bin/debug addons/VoiceInputAndroid/bin/release
+          touch addons/VoiceInputAndroid/bin/.gdignore
           cp voice-android/plugin/build/outputs/aar/plugin-debug.aar addons/VoiceInputAndroid/bin/debug/VoiceInputAndroid-debug.aar
           cp voice-android/plugin/build/outputs/aar/plugin-release.aar addons/VoiceInputAndroid/bin/release/VoiceInputAndroid-release.aar
 
@@ -87,8 +92,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          "$GODOT_BIN" --headless --editor --path . --import
-          "$GODOT_BIN" --headless --path . --script res://tests/parser_smoke.gd
+          timeout 180s "$GODOT_BIN" --headless --verbose --editor --path . --import
+          timeout 60s "$GODOT_BIN" --headless --path . --script res://tests/parser_smoke.gd
 
       - name: Install Android Gradle template
         run: |
