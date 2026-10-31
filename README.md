@@ -1,11 +1,15 @@
-# VoxMobs — projeto de mobs inteligentes
+# VoxMobs — Minecraft Forge 1.20.1
 
-Este branch apresenta o projeto independente VoxMobs para Minecraft Java 1.20.1 / Forge 47.4.28 / Java 17.
+Projeto independente de mobs conversacionais com TTS autoral, reconhecimento de voz local e cérebro neural offline de 100.000 parâmetros.
 
-**Visão geral, recursos, arquitetura e limitações:** [VOXMOBS.md](VOXMOBS.md)
+O pacote completo é distribuído no arquivo de origem codificado em `.voxmobs-source/part-*.b64`. No clone, reconstrua os fontes com:
 
-O pacote com o código-fonte foi disponibilizado como arquivo nesta conversa. Este branch contém a documentação técnica resumida; o código completo ainda não foi publicado como arquivos individuais neste repositório.
+```bash
+bash rebuild-source.sh
+cd VoxMobs-1.20.1
+gradle --no-daemon test build
+```
 
-O protótipo inclui conversa por texto, push-to-talk em português brasileiro com Vosk offline, TTS formântico original em Java, um interpretador determinístico offline, memória por relação mob/jogador e um endpoint de LLM opcional com consentimento remoto explícito.
+A branch inclui um workflow GitHub Actions que reconstrói a fonte, executa os testes e compila o mod para Forge 1.20.1.
 
-A compilação completa e a execução em jogo ainda não foram validadas. Não use esta documentação como confirmação de um JAR pronto para distribuição.
+Consulte [VOXMOBS.md](VOXMOBS.md) para arquitetura e limitações.
