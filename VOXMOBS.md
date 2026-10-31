@@ -9,7 +9,7 @@ O código-fonte atualizado está no pacote ZIP entregue nesta conversa. Este bra
 - Mire em um mob e segure **J** para gravar sua fala.
 - Solte **J** para concluir a gravação, transcrever localmente em português e enviar somente o texto ao mob.
 - Digite `!mob mensagem` no chat para conversar por texto.
-- A tecla J aparece em Opções → Controles → Multiplayer e pode ser remapeada.
+- A tecla J aparece em Opções → Controles → VoxMobs e pode ser remapeada.
 
 ## Arquitetura offline
 
