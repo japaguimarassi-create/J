@@ -32,8 +32,10 @@ public record VoiceProfile(float pitch, float brightness, float speed, float nas
         String type = entityType == null ? "mob" : entityType.toLowerCase(Locale.ROOT);
         String name = mobName == null ? "" : mobName;
         UUID id = entityId == null ? new UUID(0L, stableHash(type + name)) : entityId;
+        // UUID + entity type define the identity. A nametag change must never
+        // silently assign a different voice to the same creature.
         long seed = mix64(id.getMostSignificantBits() ^ id.getLeastSignificantBits()
-                ^ stableHash(type) ^ stableHash(name));
+                ^ stableHash(type));
         boolean feminine = switch (genderMode == null ? "random" : genderMode) {
             case "feminine" -> true;
             case "masculine" -> false;
@@ -66,7 +68,7 @@ public record VoiceProfile(float pitch, float brightness, float speed, float nas
         float individualBrightness = clamp(brightness * (0.88F + variation * 0.12F), 0.45F, 1.5F);
         String baseName = (feminine ? FEMININE_NAMES : MASCULINE_NAMES)
                 [Math.floorMod((int) (seed >>> 17), FEMININE_NAMES.length)];
-        String voiceName = baseName + "-" + Long.toString(seed & 0xFFFFFL, 36).toUpperCase(Locale.ROOT);
+        String voiceName = baseName + "-" + Long.toUnsignedString(seed, 36).toUpperCase(Locale.ROOT);
         return new VoiceProfile(pitch, individualBrightness, speed * (0.96F + variation * 0.04F),
                 nasal, feminine ? "feminina" : "masculina", voiceName,
                 formant * variation, rasp, seed);
