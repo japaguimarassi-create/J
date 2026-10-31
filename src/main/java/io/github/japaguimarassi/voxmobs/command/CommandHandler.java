@@ -6,7 +6,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraft.commands.arguments.StringArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 
 public final class CommandHandler {
     private CommandHandler() {
