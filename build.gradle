@@ -51,8 +51,8 @@ dependencies {
     implementation 'net.java.dev.jna:jna:5.7.0'
 
     // Keep both compile-time dependencies available to the runtime mod loader.
-    jarJar('com.alphacephei:vosk:0.3.45')
-    jarJar('net.java.dev.jna:jna:5.7.0')
+    jarJar('com.alphacephei:vosk:[0.3.45,0.3.45]')
+    jarJar('net.java.dev.jna:jna:[5.7.0,5.7.0]')
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
 }
 
