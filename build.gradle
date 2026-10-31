@@ -47,12 +47,12 @@ repositories {
 
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
-    implementation('com.alphacephei:vosk:0.3.45') {
-        jarJar.pin(it, '0.3.45')
-    }
-    implementation('net.java.dev.jna:jna:5.7.0') {
-        jarJar.pin(it, '5.7.0')
-    }
+    implementation 'com.alphacephei:vosk:0.3.45'
+    implementation 'net.java.dev.jna:jna:5.7.0'
+
+    // Keep both compile-time dependencies available to the runtime mod loader.
+    jarJar('com.alphacephei:vosk:0.3.45')
+    jarJar('net.java.dev.jna:jna:5.7.0')
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
 }
 
