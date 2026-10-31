@@ -1,0 +1,21 @@
+name: VoxMobs build
+
+on:
+  push:
+    branches:
+      - voxmobs-1.20.1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-package-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify project source package exists
+        run: |
+          test -f VoxMobs-1.20.1-source.tar.xz
+          tar -tJf VoxMobs-1.20.1-source.tar.xz | grep -q 'VoxMobs-1.20.1/build.gradle'
+          echo "Source package structure verified"
