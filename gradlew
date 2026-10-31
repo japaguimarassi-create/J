@@ -1,9 +1,6 @@
 #!/usr/bin/env sh
 set -eu
 GRADLE_VERSION=8.8
-if command -v gradle >/dev/null 2>&1; then
-  exec gradle "$@"
-fi
 GRADLE_HOME_DIR="${GRADLE_USER_HOME:-$HOME/.gradle}/voxmobs-bootstrap/gradle-${GRADLE_VERSION}"
 GRADLE_BIN="$GRADLE_HOME_DIR/bin/gradle"
 if [ ! -x "$GRADLE_BIN" ]; then
