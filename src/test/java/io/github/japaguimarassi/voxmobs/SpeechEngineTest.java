@@ -43,4 +43,36 @@ class SpeechEngineTest {
             assertTrue(names.add(profile.voiceName()));
         }
     }
+    @Test
+    void voiceIdentityDoesNotChangeWhenMobIsRenamed() {
+        java.util.UUID id = java.util.UUID.fromString("f17b03e2-09bb-4e2e-8d0a-10fa8d4c2a11");
+        VoiceProfile original = VoiceProfile.forMob("minecraft:wolf", "Lobo", id);
+        VoiceProfile renamed = VoiceProfile.forMob("minecraft:wolf", "Guardião", id);
+        assertEquals(original, renamed);
+    }
+
+    @Test
+    void randomizedGenderAndVoiceNameAlwaysMatch() {
+        java.util.Set<String> feminineNames = java.util.Set.of(
+                "Alice", "Bia", "Clara", "Dara", "Eva", "Flora", "Gaia", "Jade",
+                "Lia", "Maya", "Nina", "Olivia", "Rosa", "Sora", "Zoe", "Yara");
+        java.util.Set<String> masculineNames = java.util.Set.of(
+                "Alex", "Bento", "Caio", "Dante", "Enzo", "Gael", "Hugo", "Icaro",
+                "Leo", "Nilo", "Otto", "Ravi", "Theo", "Yuki", "Zeca", "Noah");
+        java.util.Set<String> observedGenders = new java.util.HashSet<>();
+        for (int i = 1; i <= 128; i++) {
+            VoiceProfile profile = VoiceProfile.forMob("minecraft:villager", "Villager",
+                    new java.util.UUID(0L, i));
+            String baseName = profile.voiceName().substring(0, profile.voiceName().indexOf('-'));
+            if (profile.gender().equals("feminina")) {
+                assertTrue(feminineNames.contains(baseName), profile.voiceName());
+            } else {
+                assertEquals("masculina", profile.gender());
+                assertTrue(masculineNames.contains(baseName), profile.voiceName());
+            }
+            observedGenders.add(profile.gender());
+        }
+        assertEquals(java.util.Set.of("feminina", "masculina"), observedGenders);
+    }
+
 }
