@@ -1,0 +1,85 @@
+{
+  "format_version": "1.12.0",
+  "minecraft:geometry": [
+    {
+      "description": {
+        "identifier": "geometry.voxmobs.talking_villager",
+        "texture_width": 64,
+        "texture_height": 64,
+        "visible_bounds_width": 2.2,
+        "visible_bounds_height": 2.8,
+        "visible_bounds_offset": [0.0, 0.85, 0.0]
+      },
+      "bones": [
+        {
+          "name": "root",
+          "pivot": [0.0, 0.0, 0.0]
+        },
+        {
+          "name": "body",
+          "parent": "root",
+          "pivot": [0.0, 12.0, 0.0],
+          "cubes": [
+            {"origin": [-4.0, 0.0, -2.0], "size": [8.0, 12.0, 4.0], "uv": [0, 32]}
+          ]
+        },
+        {
+          "name": "head",
+          "parent": "root",
+          "pivot": [0.0, 12.0, 0.0],
+          "cubes": [
+            {"origin": [-4.0, 12.0, -4.0], "size": [8.0, 10.0, 8.0], "uv": [0, 0]}
+          ]
+        },
+        {
+          "name": "nose",
+          "parent": "head",
+          "pivot": [0.0, 16.0, -4.0],
+          "cubes": [
+            {"origin": [-1.0, 14.0, -6.0], "size": [2.0, 4.0, 2.0], "uv": [24, 8]}
+          ]
+        },
+        {
+          "name": "mouth",
+          "parent": "head",
+          "pivot": [0.0, 18.4, -4.05],
+          "cubes": [
+            {"origin": [-1.0, 18.0, -4.24], "size": [2.0, 0.65, 0.2], "uv": [10, 15]}
+          ]
+        },
+        {
+          "name": "right_arm",
+          "parent": "root",
+          "pivot": [-5.0, 12.0, 0.0],
+          "cubes": [
+            {"origin": [-8.0, 0.0, -2.0], "size": [4.0, 12.0, 4.0], "uv": [24, 32]}
+          ]
+        },
+        {
+          "name": "left_arm",
+          "parent": "root",
+          "pivot": [5.0, 12.0, 0.0],
+          "cubes": [
+            {"origin": [4.0, 0.0, -2.0], "size": [4.0, 12.0, 4.0], "uv": [40, 32]}
+          ]
+        },
+        {
+          "name": "right_leg",
+          "parent": "root",
+          "pivot": [-2.0, 12.0, 0.0],
+          "cubes": [
+            {"origin": [-4.0, 0.0, -2.0], "size": [4.0, 12.0, 4.0], "uv": [0, 48]}
+          ]
+        },
+        {
+          "name": "left_leg",
+          "parent": "root",
+          "pivot": [2.0, 12.0, 0.0],
+          "cubes": [
+            {"origin": [0.0, 0.0, -2.0], "size": [4.0, 12.0, 4.0], "uv": [16, 48]}
+          ]
+        }
+      ]
+    }
+  ]
+}
