@@ -6,6 +6,7 @@ import io.github.japaguimarassi.voxmobs.ai.ConversationService;
 import io.github.japaguimarassi.voxmobs.config.VoxMobsConfig;
 import io.github.japaguimarassi.voxmobs.events.WorldEvents;
 import io.github.japaguimarassi.voxmobs.network.NetworkHandler;
+import io.github.japaguimarassi.voxmobs.registry.ModEntities;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
@@ -21,6 +22,7 @@ public final class VoxMobs {
     public VoxMobs() {
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, VoxMobsConfig.COMMON);
         ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, VoxMobsConfig.CLIENT);
+        ModEntities.register(FMLJavaModLoadingContext.get().getModEventBus());
         NetworkHandler.register();
         ConversationService.initialize();
         MinecraftForge.EVENT_BUS.addListener(CommandHandler::register);
