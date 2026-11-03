@@ -3,6 +3,7 @@ package io.github.japaguimarassi.voxmobs.network;
 import io.github.japaguimarassi.voxmobs.VoxMobs;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.PacketDistributor;
@@ -45,5 +46,9 @@ public final class NetworkHandler {
 
     public static void sendReply(ServerPlayer player, MobReplyPacket packet) {
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), packet);
+    }
+
+    public static void sendReplyToTracking(Entity entity, MobReplyPacket packet) {
+        CHANNEL.send(PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> entity), packet);
     }
 }
