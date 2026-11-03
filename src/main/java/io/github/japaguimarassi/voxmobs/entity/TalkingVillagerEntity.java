@@ -27,13 +27,13 @@ import software.bernie.geckolib.util.GeckoLibUtil;
 import java.util.List;
 
 public final class TalkingVillagerEntity extends Villager implements GeoEntity {
-    private static final EntityDataAccessor<Boolean> TALKING =
+    private static final EntityDataAccessor<Boolean> IS_TALKING =
             SynchedEntityData.defineId(TalkingVillagerEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<Integer> TALK_EMOTION =
             SynchedEntityData.defineId(TalkingVillagerEntity.class, EntityDataSerializers.INT);
     private static final RawAnimation IDLE = RawAnimation.begin().thenLoop("animation.voxmobs.villager.idle");
     private static final RawAnimation WALKING = RawAnimation.begin().thenLoop("animation.voxmobs.villager.walking");
-    private static final RawAnimation TALKING = RawAnimation.begin().thenLoop("animation.voxmobs.villager.talking");
+    private static final RawAnimation TALKING_ANIM = RawAnimation.begin().thenLoop("animation.voxmobs.villager.talking");
     private static final RawAnimation TALKING_HAPPY = RawAnimation.begin().thenLoop("animation.voxmobs.villager.talking_happy");
     private static final RawAnimation TALKING_ANGRY = RawAnimation.begin().thenLoop("animation.voxmobs.villager.talking_angry");
     private static final RawAnimation TALKING_SAD = RawAnimation.begin().thenLoop("animation.voxmobs.villager.talking_sad");
@@ -52,7 +52,7 @@ public final class TalkingVillagerEntity extends Villager implements GeoEntity {
     @Override
     protected void defineSynchedData() {
         super.defineSynchedData();
-        entityData.define(TALKING, false);
+        entityData.define(IS_TALKING, false);
         entityData.define(TALK_EMOTION, 0);
     }
 
@@ -67,7 +67,7 @@ public final class TalkingVillagerEntity extends Villager implements GeoEntity {
                 case 1 -> TALKING_HAPPY;
                 case 2 -> TALKING_ANGRY;
                 case 3 -> TALKING_SAD;
-                default -> TALKING;
+                default -> TALKING_ANIM;
             });
         } else if (state.isMoving()) {
             state.setAnimation(WALKING);
@@ -83,7 +83,7 @@ public final class TalkingVillagerEntity extends Villager implements GeoEntity {
     }
 
     public boolean isTalking() {
-        return entityData.get(TALKING);
+        return entityData.get(IS_TALKING);
     }
 
     public void beginTalking(String emotion, int durationTicks) {
@@ -91,12 +91,12 @@ public final class TalkingVillagerEntity extends Villager implements GeoEntity {
             return;
         }
         entityData.set(TALK_EMOTION, emotionIndex(emotion));
-        entityData.set(TALKING, true);
+        entityData.set(IS_TALKING, true);
         talkUntilTick = level().getGameTime() + Math.max(12, Math.min(240, durationTicks));
     }
 
     private void stopTalking() {
-        entityData.set(TALKING, false);
+        entityData.set(IS_TALKING, false);
         entityData.set(TALK_EMOTION, 0);
         talkUntilTick = 0L;
     }
