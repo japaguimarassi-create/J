@@ -9,7 +9,7 @@ public final class TalkingVillagerModel extends GeoModel<TalkingVillagerEntity> 
     private static final ResourceLocation MODEL =
             new ResourceLocation(VoxMobs.MOD_ID, "geo/talking_villager.geo.json");
     private static final ResourceLocation TEXTURE =
-            new ResourceLocation("minecraft", "textures/entity/villager/villager.png");
+            new ResourceLocation(VoxMobs.MOD_ID, "textures/entity/talking_villager.png");
     private static final ResourceLocation ANIMATIONS =
             new ResourceLocation(VoxMobs.MOD_ID, "animations/talking_villager.animation.json");
 
