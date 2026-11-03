@@ -2,6 +2,7 @@ package io.github.japaguimarassi.voxmobs.ai;
 
 import io.github.japaguimarassi.voxmobs.action.ActionExecutor;
 import io.github.japaguimarassi.voxmobs.config.VoxMobsConfig;
+import io.github.japaguimarassi.voxmobs.entity.TalkingVillagerEntity;
 import io.github.japaguimarassi.voxmobs.memory.MobMemorySavedData;
 import io.github.japaguimarassi.voxmobs.network.MobReplyPacket;
 import io.github.japaguimarassi.voxmobs.network.NetworkHandler;
@@ -191,9 +192,22 @@ public final class ConversationService {
         }
 
         String name = mob.getName().getString();
-        player.sendSystemMessage(Component.literal(name + ": " + delivered.reply()));
-        NetworkHandler.sendReply(player, new MobReplyPacket(delivered.reply(), entityType,
-                mob.getUUID(), name, delivered.emotion()));
+        MobReplyPacket packet = new MobReplyPacket(delivered.reply(), entityType,
+                mob.getUUID(), name, delivered.emotion());
+        if (mob instanceof TalkingVillagerEntity villager && mob.level() instanceof ServerLevel serverLevel) {
+            int speechTicks = Math.max(28, Math.min(220,
+                    delivered.reply().codePointCount(0, delivered.reply().length()) * 2 + 14));
+            villager.beginTalking(delivered.emotion(), speechTicks);
+            NetworkHandler.sendReplyToTracking(mob, packet);
+            for (ServerPlayer listener : serverLevel.players()) {
+                if (listener.distanceToSqr(mob) <= 18.0D * 18.0D) {
+                    listener.sendSystemMessage(Component.literal(name + ": " + delivered.reply()));
+                }
+            }
+        } else {
+            player.sendSystemMessage(Component.literal(name + ": " + delivered.reply()));
+            NetworkHandler.sendReply(player, packet);
+        }
         MobMemorySavedData.get(server).add(mob.getUUID(), player.getUUID(),
                 name + ": " + delivered.reply(), VoxMobsConfig.COMMON_VALUES.memoryLines.get());
     }
