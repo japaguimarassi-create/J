@@ -28,7 +28,7 @@
 <path d="M-180 -10 Q-177 -34 -150 -34 H150 Q177 -34 180 -10 L171 68 H-171Z" fill="#211b1a" stroke="#09090d" stroke-width="8"/>
 <path d="M-170 -12 Q-166 -29 -146 -29 H146 Q166 -29 170 -12 L164 57 H-164Z" fill="url(#plaque)" stroke="#fff0bc" stroke-width="4"/>
 <text x="0" y="13" text-anchor="middle" fill="#241414" font-family="Arial Black, Impact, sans-serif" font-size="42" font-weight="900" letter-spacing="2">MUZAN</text>
-<text x="0" y="43" text-anchor="middle" fill="#39251e" font-family="Arial, sans-serif" font-size="13" font-weight="800" letter-spacing="2">CRIATURA • SANGUE</text>
+<text x="0" y="43" text-anchor="middle" fill="#39251e" font-family="Arial, sans-serif" font-size="18" font-weight="900" letter-spacing="2">CRIATURA</text>
 </g>
 <path d="M35 38 H95 M35 38 V98 M477 38 H417 M477 38 V98 M35 474 H95 M35 474 V414 M477 474 H417 M477 474 V414" fill="none" stroke="#ffe8a8" stroke-width="5" stroke-linecap="round"/>
 </g>
