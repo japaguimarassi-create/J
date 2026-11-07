@@ -1,4 +1,4 @@
-name: Render character selection artwork
+name: Render and verify character selection artwork
 
 on:
   push:
