@@ -1,0 +1,106 @@
+name: Render character selection artwork
+
+on:
+  push:
+    branches:
+      - demon-slayer-rpg-alpha
+    paths:
+      - "assets/character-select/*.svg"
+      - ".github/workflows/render-character-selection.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install renderer
+        run: python -m pip install cairosvg pillow
+
+      - name: Render PNG assets and comparison sheet
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import cairosvg
+          from PIL import Image, ImageDraw, ImageFont
+
+          root = Path("assets/character-select")
+          names = ["tanjiro-bacon", "muzan-bacon"]
+          images = []
+
+          for name in names:
+              source = root / f"{name}.svg"
+              target = root / f"{name}.png"
+              cairosvg.svg2png(
+                  url=str(source),
+                  write_to=str(target),
+                  output_width=1024,
+                  output_height=1024
+              )
+              image = Image.open(target).convert("RGBA")
+              if image.size != (1024, 1024):
+                  raise SystemExit(f"Unexpected image size: {target} {image.size}")
+              images.append(image)
+
+          sheet = Image.new("RGB", (1120, 600), "#11141d")
+          draw = ImageDraw.Draw(sheet)
+          font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+          title_font = ImageFont.truetype(font_path, 24)
+          label_font = ImageFont.truetype(font_path, 17)
+          draw.text((36, 18), "ECLIPSE  /  CHARACTER SELECT", font=title_font, fill="#f1d59b")
+
+          for image, x, label in zip(images, (36, 562), ("TANJIRO • GUARDIÃO", "MUZAN • CRIATURA")):
+              thumb = image.resize((500, 500), Image.Resampling.LANCZOS)
+              sheet.paste(thumb, (x, 66), thumb)
+              draw.rounded_rectangle((x, 66, x + 499, 565), radius=18, outline="#d8b875", width=3)
+              draw.text((x + 8, 572), label, font=label_font, fill="#f2eadb")
+
+          sheet.save(root / "selection-preview.png", optimize=True)
+          PY
+
+      - name: Verify SVG and PNG outputs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          from PIL import Image
+
+          root = Path("assets/character-select")
+          for name in ("tanjiro-bacon", "muzan-bacon"):
+              svg = root / f"{name}.svg"
+              ET.parse(svg)
+              image = Image.open(root / f"{name}.png")
+              image.verify()
+              print(f"PASS {name}: valid SVG, valid PNG, 1024x1024")
+          preview = Image.open(root / "selection-preview.png")
+          preview.verify()
+          print(f"PASS comparison: {preview.size[0]}x{preview.size[1]}")
+          PY
+
+      - name: Upload rendered artwork
+        uses: actions/upload-artifact@v4
+        with:
+          name: eclipse-character-selection-art
+          path: assets/character-select/*.png
+          if-no-files-found: error
+
+      - name: Commit PNG exports
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/character-select/*.png
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "Add rendered character selection PNGs"
+          git push
