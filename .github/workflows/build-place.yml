@@ -6,6 +6,7 @@ on:
       - demon-slayer-rpg-alpha
     paths-ignore:
       - "assets/character-select/**"
+      - ".github/workflows/**"
   workflow_dispatch:
 
 permissions:
@@ -81,7 +82,7 @@ jobs:
             if [ "$(printf '%s' "$operation_response" | jq -r '.done // false')" = "true" ]; then
               published="$(printf '%s' "$operation_response" | jq -r '.response.isPublished // false')"
               if [ "$published" = "true" ]; then
-                version="$(printf '%s' "$operation_response" | jq -r '.response.revisionId // "unknown"')"
+                version="$(printf '%s' "$operation_response" | jq -r '.response.revisionId // \"unknown\"')"
                 echo "Roblox place published successfully. Version: $version"
                 exit 0
               fi
