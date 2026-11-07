@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - demon-slayer-rpg-alpha
+    paths-ignore:
+      - "assets/character-select/**"
   workflow_dispatch:
 
 permissions:
