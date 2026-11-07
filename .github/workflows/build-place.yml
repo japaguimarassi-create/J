@@ -1,4 +1,4 @@
-name: Build Roblox place
+name: Build and publish Roblox place
 
 on:
   push:
@@ -29,6 +29,7 @@ jobs:
         run: |
           mkdir -p build
           rojo build default.project.json --output build/EclipseBloodBreath.rbxlx
+          test -s build/EclipseBloodBreath.rbxlx
 
       - name: Upload place artifact
         uses: actions/upload-artifact@v4
@@ -36,3 +37,60 @@ jobs:
           name: EclipseBloodBreath-rbxlx
           path: eclipse-blood-breath-roblox/build/EclipseBloodBreath.rbxlx
           if-no-files-found: error
+
+      - name: Publish place to Roblox
+        env:
+          ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+          ROBLOX_PLACE_ID: ${{ secrets.ROBLOX_PLACE_ID }}
+        run: |
+          if [ -z "$ROBLOX_API_KEY" ] || [ -z "$ROBLOX_PLACE_ID" ]; then
+            echo "::notice::Roblox publish skipped. Configure ROBLOX_API_KEY and ROBLOX_PLACE_ID in repository Actions secrets."
+            exit 0
+          fi
+
+          set -euo pipefail
+
+          case "$ROBLOX_PLACE_ID" in
+            *[!0-9]*|'')
+              echo "ROBLOX_PLACE_ID must contain digits only."
+              exit 1
+              ;;
+          esac
+
+          PLACE_FILE="eclipse-blood-breath-roblox/build/EclipseBloodBreath.rbxlx"
+          test -s "$PLACE_FILE"
+
+          upload_response="$(curl --fail-with-body --silent --show-error --location --request PATCH "https://apis.roblox.com/assets/v1/assets/$ROBLOX_PLACE_ID" \
+            --header "x-api-key: $ROBLOX_API_KEY" \
+            --form-string "request={\"assetId\": $ROBLOX_PLACE_ID, \"assetType\": \"Place\", \"published\": true}" \
+            --form "fileContent=@$PLACE_FILE;type=application/xml")"
+
+          operation_path="$(printf '%s' "$upload_response" | jq -r '.path // empty')"
+          if [ -z "$operation_path" ]; then
+            echo "Roblox did not return an operation path:"
+            printf '%s\n' "$upload_response"
+            exit 1
+          fi
+
+          for attempt in $(seq 1 40); do
+            operation_response="$(curl --fail-with-body --silent --show-error --location "https://apis.roblox.com/assets/v1/$operation_path" \
+              --header "x-api-key: $ROBLOX_API_KEY")"
+
+            if [ "$(printf '%s' "$operation_response" | jq -r '.done // false')" = "true" ]; then
+              published="$(printf '%s' "$operation_response" | jq -r '.response.isPublished // false')"
+              if [ "$published" = "true" ]; then
+                version="$(printf '%s' "$operation_response" | jq -r '.response.revisionId // "unknown"')"
+                echo "Roblox place published successfully. Version: $version"
+                exit 0
+              fi
+
+              echo "Roblox accepted the upload but did not confirm publication:"
+              printf '%s\n' "$operation_response"
+              exit 1
+            fi
+
+            sleep 5
+          done
+
+          echo "Timed out waiting for Roblox to finish processing the place."
+          exit 1
