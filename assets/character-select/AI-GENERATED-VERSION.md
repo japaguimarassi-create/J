@@ -1,8 +1,10 @@
 # AI-generated icon sources
 
-The final images were generated with Ideogram V4 and refined through FLUX 2 Klein image-to-image edits.
+The final portraits are image-generator outputs, then reviewed at game-icon size.
 
 - Tanjiro final source: https://im.runware.ai/image/os/a02d21/ws/3/ii/1dc754af-2c64-4ce0-b5e1-bce7feaca9c3.jpg
-- Muzan final source, with shortened lower face: https://im.runware.ai/image/os/a03d21/ws/3/ii/15fbb59a-ef96-4d29-be6b-0a811e8cd13d.jpg
+- Muzan rebuilt from scratch: https://im.runware.ai/image/os/a03d21/ws/3/ii/c96a5ee5-3eda-4a43-b31a-652d49aa830d.jpg
 
-The Muzan revision is a localized jaw/chin proportion correction. Hair, hat, eyes, expression, palette and framing were preserved. The import workflow downloads these outputs, validates them, and rebuilds the side-by-side preview.
+The new Muzan portrait was regenerated from the visual description of the user's supplied reference: white wide-brim hat with plain black band, pale face, narrow red eyes and two black wavy side curls. The prior elongated face was discarded. The replacement uses a broad cuboid Roblox head with flat cheeks and a short square chin. Tanjiro's image is unchanged.
+
+The GitHub Actions workflow imports the two hosted images, validates square dimensions and resolution, and rebuilds the faction preview.

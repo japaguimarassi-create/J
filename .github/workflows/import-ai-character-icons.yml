@@ -22,7 +22,7 @@ jobs:
       - name: Download generated portraits
         env:
           TANJIRO_URL: "https://im.runware.ai/image/os/a02d21/ws/3/ii/1dc754af-2c64-4ce0-b5e1-bce7feaca9c3.jpg"
-          MUZAN_URL: "https://im.runware.ai/image/os/a03d21/ws/3/ii/15fbb59a-ef96-4d29-be6b-0a811e8cd13d.jpg"
+          MUZAN_URL: "https://im.runware.ai/image/os/a03d21/ws/3/ii/c96a5ee5-3eda-4a43-b31a-652d49aa830d.jpg"
         run: |
           set -euo pipefail
           mkdir -p assets/character-select
@@ -89,6 +89,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add assets/character-select/tanjiro-roblox-icon-final.jpg assets/character-select/muzan-roblox-icon-final.jpg assets/character-select/selection-preview-ai.png
           git diff --cached --quiet && exit 0
-          git commit -m "Correct Muzan Roblox avatar chin proportions"
+          git commit -m "Rebuild Muzan portrait with compact Roblox head"
           git pull --rebase origin demon-slayer-rpg-alpha
           git push
