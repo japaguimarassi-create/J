@@ -9,6 +9,10 @@ on:
       - ".github/workflows/render-character-selection.yml"
   workflow_dispatch:
 
+concurrency:
+  group: character-selection-art-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
@@ -103,4 +107,5 @@ jobs:
             exit 0
           fi
           git commit -m "Add rendered character selection PNGs"
+          git pull --rebase origin demon-slayer-rpg-alpha
           git push
