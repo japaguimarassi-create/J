@@ -1,0 +1,38 @@
+name: Build Roblox place
+
+on:
+  push:
+    branches:
+      - demon-slayer-rpg-alpha
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rojo
+        uses: rojo-rbx/setup-rojo@v1
+        with:
+          version: "7.7.1"
+
+      - name: Extract project source
+        run: tar -xzf EclipseBloodBreath-Alpha.tar.gz
+
+      - name: Build Roblox place
+        working-directory: eclipse-blood-breath-roblox
+        run: |
+          mkdir -p build
+          rojo build default.project.json --output build/EclipseBloodBreath.rbxlx
+
+      - name: Upload place artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EclipseBloodBreath-rbxlx
+          path: eclipse-blood-breath-roblox/build/EclipseBloodBreath.rbxlx
+          if-no-files-found: error
