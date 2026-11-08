@@ -62,6 +62,15 @@ jobs:
           entity_source = entity_source.replace("ConeMesh.new()", "CylinderMesh.new()")
           entity_source = entity_source.replace("		ear_mesh.bottom_radius = 0.15", "		ear_mesh.top_radius = 0.0\n\t\tear_mesh.bottom_radius = 0.15")
           entities.write_text(entity_source)
+          project = Path("ChatReality3D/project.godot")
+          project_source = project.read_text()
+          rendering_header = "[rendering]\\n"
+          setting = "textures/vram_compression/import_etc2_astc=true\\n"
+          if setting.split("=")[0] not in project_source:
+              if rendering_header not in project_source:
+                  raise SystemExit("Could not find [rendering] section in project.godot")
+              project_source = project_source.replace(rendering_header, rendering_header + setting, 1)
+              project.write_text(project_source)
           PY
 
       - name: Set up Java 17
