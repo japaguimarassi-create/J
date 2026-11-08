@@ -64,8 +64,8 @@ jobs:
           entities.write_text(entity_source)
           project = Path("ChatReality3D/project.godot")
           project_source = project.read_text()
-          rendering_header = "[rendering]\\n"
-          setting = "textures/vram_compression/import_etc2_astc=true\\n"
+          rendering_header = "[rendering]\n"
+          setting = "textures/vram_compression/import_etc2_astc=true\n"
           if setting.split("=")[0] not in project_source:
               if rendering_header not in project_source:
                   raise SystemExit("Could not find [rendering] section in project.godot")
