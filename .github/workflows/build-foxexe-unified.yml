@@ -1,0 +1,63 @@
+name: Build unified Foxexe APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - foxexe-unified
+    paths:
+      - 'Foxexe-source-part*.b64'
+      - '.github/workflows/build-foxexe-unified.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source archive
+        uses: actions/checkout@v4
+
+      - name: Reassemble and validate project archive
+        run: |
+          cat Foxexe-source-part01.b64 Foxexe-source-part02.b64 Foxexe-source-part03.b64 Foxexe-source-part04.b64 Foxexe-source-part05.b64 Foxexe-source-part06.b64 Foxexe-source-part07.b64 Foxexe-source-part08.b64 Foxexe-source-part09.b64 > /tmp/foxexe-source.zip.b64
+          base64 --decode /tmp/foxexe-source.zip.b64 > /tmp/foxexe-source.zip
+          unzip -t /tmp/foxexe-source.zip
+          unzip -q /tmp/foxexe-source.zip -d /tmp/foxexe-project
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.7
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform and build tools
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Run static verification
+        working-directory: /tmp/foxexe-project/Foxexe
+        run: python3 tests/verify_project.py
+
+      - name: Build installable debug APK
+        working-directory: /tmp/foxexe-project/Foxexe
+        run: |
+          sed -i "/applicationIdSuffix '.debug'/d" app/build.gradle
+          gradle --no-daemon assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk Foxexe.apk
+          test -s Foxexe.apk
+
+      - name: Upload Foxexe APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Foxexe-APK
+          path: /tmp/foxexe-project/Foxexe/Foxexe.apk
+          if-no-files-found: error
