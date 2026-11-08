@@ -29,6 +29,40 @@ jobs:
           unzip -t chatreality/source.zip
           unzip -q chatreality/source.zip
           test -f ChatReality3D/project.godot
+          python3 - <<'PY'
+          from pathlib import Path
+          parser = Path("ChatReality3D/scripts/parser.gd")
+          source = parser.read_text()
+          old_number = """func _find_number(tokens: PackedStringArray) -> int:
+          	var numbers: Dictionary = dictionaries.get("parameters", {}).get("numbers", {})
+          	for token in tokens:
+          		if token.is_valid_int():
+          			return int(token)
+          		if numbers.has(token):
+          			return int(numbers[token])
+          	return 1
+          """
+          new_number = """func _find_number(tokens: PackedStringArray) -> int:
+          	var numbers: Dictionary = dictionaries.get("parameters", {}).get("numbers", {})
+          	for token in tokens:
+          		if token.is_valid_int():
+          			return int(token)
+          	for token in tokens:
+          		if numbers.has(token):
+          			return int(numbers[token])
+          	return 1
+          """
+          if old_number not in source:
+              raise SystemExit("Could not find expected _find_number implementation")
+          parser.write_text(source.replace(old_number, new_number))
+          entities = Path("ChatReality3D/scripts/gerador_entidades.gd")
+          entity_source = entities.read_text()
+          if "ConeMesh.new()" not in entity_source:
+              raise SystemExit("Could not find expected ConeMesh constructor")
+          entity_source = entity_source.replace("ConeMesh.new()", "CylinderMesh.new()")
+          entity_source = entity_source.replace("		ear_mesh.bottom_radius = 0.15", "		ear_mesh.top_radius = 0.0\n\t\tear_mesh.bottom_radius = 0.15")
+          entities.write_text(entity_source)
+          PY
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -105,15 +139,27 @@ jobs:
         run: |
           set -euo pipefail
           godot --version
-          timeout 180s godot --headless --editor --path ChatReality3D --quit
+          set +e
+          timeout 180s godot --headless --editor --path ChatReality3D --quit 2>&1 | tee "$RUNNER_TEMP/godot-import.log"
+          import_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$import_status" -ne 0 ] || grep -Eiq "SCRIPT ERROR|Parse Error|Compile Error|ERROR:" "$RUNNER_TEMP/godot-import.log"; then
+            exit 1
+          fi
           set +e
           timeout 45s godot --headless --path ChatReality3D --script res://tests/parser_smoke.gd --quit-after 30 2>&1 | tee "$RUNNER_TEMP/parser-smoke.log"
           parser_status=${PIPESTATUS[0]}
           set -e
-          if [ "$parser_status" -ne 0 ] || grep -Eiq "SCRIPT ERROR|Assertion failed|ERROR:" "$RUNNER_TEMP/parser-smoke.log"; then
+          if [ "$parser_status" -ne 0 ] || grep -Eiq "SCRIPT ERROR|Assertion failed|Parse Error|Compile Error|ERROR:" "$RUNNER_TEMP/parser-smoke.log"; then
             exit 1
           fi
-          timeout 45s godot --headless --path ChatReality3D --quit-after 4
+          set +e
+          timeout 45s godot --headless --path ChatReality3D --quit-after 4 2>&1 | tee "$RUNNER_TEMP/godot-boot.log"
+          boot_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$boot_status" -ne 0 ] || grep -Eiq "SCRIPT ERROR|Parse Error|Compile Error|ERROR:" "$RUNNER_TEMP/godot-boot.log"; then
+            exit 1
+          fi
 
       - name: Export debug APK
         shell: bash
