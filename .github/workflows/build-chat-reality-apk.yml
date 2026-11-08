@@ -105,9 +105,15 @@ jobs:
         run: |
           set -euo pipefail
           godot --version
-          godot --headless --editor --path ChatReality3D --quit
-          godot --headless --path ChatReality3D --script res://tests/parser_smoke.gd
-          godot --headless --path ChatReality3D --quit-after 4
+          timeout 180s godot --headless --editor --path ChatReality3D --quit
+          set +e
+          timeout 45s godot --headless --path ChatReality3D --script res://tests/parser_smoke.gd --quit-after 30 2>&1 | tee "$RUNNER_TEMP/parser-smoke.log"
+          parser_status=${PIPESTATUS[0]}
+          set -e
+          if [ "$parser_status" -ne 0 ] || grep -Eiq "SCRIPT ERROR|Assertion failed|ERROR:" "$RUNNER_TEMP/parser-smoke.log"; then
+            exit 1
+          fi
+          timeout 45s godot --headless --path ChatReality3D --quit-after 4
 
       - name: Export debug APK
         shell: bash
