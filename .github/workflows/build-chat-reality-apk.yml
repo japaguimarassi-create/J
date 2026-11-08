@@ -175,7 +175,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ChatReality3D/build
-          godot --headless --path ChatReality3D --export-debug "Android" ChatReality3D/build/ChatReality3D.apk
+          godot --headless --path ChatReality3D --export-debug "Android" build/ChatReality3D.apk
           test -s ChatReality3D/build/ChatReality3D.apk
           unzip -t ChatReality3D/build/ChatReality3D.apk
           "$ANDROID_HOME/build-tools/35.0.1/apksigner" verify --verbose ChatReality3D/build/ChatReality3D.apk
