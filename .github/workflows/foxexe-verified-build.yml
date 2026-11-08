@@ -1,0 +1,75 @@
+name: Foxexe verified APK build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - foxexe-unified
+    paths:
+      - '.github/workflows/foxexe-verified-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reassemble source
+        run: |
+          cat Foxexe-source-part01.b64 Foxexe-source-part02.b64 Foxexe-source-part03.b64 Foxexe-source-part04.b64 Foxexe-source-part05.b64 Foxexe-source-part06.b64 Foxexe-source-part07.b64 Foxexe-source-part08.b64 Foxexe-source-part09.b64 > /tmp/foxexe.zip.b64
+          base64 --decode /tmp/foxexe.zip.b64 > /tmp/foxexe.zip
+          unzip -t /tmp/foxexe.zip
+          unzip -q /tmp/foxexe.zip -d /tmp/foxexe
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+
+      - name: Install Android 35
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+
+      - name: Check project sources
+        working-directory: /tmp/foxexe/Foxexe
+        run: python3 tests/verify_project.py
+
+      - name: Build APK
+        working-directory: /tmp/foxexe/Foxexe
+        run: |
+          sed -i "/applicationIdSuffix '.debug'/d" app/build.gradle
+          gradle --no-daemon assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk Foxexe.apk
+          test -s Foxexe.apk
+
+      - name: Verify package ID, permissions, and APK signature
+        working-directory: /tmp/foxexe/Foxexe
+        run: |
+          export PATH="$ANDROID_HOME/build-tools/35.0.0:$PATH"
+          aapt dump badging Foxexe.apk | grep "package: name='com.nexel.panel'"
+          PERMISSIONS="$(aapt dump permissions Foxexe.apk)"
+          echo "$PERMISSIONS"
+          echo "$PERMISSIONS" | grep 'android.permission.SYSTEM_ALERT_WINDOW'
+          if echo "$PERMISSIONS" | grep -q 'android.permission.INTERNET'; then exit 1; fi
+          apksigner verify --verbose --print-certs Foxexe.apk
+
+      - name: Upload verified APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Foxexe-APK-Verified
+          path: /tmp/foxexe/Foxexe/Foxexe.apk
+          if-no-files-found: error
