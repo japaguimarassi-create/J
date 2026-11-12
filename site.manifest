@@ -1,0 +1,21 @@
+CACHE MANIFEST
+# HEN14 rebuild 2 / 20261112-r1
+CACHE:
+./
+index.html
+run.html
+compat.html
+goldhen.html
+revert-check.html
+guide.html
+status.html
+offline.html
+404.html
+manifest.json
+assets/css/style.css
+assets/js/site.js
+assets/js/diagnostics.js
+assets/js/revert.js
+
+NETWORK:
+*

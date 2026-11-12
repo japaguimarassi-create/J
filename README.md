@@ -1,42 +1,44 @@
-# HEN 14.02 — PS4 Host
+# HEN 14.02 — Rebuild 2
 
-Offline-first static compatibility dashboard and documentation site for PS4 firmware research.
+PT-BR-first static PS4 browser host and research portal.
 
-## Compatibility facts
-- ConsoleMods' PS4 FAQ explicitly states there is no jailbreak for firmware 14.02.
-- Its Getting Started guide lists 14.00 as the latest exploited firmware in that guide.
-- GoldHEN is a Homebrew Enabler payload; it is not an exploit entry point.
-- The official GoldHEN v2.4b18 release page lists supported firmware through 11.00.
-- This project does not include WebKit or kernel exploit code, GoldHEN binaries, payload injection or console modification routines.
+## Research snapshot (2026-11-12)
 
-## GamerHack G2All integration
-- Audited the public GamerHack/GamerHack.github.io repository; its current public launcher has firmware routes through 14.00 and rejects 14.01+.
-- The dashboard reveals a direct link to the real upstream G2All host only after the user manually confirms 14.00.
-- Firmware 14.02 remains blocked: the current PS4 Developer Wiki records the 14.00 AIO kernel vulnerability as patched on 14.02 and lists no public 14.02 kernel chain.
-- GoldHEN v2.4b18.13 is the separate community beta bundled by G2All for 14.00. The stable upstream v2.4b18 release page still lists support through 11.00.
+- ConsoleMods Exploit Chart: public routes through PS4 firmware 14.00; no public userland or kernel chain listed for 14.02.
+- PS4 Developer Wiki: Prolapse is listed as patched since 14.02. Afterglow is tested on 13.52–14.00; its patch status on 14.02 is uncertain.
+- GamerHack G2All public source has a dedicated 14.00 route. This site forwards to that upstream host after user confirmation; it does not copy the exploit chain or payload binaries.
+- GoldHEN v2.4b18.13 is a beta payload advertised for 14.00. It does not provide the missing entry point/kernel exploit.
+- Firmware revert is not a browser operation. It requires case-specific hardware assessment of previous firmware slots, NOR/Syscon state and compatible hardware. Brick risk is real.
 
-## Features
-- Responsive dark-first UI with light mode toggle.
-- Static PWA cache (optional) plus a standalone offline HTML reference for browsers without Service Worker support.
-- Two-stage reload-based preflight using sessionStorage.
-- Browser API checks only; no exploit testing, memory scanning or payload loading.
-- GoldHEN official firmware compatibility reference and local version gate.
-- Exportable local browser preflight report.
-- English and Portuguese guide.\n- PS4 User-Agent firmware hint, D-pad focus navigation and a real G2All 14.00 upstream launch gate.\n- Read-only firmware revert eligibility assessment; no Syscon/NOR writes, payload execution or console modification.
-- GitHub Actions workflow for GitHub Pages.
+## Design constraints
 
-## Firmware revert assessment\nThe `revert-check.html` tool is informational and local-only. It explains the documented hardware/backup prerequisites and gives a cautious assessment from user-provided answers. It cannot downgrade firmware. Normal retail PS4 consoles do not downgrade by installing an older PUP, changing DNS or replacing an HDD.\n\n## Publish with GitHub Pages
-1. Open this repository's Settings → Pages.
-2. Set the build and deployment source to GitHub Actions.
-3. The workflow deploys the static site whenever the hen-14-02-host branch is updated.
-4. Open the Pages URL shown by GitHub after the workflow completes.
+- No external fonts, CSS frameworks, SVG, WebGL, WebAssembly, ES modules or modern JavaScript syntax.
+- Semantic anchors/forms and visible focus for the PS4 browser and DualShock 4 tab-style navigation.
+- Legacy Application Cache manifest for the PS4 browser. Service Worker is optional for modern browsers.
+- User-Agent version is only a hint; the user must verify System Information manually.
+- The 14.00 link is a real upstream redirect. Firmware 14.02 is blocked.
+- Revert Check is read-only and local-only; it cannot read/write NOR or Syscon.
 
-## Run locally
-Serve this directory over HTTPS or localhost. Service Workers are unavailable in most local file URL contexts.
+## Files
 
-## Sources
+- index.html: dashboard and firmware checker
+- run.html: 14.00-only gate to GamerHack G2All
+- compat.html: browser diagnostics
+- goldhen.html: GoldHEN version and provenance notes
+- revert-check.html: cautious hardware-revert triage
+- guide.html: Portuguese user guide
+- status.html: evidence links and research matrix
+- site.manifest: legacy Application Cache resources
+- sw.js / manifest.json: optional modern PWA support
+
+## Upstream references
+
+- https://consolemods.org/wiki/PS4:Exploit_Chart
 - https://consolemods.org/wiki/PS4:FAQ
-- https://consolemods.org/wiki/PS4:Getting_Started
-- https://github.com/GoldHEN/GoldHEN/releases\n- https://github.com/GamerHack/GamerHack.github.io\n- https://consolemods.org/wiki/PS4:Firmware_Revert\n- https://www.psdevwiki.com/ps4/Vulnerabilities
-
-Independent community project. Not affiliated with Sony, PlayStation or GoldHEN.
+- https://consolemods.org/wiki/PS4:Firmware_Revert
+- https://www.psdevwiki.com/ps4/Vulnerabilities
+- https://www.psdevwiki.com/ps4/Internet_Browser
+- https://www.psdevwiki.com/ps4/DualShock_4
+- https://github.com/GamerHack/GamerHack.github.io
+- https://github.com/GoldHEN/GoldHEN/releases
+- https://github.com/patnawa/GoldhenPS4/releases/tag/v1.0.5
