@@ -1,0 +1,26 @@
+{
+  "headers": [
+    {
+      "source": "/site.manifest",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/cache-manifest"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, must-revalidate"
+        }
+      ]
+    }
+  ]
+}
