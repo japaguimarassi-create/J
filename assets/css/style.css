@@ -11,3 +11,8 @@
 .ua-string{font:10px ui-monospace,monospace;color:var(--muted);overflow-wrap:anywhere;margin-top:14px}
 .compact-profile{padding:18px}
 .controller-hint{font-size:10px;color:var(--muted);margin-top:12px}
+
+/* Avoid SVG dependency in older PS4 browser builds. */
+.brand img{display:none!important}
+.brand:before{content:"H";display:inline-grid;place-items:center;width:34px;height:34px;border:2px solid #00aaff;border-radius:10px;color:#00aaff;font:900 21px ui-monospace,monospace;background:#101722}
+.footer-brand:before{width:28px;height:28px;font-size:17px}
