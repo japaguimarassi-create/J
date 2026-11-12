@@ -22,10 +22,10 @@ Offline-first static compatibility dashboard and documentation site for PS4 firm
 - Browser API checks only; no exploit testing, memory scanning or payload loading.
 - GoldHEN official firmware compatibility reference and local version gate.
 - Exportable local browser preflight report.
-- English and Portuguese guide.\n- PS4 User-Agent firmware hint, D-pad focus navigation and a real G2All 14.00 upstream launch gate.
+- English and Portuguese guide.\n- PS4 User-Agent firmware hint, D-pad focus navigation and a real G2All 14.00 upstream launch gate.\n- Read-only firmware revert eligibility assessment; no Syscon/NOR writes, payload execution or console modification.
 - GitHub Actions workflow for GitHub Pages.
 
-## Publish with GitHub Pages
+## Firmware revert assessment\nThe `revert-check.html` tool is informational and local-only. It explains the documented hardware/backup prerequisites and gives a cautious assessment from user-provided answers. It cannot downgrade firmware. Normal retail PS4 consoles do not downgrade by installing an older PUP, changing DNS or replacing an HDD.\n\n## Publish with GitHub Pages
 1. Open this repository's Settings → Pages.
 2. Set the build and deployment source to GitHub Actions.
 3. The workflow deploys the static site whenever the hen-14-02-host branch is updated.
@@ -37,6 +37,6 @@ Serve this directory over HTTPS or localhost. Service Workers are unavailable in
 ## Sources
 - https://consolemods.org/wiki/PS4:FAQ
 - https://consolemods.org/wiki/PS4:Getting_Started
-- https://github.com/GoldHEN/GoldHEN/releases\n- https://github.com/GamerHack/GamerHack.github.io\n- https://www.psdevwiki.com/ps4/Vulnerabilities
+- https://github.com/GoldHEN/GoldHEN/releases\n- https://github.com/GamerHack/GamerHack.github.io\n- https://consolemods.org/wiki/PS4:Firmware_Revert\n- https://www.psdevwiki.com/ps4/Vulnerabilities
 
 Independent community project. Not affiliated with Sony, PlayStation or GoldHEN.
