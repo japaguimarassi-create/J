@@ -14,9 +14,16 @@ Offline-first static compatibility dashboard and documentation site for PS4 firm
 - Static PWA and service-worker cache.
 - Two-stage reload-based preflight using sessionStorage.
 - Browser API checks only; no exploit testing, memory scanning or payload loading.
-- GoldHEN official firmware compatibility reference.
+- GoldHEN official firmware compatibility reference and local version gate.
 - Exportable local browser preflight report.
 - English and Portuguese guide.
+- GitHub Actions workflow for GitHub Pages.
+
+## Publish with GitHub Pages
+1. Open this repository's Settings → Pages.
+2. Set the build and deployment source to GitHub Actions.
+3. The workflow deploys the static site whenever the hen-14-02-host branch is updated.
+4. Open the Pages URL shown by GitHub after the workflow completes.
 
 ## Run locally
 Serve this directory over HTTPS or localhost. Service Workers are unavailable in most local file URL contexts.
