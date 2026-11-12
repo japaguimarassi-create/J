@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#090d14">
+<meta name="description" content="Verificador informativo de elegibilidade para firmware revert no PS4.">
+<title>Firmware Revert Check — HEN 14.02</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="assets/icons/hen-mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="ambient-grid" aria-hidden="true"></div>
+<header class="site-header">
+<a class="brand" href="index.html"><span class="brand-mark">H</span><span>HEN<span class="brand-accent">14.02</span><small>FIRMWARE REVERT CHECK</small></span></a>
+<button class="menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false">☰</button>
+<nav class="main-nav" aria-label="Navegação principal">
+<a href="index.html">Overview</a><a href="exploit.html">Preflight</a><a href="guide.html">Guide</a><a href="hosts.html">Hosts &amp; DNS</a><a href="payloads.html">GoldHEN</a><a href="g2all.html">G2All</a><a class="active" href="revert-check.html">Revert Check</a><a href="status.html">Status</a>
+</nav>
+<div class="header-actions"><span class="live-pill"><i></i> READ-ONLY CHECK</span><button class="icon-button" id="theme-toggle" type="button" aria-label="Alternar tema">◐</button></div>
+</header>
+<main class="wrap page-main">
+<div class="page-intro"><div class="eyebrow">MODULE 06 / READ-ONLY HARDWARE ELIGIBILITY</div><h1>Firmware <span class="gradient-text">revert check</span></h1><p>Verifique se há evidências para pedir uma avaliação técnica de reversão de 14.02 para 14.00. Esta ferramenta não modifica o console, não prepara arquivos de flash e não inicia downgrade.</p></div>
+<section class="notice notice-danger notice-large"><div class="notice-icon">!</div><div><strong>Não existe downgrade automático por site, DNS, USB ou troca de HD em PS4 retail normal.</strong><p>A reversão documentada depende de dados e hardware específicos da própria unidade. Uma tentativa incorreta de escrita em NOR/Syscon pode inutilizar o console. Não abra o console nem tente soldagem com base neste formulário.</p></div></section>
+<section class="section-block">
+<div class="section-heading"><div><div class="eyebrow">LOCAL ASSESSMENT</div><h2>Dados do seu console</h2><p class="section-description">As respostas ficam apenas nesta página e não são enviadas a servidor algum. Não informe número de série, ID da PSN ou dados pessoais.</p></div><span class="section-index">NO DEVICE ACCESS</span></div>
+<form id="revert-form" class="card-surface tool-card">
+<div class="revert-field"><label for="current-fw" class="small-label">FIRMWARE ATUAL</label><select id="current-fw"><option value="14.02" selected>14.02</option><option value="14.00">14.00</option><option value="other">Outra versão</option></select></div>
+<div class="revert-field"><label for="previous-fw" class="small-label">FIRMWARE QUE ESTAVA INSTALADO ANTES DO 14.02</label><select id="previous-fw"><option value="unknown" selected>Não sei</option><option value="14.00">14.00</option><option value="other">Outra versão</option></select></div>
+<div class="revert-field"><label for="backup" class="small-label">VOCÊ TEM BACKUPS NOR/SFLASH E SYSCON FEITOS NESTE MESMO CONSOLE?</label><select id="backup"><option value="unknown" selected>Não sei</option><option value="yes">Sim, tenho os dois e sei de quando são</option><option value="no">Não</option></select></div>
+<div class="revert-field"><label for="slot" class="small-label">UM TÉCNICO CONFIRMOU QUE A CÓPIA/ESTADO ANTERIOR 14.00 AINDA É RECUPERÁVEL?</label><select id="slot"><option value="unknown" selected>Não foi verificado</option><option value="yes">Sim, foi verificado por profissional</option><option value="no">Não / foi substituído</option></select></div>
+<div class="revert-field"><label for="syscon" class="small-label">COMPATIBILIDADE DO SYSCON FOI CONFIRMADA POR PROFISSIONAL?</label><select id="syscon"><option value="unknown" selected>Não sei</option><option value="yes">Sim</option><option value="no">Não</option></select></div>
+<div class="revert-field"><label for="technician" class="small-label">VOCÊ TEM ACESSO A UM TÉCNICO EXPERIENTE EM REPARO DE PLACA PS4?</label><select id="technician"><option value="no" selected>Não</option><option value="yes">Sim</option></select></div>
+<div class="preflight-actions"><button class="button button-primary" type="submit">AVALIAR ELEGIBILIDADE</button><button class="button button-quiet" type="reset" id="reset-revert">LIMPAR RESPOSTAS</button></div>
+<div id="revert-result" class="revert-result" aria-live="polite"><strong>Resultado ainda não calculado</strong><p>Responda aos campos e toque em Avaliar elegibilidade. Nenhuma alteração será feita no PS4.</p></div>
+</form>
+</section>
+<section class="section-block">
+<div class="section-heading"><div><div class="eyebrow">KNOWN LIMITS</div><h2>O que a reversão realmente exige</h2></div></div>
+<div class="status-table">
+<div class="status-row"><span>Downgrade por PUP USB em PS4 retail</span><b class="state-danger">Não suportado</b></div>
+<div class="status-row"><span>Downgrade por DNS/site</span><b class="state-danger">Não existe</b></div>
+<div class="status-row"><span>Backup da própria unidade e estado anterior</span><b class="state-muted">Necessário para avaliar revert documentado</b></div>
+<div class="status-row"><span>Trabalho de hardware / microsolda</span><b class="state-danger">Exigido no método documentado</b></div>
+<div class="status-row"><span>Risco de brick por dano ou dumps inválidos</span><b class="state-danger">Real</b></div>
+</div>
+<div class="resource-list section-block">
+<a href="https://consolemods.org/wiki/PS4:FAQ" target="_blank" rel="noopener"><span><strong>ConsoleMods — FAQ</strong><small>Explica por que USB, HDD ou DNS não fazem downgrade.</small></span><b>↗</b></a>
+<a href="https://consolemods.org/wiki/PS4:Firmware_Revert" target="_blank" rel="noopener"><span><strong>ConsoleMods — Firmware Revert</strong><small>Requisitos, limites e riscos documentados.</small></span><b>↗</b></a>
+<a href="https://www.playstation.com/pt-br/support/hardware/ps4/system-software/" target="_blank" rel="noopener"><span><strong>PlayStation — Software do sistema</strong><small>Procedimentos oficiais de atualização/reinstalação, não downgrade.</small></span><b>↗</b></a>
+</div>
+</section>
+</main>
+<footer class="site-footer"><div class="wrap footer-inner"><p>HEN 14.02 é um projeto comunitário independente. Este módulo é apenas informativo e não é afiliado à Sony, PlayStation ou aos autores citados.</p><div class="footer-bottom"><span>Read-only firmware revert assessment</span><a href="index.html">Voltar ao início</a></div></div></footer>
+<script src="assets/js/main.js"></script>
+<script>
+(function(){
+var form=document.getElementById("revert-form"),result=document.getElementById("revert-result");
+form.addEventListener("submit",function(e){
+e.preventDefault();
+var current=document.getElementById("current-fw").value,previous=document.getElementById("previous-fw").value,backup=document.getElementById("backup").value,slot=document.getElementById("slot").value,syscon=document.getElementById("syscon").value,tech=document.getElementById("technician").value;
+var title="",body="",kind="warning";
+if(current!=="14.02"){title="Este verificador foi preparado para o cenário 14.02 → 14.00.";body="Seu firmware atual informado não é 14.02. Consulte a documentação adequada para sua versão. Nenhuma operação foi realizada.";}
+else if(previous==="other"||previous==="unknown"||backup!=="yes"||slot==="no"){title="Elegibilidade não demonstrada.";body="As respostas não confirmam um estado anterior 14.00 recuperável com dados da própria unidade. Não existe método por software para contornar isso; não tente PUP antigo, DNS ou troca de HDD.";}
+else if(tech!=="yes"||syscon!=="yes"||slot!=="yes"){title="Exige avaliação de bancada antes de qualquer decisão.";body="Há indicação de histórico/backup, mas a compatibilidade do Syscon, o estado recuperável e a capacidade de execução profissional não estão todos confirmados. Não é uma aprovação de downgrade.";}
+else{title="Possível candidato para avaliação profissional — não é garantia.";body="Você declarou firmware anterior 14.00, backups NOR/SFLASH e Syscon da mesma unidade, estado anterior recuperável e confirmação técnica de compatibilidade. Um técnico ainda precisa validar integridade, correspondência e riscos em bancada. Não use este resultado como autorização para gravar a flash." ;kind="good";}
+result.className="revert-result "+kind;
+result.innerHTML="<strong></strong><p></p>";
+result.querySelector("strong").textContent=title;
+result.querySelector("p").textContent=body;
+});
+form.addEventListener("reset",function(){result.className="revert-result";result.innerHTML="<strong>Resultado ainda não calculado</strong><p>Responda aos campos e toque em Avaliar elegibilidade. Nenhuma alteração será feita no PS4.</p>";});
+})();
+</script>
+</body></html>
