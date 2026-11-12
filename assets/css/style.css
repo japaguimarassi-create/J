@@ -16,3 +16,13 @@
 .brand img{display:none!important}
 .brand:before{content:"H";display:inline-grid;place-items:center;width:34px;height:34px;border:2px solid #00aaff;border-radius:10px;color:#00aaff;font:900 21px ui-monospace,monospace;background:#101722}
 .footer-brand:before{width:28px;height:28px;font-size:17px}
+
+/* Read-only firmware revert assessment */
+.revert-field{display:flex;flex-direction:column;gap:8px}
+.revert-field select{width:100%;max-width:620px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:13px 14px;min-height:44px}
+.revert-result{margin-top:22px;padding:18px;border:1px solid var(--line);border-radius:10px;background:var(--surface2)}
+.revert-result strong{display:block;font-size:14px;margin-bottom:7px}
+.revert-result p{font-size:12px;color:var(--muted);margin:0}
+.revert-result.warning{border-color:rgba(255,180,94,.55)}
+.revert-result.good{border-color:rgba(67,214,154,.55)}
+.revert-field select:focus{outline:3px solid var(--blue);outline-offset:2px}
