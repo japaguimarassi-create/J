@@ -1,7 +1,7 @@
 "use strict";
 (function () {
   var button=document.getElementById("start"),state=document.getElementById("state"),detail=document.getElementById("detail"),bar=document.getElementById("bar"),reportPanel=document.getElementById("reportPanel"),reportField=document.getElementById("report");
-  var cacheName="jbhereps4-host-v5";
+  var cacheName="jbhereps4-host-v6";
   var assets=["./","./index.html","./main.js","./probe.js","./sw.js","./cache.appcache","./manifest.webmanifest","./evidence.json"];
   var busy=false;
   function show(title,message,tone,percent){state.textContent=title;state.className=tone||"";detail.textContent=message;bar.style.width=String(percent||0)+"%";}
@@ -13,7 +13,7 @@
     var cached=[];
     if("serviceWorker" in navigator&&window.isSecureContext){try{await navigator.serviceWorker.register("./sw.js");await navigator.serviceWorker.ready;log(lines,"Service Worker registrado.");}catch(e){log(lines,"Service Worker indisponível: "+e.message);}}
     if("caches" in window){try{var cache=await caches.open(cacheName);for(var i=0;i<assets.length;i++){try{var r=await fetch(assets[i],{cache:"reload"});if(!r.ok)throw new Error("HTTP "+r.status);await cache.put(assets[i],r.clone());cached.push(assets[i]);}catch(e){log(lines,"Cache "+assets[i]+": "+e.message);}show("CACHE "+(i+1)+"/"+assets.length,"Preparando os recursos locais.", "",5+Math.round((i+1)/assets.length*60));}}catch(e){log(lines,"Cache API: "+e.message);}}
-    var complete=cached.length===assets.length;save("jbhereps4:prepared",complete?"5":"partial");log(lines,"Arquivos em cache: "+cached.length+"/"+assets.length);return complete;
+    var complete=cached.length===assets.length;save("jbhereps4:prepared",complete?"6":"partial");log(lines,"Arquivos em cache: "+cached.length+"/"+assets.length);return complete;
   }
   async function readEvidence(){var r=await fetch("./evidence.json",{cache:"no-store"});if(!r.ok)throw new Error("Evidências HTTP "+r.status);return r.json();}
   async function postJSON(payload){var r=await fetch("./api/metadata",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload),cache:"no-store"});var data;try{data=await r.json();}catch(e){throw new Error("Backend retornou JSON inválido.");}if(!r.ok||!data.ok)throw new Error(data.error||("HTTP "+r.status));return data;}
@@ -33,7 +33,7 @@
     log(lines,"WebKit exposto: "+probe.webkitHint);
     log(lines,"APIs disponíveis: "+probe.testSummary.supportedApiCount+"/"+probe.testSummary.totalApiCount);log(lines,"Testes seguros aprovados: "+probe.testSummary.safeChecksPassed+"/"+probe.testSummary.safeChecksTotal);
     log(lines,"Nenhuma primitiva de exploit foi executada.");
-    var report={product:"JBherePS4",version:"1.4.0",timestamp:new Date().toISOString(),probe:probe,evidence:evidence,tests:{browserProbe:"completed",firmwareDetection:probe.firmwareHint==="not-exposed"?"not-exposed":"hint-only",exploitExecution:"not-run",kernelAccess:false,firmwareModification:false,backendStorage:"pending"},jailbreakStatus:"NO_PUBLIC_14_02_CHAIN_VERIFIED",goldhenStatus:"NOT_SUPPORTED_BY_VERIFIED_PUBLIC_RELEASE",conclusion:"O navegador não expõe acesso ao kernel. A pesquisa pública consultada não apresenta cadeia pública de userland + kernel para 14.02. O teste não tenta corrupção de memória nem instalação de payload.",storage:{status:"uploading"},log:lines};
+    var report={product:"JBherePS4",version:"1.4.1",timestamp:new Date().toISOString(),probe:probe,evidence:evidence,tests:{browserProbe:"completed",firmwareDetection:probe.firmwareHint==="not-exposed"?"not-exposed":"hint-only",exploitExecution:"not-run",kernelAccess:false,firmwareModification:false,backendStorage:"pending"},jailbreakStatus:"NO_PUBLIC_14_02_CHAIN_VERIFIED",goldhenStatus:"NOT_SUPPORTED_BY_VERIFIED_PUBLIC_RELEASE",conclusion:"O navegador não expõe acesso ao kernel. A pesquisa pública consultada não apresenta cadeia pública de userland + kernel para 14.02. O teste não tenta corrupção de memória nem instalação de payload.",storage:{status:"uploading"},log:lines};
     save("jbhereps4:lastReport",JSON.stringify(report,null,2));
     show("VALIDANDO BACKEND","Testando gravação, leitura e exclusão de um JSON temporário antes de enviar o relatório.","",82);
     try{
@@ -53,9 +53,9 @@
     button.textContent=report.storage.status==="stored"?"EXECUTAR NOVAMENTE":"TENTAR ENVIO NOVAMENTE";button.disabled=false;busy=false;return report;
   }
   async function start(){
-    if(busy)return;busy=true;button.disabled=true;var lines=[];log(lines,"JBherePS4 v1.4.0 iniciado.");
+    if(busy)return;busy=true;button.disabled=true;var lines=[];log(lines,"JBherePS4 v1.4.1 iniciado.");
     try{
-      if(read("jbhereps4:prepared")!=="5"){
+      if(read("jbhereps4:prepared")!=="6"){
         var complete=await prepareOffline(lines);
         if(complete){show("LABORATÓRIO PREPARADO","Recursos offline armazenados. Reabra o navegador para executar a bateria de diagnóstico.","good",100);button.textContent="LABORATÓRIO PREPARADO";button.disabled=false;busy=false;return;}
       }
@@ -65,5 +65,5 @@
   var previous=read("jbhereps4:lastReport");if(previous){reportField.value=previous;reportPanel.hidden=false;}
   button.addEventListener("click",start);
   if("serviceWorker" in navigator&&window.isSecureContext)window.addEventListener("load",function(){navigator.serviceWorker.register("./sw.js").catch(function(){});});
-  if(read("jbhereps4:prepared")==="5"){button.textContent="RETOMAR DIAGNÓSTICO";window.addEventListener("load",function(){window.setTimeout(start,500);});}
+  if(read("jbhereps4:prepared")==="6"){button.textContent="RETOMAR DIAGNÓSTICO";window.addEventListener("load",function(){window.setTimeout(start,500);});}
 })();
