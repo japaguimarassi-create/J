@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07111f"><meta name="description" content="PS4 14.02 Research Lab — diagnóstico offline e relatório técnico.">
+<link rel="manifest" href="./manifest.webmanifest"><title>PS4 14.02 Research Lab</title>
+<style>
+:root{color-scheme:dark;--bg:#07111f;--panel:#101f32;--line:#203a56;--muted:#91a8c1;--cyan:#42d9ff;--green:#5ee0a0;--amber:#ffc66d;--red:#ff7585}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -20%,#173a58 0,transparent 55%),var(--bg);color:#eaf5ff;font:15px/1.5 system-ui,Segoe UI,Roboto,sans-serif}
+main{max-width:900px;margin:auto;padding:24px 16px 56px}.top{display:flex;align-items:center;gap:12px;margin:10px 0 28px}.mark{width:42px;height:42px;border:1px solid #28789b;border-radius:13px;display:grid;place-items:center;color:var(--cyan);font-weight:900}.eyebrow{color:var(--cyan);font-size:11px;letter-spacing:.16em;text-transform:uppercase}h1{font-size:clamp(28px,6vw,46px);line-height:1.08;margin:8px 0}h2{font-size:17px;margin:0 0 12px}.muted{color:var(--muted)}.hero,.panel{background:linear-gradient(145deg,#12263b,#0b1929);border:1px solid var(--line);border-radius:20px;padding:22px;margin:14px 0}.warning{border-left:3px solid var(--amber);padding:12px 14px;background:#2a2419;border-radius:8px;color:#ffe0a9;font-size:13px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.metric{background:#091827;border:1px solid var(--line);border-radius:12px;padding:14px}.metric small{display:block;color:var(--muted)}.metric strong{font-size:18px;overflow-wrap:anywhere}.btn{width:100%;border:0;border-radius:14px;padding:17px;background:linear-gradient(90deg,#1b9fc4,#347ee8);color:white;font-size:16px;font-weight:800;cursor:pointer;margin:16px 0}.btn:disabled{opacity:.55}.btn2{background:#162b40;border:1px solid var(--line);color:#dcecff;border-radius:10px;padding:11px 14px;font-weight:650}.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}input,select{background:#081726;color:white;border:1px solid var(--line);padding:12px;border-radius:10px;min-width:0}input{width:100%}.log{font:12px/1.6 ui-monospace,monospace;white-space:pre-wrap;background:#050d16;border:1px solid var(--line);border-radius:12px;padding:14px;max-height:270px;overflow:auto}.status{display:inline-block;border-radius:999px;padding:4px 9px;background:#182e42;color:var(--cyan);font-size:12px}.ok{color:var(--green)}.warn{color:var(--amber)}.bad{color:var(--red)}footer{color:var(--muted);font-size:12px;margin-top:24px}a{color:var(--cyan)}label{display:block;color:var(--muted);font-size:13px;margin-bottom:7px}
+</style></head>
+<body><main>
+<header class="top"><div class="mark">PS4</div><div><div class="eyebrow">Research Lab · Offline</div><div style="font-weight:750">14.02 compatibility workspace</div></div></header>
+<section class="hero"><div class="eyebrow">One-click diagnostics</div><h1>PS4 14.02<br>Research Lab</h1><p class="muted">Verificação local do navegador, compatibilidade da página, armazenamento e conectividade. O site não instala payloads nem explora o kernel.</p>
+<div class="warning"><b>Estado técnico:</b> não há cadeia de jailbreak 14.02 validada neste pacote. Um diagnóstico positivo significa apenas que o ambiente passou nos testes benignos — não significa jailbreak.</div>
+<label for="firmware" style="margin-top:18px">Firmware informado</label><select id="firmware"><option>14.02</option><option>14.00</option><option>13.52</option><option>Outro / desconhecido</option></select>
+<button id="run" class="btn">INICIAR DIAGNÓSTICO AUTOMÁTICO</button>
+<div class="row"><span class="status" id="state">Aguardando execução</span><span class="muted" id="progress">0 / 8 verificações</span></div></section>
+<section class="panel"><h2>Resumo do ambiente</h2><div class="grid" id="metrics"><div class="metric"><small>Firmware</small><strong id="m-fw">14.02</strong></div><div class="metric"><small>Navegador</small><strong id="m-browser">Não verificado</strong></div><div class="metric"><small>Plataforma</small><strong id="m-platform">Não verificada</strong></div><div class="metric"><small>Modo offline</small><strong id="m-offline">Não verificado</strong></div></div></section>
+<section class="panel"><div class="row" style="justify-content:space-between"><h2>Registro de execução</h2><button class="btn2" id="clear">Limpar</button></div><div class="log" id="log" aria-live="polite">Pronto. Toque em “Iniciar diagnóstico automático”.</div><div class="row" style="margin-top:14px"><button class="btn2" id="download" disabled>Exportar relatório .md</button><button class="btn2" id="json" disabled>Exportar JSON</button></div></section>
+<section class="panel"><h2>Limites e segurança</h2><ul class="muted"><li>Uma página web não recebe acesso irrestrito ao sistema do PS4.</li><li>O site não consegue ler memória do kernel, instalar aplicativos ou rebaixar firmware por APIs comuns do navegador.</li><li>Não executa exploits, payloads ELF/BIN, código de terceiros ou tentativas de contornar proteções.</li><li>Os testes repetidos são apenas verificações de disponibilidade de APIs e recursos web.</li><li>Não atualize nem rebaixe o firmware com arquivos não verificados.</li></ul></section>
+<footer>PS4 14.02 Research Lab · execução local no navegador · dados do relatório permanecem no dispositivo até serem exportados.</footer>
+</main><script>
+(()=>{
+const $=id=>document.getElementById(id), log=$('log');let entries=[],report=null,running=false;
+const stamp=()=>new Date().toISOString();
+function add(level,msg){const e={time:stamp(),level,message:msg};entries.push(e);log.textContent+='\n['+e.time+'] ['+level+'] '+msg;log.scrollTop=log.scrollHeight}
+function setState(s){$('state').textContent=s}
+function download(name,type,data){const blob=new Blob([data],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1500)}
+function result(name,ok,detail){add(ok?'OK':'INFO',name+': '+detail);return {name,ok,detail}}
+async function retry(label,fn,max=3){let last;for(let i=1;i<=max;i++){try{last=await fn();if(last){add('OK',label+' passou na tentativa '+i+'/'+max);return true}}catch(e){last=false;add('WARN',label+' tentativa '+i+'/'+max+': '+String(e.message||e))}if(i<max)await new Promise(r=>setTimeout(r,250))}add('INFO',label+' não confirmou após '+max+' tentativas');return false}
+async function run(){if(running)return;running=true;$('run').disabled=true;$('download').disabled=true;$('json').disabled=true;entries=[];log.textContent='';const checks=[];const fw=$('firmware').value;let n=0;const tick=()=>{$('progress').textContent=(++n)+' / 8'};
+$('m-fw').textContent=fw;$('m-browser').textContent=navigator.userAgent;$('m-platform').textContent=navigator.platform||'indisponível';$('m-offline').textContent=navigator.onLine?'Online':'Offline';setState('Executando');
+add('START','Diagnóstico benigno iniciado; nenhuma exploração será executada.');
+checks.push(result('Firmware selecionado',fw==='14.02','Firmware informado: '+fw));tick();
+checks.push(result('User agent',!!navigator.userAgent,navigator.userAgent));tick();
+checks.push(result('JavaScript',typeof window==='object'&&typeof Promise==='function','Runtime JavaScript disponível'));tick();
+checks.push(result('Secure context',window.isSecureContext===true,'isSecureContext='+window.isSecureContext));tick();
+const cache=await retry('Cache Storage',async()=>('caches'in window)&&!!await caches.open('ps4-lab-test'));checks.push(result('Cache Storage',cache,cache?'API disponível':'API não disponível'));tick();
+const sw= 'serviceWorker' in navigator;checks.push(result('Service Worker',sw,sw?'API disponível':'Não suportado neste contexto'));tick();
+const storage=await retry('Armazenamento local',async()=>{localStorage.setItem('__ps4lab','1');localStorage.removeItem('__ps4lab');return true});checks.push(result('Local storage',storage,storage?'Leitura e escrita local funcionaram':'Indisponível'));tick();
+const online=navigator.onLine;checks.push(result('Conectividade',online,online?'Navegador informa conexão online':'Navegador informa modo offline'));tick();
+const all=checks.filter(x=>x.ok).length;
+report={product:'PS4 14.02 Research Lab',version:'1.0.0',createdAt:stamp(),firmware:fw,userAgent:navigator.userAgent,platform:navigator.platform,online,checks,passed:all,total:checks.length,interpretation:'Diagnóstico do ambiente web apenas. Não comprova vulnerabilidade nem jailbreak.'};
+add('DONE','Concluído: '+all+'/'+checks.length+' verificações passaram. Isso não representa sucesso de jailbreak.');
+setState('Diagnóstico concluído · '+all+'/'+checks.length);$('download').disabled=false;$('json').disabled=false;$('run').disabled=false;running=false}
+$('run').addEventListener('click',run);$('clear').addEventListener('click',()=>{entries=[];log.textContent='Registro limpo.';report=null;$('download').disabled=true;$('json').disabled=true;setState('Aguardando execução')});
+$('download').addEventListener('click',()=>{if(!report)return;download('ps4-1402-report.md','text/markdown','# PS4 14.02 Research Lab\n\n- Data: '+report.createdAt+'\n- Firmware: '+report.firmware+'\n- Resultado: '+report.passed+'/'+report.total+'\n- User-Agent: '+report.userAgent+'\n\n> '+report.interpretation+'\n\n## Verificações\n'+report.checks.map(x=>'- ['+(x.ok?'x':' ')+'] '+x.name+': '+x.detail).join('\n')+'\n\n## Log\n'+entries.map(e=>'['+e.time+'] ['+e.level+'] '+e.message).join('\n'))});
+$('json').addEventListener('click',()=>{if(report)download('ps4-1402-report.json','application/json',JSON.stringify({...report,log:entries},null,2))});
+$('m-offline').textContent=navigator.onLine?'Online':'Offline';
+if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(e=>add('WARN','Service worker: '+e.message));
+window.addEventListener('online',()=>$('m-offline').textContent='Online');window.addEventListener('offline',()=>$('m-offline').textContent='Offline');
+})();
+</script></body></html>
