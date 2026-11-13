@@ -14,7 +14,7 @@ test("health endpoint identifies the read-only 14.02 project", () => {
   assert.equal(health.firmware, "14.02");
   assert.equal(health.status, "ok");
   assert.equal(health.exploitExecution, false);
-  assert.equal(health.version, "1.3.0");
+  assert.equal(health.version, "1.4.0");
 });
 
 test("evidence registry does not claim a verified public chain", () => {
@@ -23,6 +23,8 @@ test("evidence registry does not claim a verified public chain", () => {
   assert.equal(evidence.status, "NO_PUBLIC_CHAIN_INDEPENDENTLY_VERIFIED");
   assert.ok(Array.isArray(evidence.findings) && evidence.findings.length >= 3);
   assert.ok(Array.isArray(evidence.sources) && evidence.sources.length >= 3);
+  assert.ok(evidence.findings.some((x) => x.id === "prolapse-1402-diff"));
+  assert.ok(evidence.findings.some((x) => x.id === "afterglow-1402-status"));
   for (const source of evidence.sources) {
     assert.match(source.url, /^https:\/\//);
   }
@@ -43,6 +45,10 @@ test("web app exposes real diagnostics and honest report fields", () => {
   assert.match(html, /kernelProbe:"not-performed"/);
   assert.match(html, /Kernel \/ syscall fora do navegador/);
   assert.match(html, /SharedArrayBuffer \/ Atomics/);
+  assert.match(html, /O que mudou no 14\.02/);
+  assert.match(html, /AIO \/ Prolapse/);
+  assert.match(html, /Afterglow \/ kernel/);
+  assert.match(html, /BD-J \/ Blu-ray Java/);
   assert.match(html, /N\/A/);
 });
 
@@ -51,7 +57,7 @@ test("offline worker is same-origin and GET-only", () => {
   assert.match(sw, /request\.method!=="GET"/);
   assert.match(sw, /url\.origin!==self\.location\.origin/);
   assert.match(sw, /caches\.open/);
-  assert.match(sw, /ps4-1402-lab-v1\.3\.0/);
+  assert.match(sw, /ps4-1402-lab-v1\.4\.0/);
 });
 
 test("manifest and Vercel headers are valid JSON", () => {
