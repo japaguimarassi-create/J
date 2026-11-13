@@ -8,7 +8,7 @@
   var reportField = document.getElementById("report");
   var downloadButton = document.getElementById("downloadReport");
   var copyButton = document.getElementById("copyReport");
-  var cacheName = "jbhereps4-host-v10";
+  var cacheName = "jbhereps4-host-v11";
   var assets = ["./", "./index.html", "./main.js", "./probe.js", "./sw.js", "./cache.appcache", "./manifest.webmanifest", "./evidence.json"];
   var busy = false;
   var latestReport = null;
@@ -63,7 +63,7 @@
       log(lines, "Cache Storage não suportado.");
     }
     var complete = cached.length === assets.length;
-    save("jbhereps4:prepared", complete ? "10" : "partial");
+    save("jbhereps4:prepared", complete ? "11" : "partial");
     log(lines, "Arquivos confirmados no Cache Storage: " + cached.length + "/" + assets.length);
     return complete;
   }
@@ -114,12 +114,15 @@
   function buildReport(probe, evidence, lines) {
     return {
       product: "JBherePS4",
-      version: "1.6.0",
+      version: "1.7.0",
       timestamp: new Date().toISOString(),
       probe: probe,
       evidence: evidence,
       tests: {
         browserProbe: "completed",
+        indexedDbBehavior: probe.testSummary.indexedDbTest || "not-tested",
+        cacheStorageBehavior: probe.testSummary.cacheStorageTest || "not-tested",
+        webCryptoDigest: probe.testSummary.webCryptoDigestTest || "not-tested",
         firmwareDetection: probe.firmwareHint === "not-exposed" ? "not-exposed" : "user-agent-hint-only",
         exploitExecution: "not-run",
         kernelAccess: false,
@@ -128,8 +131,8 @@
       },
       jailbreakStatus: evidence.firmware14_02.publicChain,
       goldhenStatus: evidence.goldhen.firmware14_02Supported ? "SUPPORTED_BY_EVIDENCE_FILE" : "NOT_SUPPORTED_BY_VERIFIED_PUBLIC_RELEASE",
-      conclusion: "Este laboratório não encontrou nem executou uma cadeia de jailbreak. O material público auditado relata acesso parcial ao kernel, mas também kernel panic ao iniciar jogos e falha de inicialização de HEN/GoldHEN. Não existe validação independente de um HEN 14.02 estável neste projeto. Compatibilidade de APIs do navegador não prova a existência de uma vulnerabilidade.",
-      temporaryMode: "A sessão de diagnóstico é temporária e não persiste alterações no sistema do PS4. Ela não ativa HEN, não concede privilégios e não desbloqueia o console.",
+      conclusion: "Este laboratório não encontrou nem executou uma cadeia de jailbreak. Os testes verificam comportamento de APIs públicas do navegador, não vulnerabilidades. A documentação pública consultada não confirma jailbreak reproduzível para 14.02; a cadeia experimental analisada relata kernel panic ao iniciar jogos e falha de inicialização de HEN/GoldHEN.",
+      temporaryMode: "Sessão temporária de diagnóstico do navegador. Os testes de armazenamento criam e removem dados de teste; não ativam HEN, não concedem privilégios, não alteram firmware e não desbloqueiam o console.",
       storage: { status: "pending" },
       log: lines
     };
@@ -148,7 +151,7 @@
     if (!window.JBhereSafeProbe || typeof window.JBhereSafeProbe.run !== "function") {
       throw new Error("probe.js não carregou ou está incompatível.");
     }
-    var probe = window.JBhereSafeProbe.run();
+    var probe = await window.JBhereSafeProbe.run();
     var evidence = await readEvidence();
     if (!evidence || !evidence.firmware14_02 || !evidence.goldhen) {
       throw new Error("Arquivo de evidências incompleto.");
@@ -158,7 +161,8 @@
     log(lines, "WebKit indicado: " + probe.webkitHint);
     log(lines, "APIs disponíveis: " + probe.testSummary.supportedApiCount + "/" + probe.testSummary.totalApiCount);
     log(lines, "Verificações seguras aprovadas: " + probe.testSummary.safeChecksPassed + "/" + probe.testSummary.safeChecksTotal);
-    log(lines, "Nenhum exploit, payload ou teste de memória privilegiada foi executado.");
+    log(lines, "Testes funcionais limitados a APIs públicas do navegador; nenhum exploit ou payload foi executado.");
+    log(lines, "Testes funcionais: IndexedDB=" + (probe.testSummary.indexedDbTest || "n/a") + ", CacheStorage=" + (probe.testSummary.cacheStorageTest || "n/a") + ", WebCrypto=" + (probe.testSummary.webCryptoDigestTest || "n/a") + ".");
 
     var report = buildReport(probe, evidence, lines);
     save("jbhereps4:lastReport", JSON.stringify(report, null, 2));
@@ -194,13 +198,13 @@
     busy = true;
     button.disabled = true;
     var lines = [];
-    log(lines, "JBherePS4 v1.6.0 iniciado.");
+    log(lines, "JBherePS4 v1.7.0 iniciado.");
     try {
-      if (read("jbhereps4:prepared") !== "10") {
+      if (read("jbhereps4:prepared") !== "11") {
         var complete = await prepareOffline(lines);
         log(lines, complete ? "Cache offline completo." : "Cache parcial; diagnóstico continua sem forçar APIs ausentes.");
       } else {
-        log(lines, "Cache v10 já preparado.");
+        log(lines, "Cache v11 já preparado.");
       }
       await runDiagnostics(lines);
     } catch (error) {
@@ -265,5 +269,5 @@
       navigator.serviceWorker.register("./sw.js").catch(function () {});
     });
   }
-  if (read("jbhereps4:prepared") === "10") button.textContent = "EXECUTAR DIAGNÓSTICO";
+  if (read("jbhereps4:prepared") === "11") button.textContent = "EXECUTAR DIAGNÓSTICO";
 })();
