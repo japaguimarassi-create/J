@@ -24,7 +24,7 @@ button:disabled{opacity:.55;cursor:wait}
 #progress{height:3px;background:#142236;border-radius:9px;overflow:hidden;margin:20px 0 0}
 #progress i{display:block;width:0;height:100%;background:var(--green);transition:width .25s}
 footer{margin-top:34px;color:#596b82;font-size:10px;letter-spacing:.08em}
-.good{color:var(--green)!important}.warn{color:var(--amber)!important}.bad{color:var(--red)!important}
+a{color:var(--blue)}.privacy{font-size:10px;color:var(--muted);margin:12px 0 0}.good{color:var(--green)!important}.warn{color:var(--amber)!important}.bad{color:var(--red)!important}
 </style>
 </head>
 <body>
@@ -34,11 +34,13 @@ footer{margin-top:34px;color:#596b82;font-size:10px;letter-spacing:.08em}
 <p class="sub">Um botão. Probe local. Compatibilidade verificada.</p>
 <div class="orb" aria-hidden="true"><span>JB</span></div>
 <button id="start" type="button">INICIAR</button>
+<p class="privacy">Ao concluir, o relatório técnico reduzido é enviado automaticamente ao backend público do projeto. Não são enviados IP, cookies ou User-Agent completo.</p>
+<p class="privacy"><a href="./api/metadata" target="_blank" rel="noopener">CONSULTAR RELATÓRIOS RECEBIDOS</a></p>
 <div id="state" role="status" aria-live="polite">PRONTO</div>
 <p id="detail">Pressione uma vez para preparar o host offline. Ao reabrir o navegador, o diagnóstico local será retomado automaticamente.</p>
 <details id="reportPanel" hidden><summary>VER RELATÓRIO JSON</summary><textarea id="report" readonly spellcheck="false" aria-label="Relatório de diagnóstico"></textarea></details>
 <div id="progress"><i id="bar"></i></div>
-<footer>JBHEREPS4 · 14.02 RESEARCH · SAFE PROBE · SEM ALTERAÇÃO DE FIRMWARE</footer>
+<footer>JBHEREPS4 · 14.02 RESEARCH · METADATA AUTO-SYNC · SEM ALTERAÇÃO DE FIRMWARE</footer>
 </main>
 <script src="./probe.js" defer></script>
 <script src="./main.js" defer></script>
