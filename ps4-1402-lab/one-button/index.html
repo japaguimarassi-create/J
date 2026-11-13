@@ -4,43 +4,44 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#070b12">
-<meta name="description" content="JBherePS4 — host offline de diagnóstico e compatibilidade PS4.">
+<meta name="description" content="JBherePS4 — laboratório de diagnóstico não invasivo para PS4 14.02.">
 <link rel="manifest" href="./manifest.webmanifest">
-<title>JBherePS4</title>
+<title>JBherePS4 · 14.02 Lab</title>
 <style>
 :root{color-scheme:dark;--bg:#070b12;--text:#f0f5fc;--muted:#91a2b8;--blue:#66baff;--green:#5bd8a5;--amber:#f2c36d;--red:#ff7888}
 *{box-sizing:border-box}html,body{min-height:100%;margin:0}
 body{display:grid;place-items:center;background:radial-gradient(ellipse at 50% 25%,#14243a 0,#070b12 58%);font:15px/1.5 system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(--text);padding:22px}
-main{width:min(100%,440px);text-align:center}.mark{font-size:11px;letter-spacing:.24em;color:var(--blue);font-weight:800}
+main{width:min(100%,480px);text-align:center}.mark{font-size:11px;letter-spacing:.24em;color:var(--blue);font-weight:800}
 h1{font-size:clamp(34px,10vw,48px);line-height:1;margin:15px 0 8px;letter-spacing:-.05em}
-.sub{color:var(--muted);font-size:13px;margin:0 0 34px}
-#reportPanel{margin-top:18px;text-align:left}#reportPanel summary{color:var(--blue);font-size:12px;font-weight:800;letter-spacing:.08em;cursor:pointer}#report{width:100%;height:190px;margin-top:10px;padding:10px;border:1px solid #243b55;border-radius:9px;background:#050a11;color:#c8d9eb;font:10px/1.45 ui-monospace,monospace;resize:vertical}
-.orb{width:170px;height:170px;border:1px solid #2b4968;border-radius:50%;margin:0 auto 28px;display:grid;place-items:center;box-shadow:0 0 0 12px #0d1725,0 0 65px #1f6ba044;background:radial-gradient(circle,#193653 0,#0c1724 62%,#0a111b 100%)}
-.orb span{font-size:38px;font-weight:900;letter-spacing:-.08em;color:#9bd2ff;text-shadow:0 0 24px #4aa9ff66}
+.sub{color:var(--muted);font-size:13px;margin:0 0 30px}
+#reportPanel{margin-top:18px;text-align:left}#reportPanel summary{color:var(--blue);font-size:12px;font-weight:800;letter-spacing:.08em;cursor:pointer}#report{width:100%;height:210px;margin-top:10px;padding:10px;border:1px solid #243b55;border-radius:9px;background:#050a11;color:#c8d9eb;font:10px/1.45 ui-monospace,monospace;resize:vertical}
+.orb{width:160px;height:160px;border:1px solid #2b4968;border-radius:50%;margin:0 auto 25px;display:grid;place-items:center;box-shadow:0 0 0 12px #0d1725,0 0 65px #1f6ba044;background:radial-gradient(circle,#193653 0,#0c1724 62%,#0a111b 100%)}
+.orb span{font-size:34px;font-weight:900;letter-spacing:-.08em;color:#9bd2ff;text-shadow:0 0 24px #4aa9ff66}
 button{width:100%;border:1px solid #6dc2ff;background:linear-gradient(180deg,#2087cf,#12639c);color:#fff;font-size:16px;font-weight:850;letter-spacing:.08em;padding:17px 20px;border-radius:13px;box-shadow:0 8px 30px #0873bc33;cursor:pointer;touch-action:manipulation}
 button:disabled{opacity:.55;cursor:wait}
-#state{min-height:25px;margin:20px 0 4px;font-weight:800;color:var(--blue)}
+#state{min-height:25px;margin:19px 0 4px;font-weight:800;color:var(--blue)}
 #detail{min-height:58px;margin:0;color:var(--muted);font-size:12px}
-#progress{height:3px;background:#142236;border-radius:9px;overflow:hidden;margin:20px 0 0}
+#progress{height:3px;background:#142236;border-radius:9px;overflow:hidden;margin:18px 0 0}
 #progress i{display:block;width:0;height:100%;background:var(--green);transition:width .25s}
-footer{margin-top:34px;color:#596b82;font-size:10px;letter-spacing:.08em}
+footer{margin-top:30px;color:#596b82;font-size:10px;letter-spacing:.08em}
 a{color:var(--blue)}.privacy{font-size:10px;color:var(--muted);margin:12px 0 0}.good{color:var(--green)!important}.warn{color:var(--amber)!important}.bad{color:var(--red)!important}
 </style>
 </head>
 <body>
 <main>
-<div class="mark">OFFLINE HOST · PS4 RESEARCH</div>
+<div class="mark">PS4 SECURITY RESEARCH · SAFE MODE</div>
 <h1>JBherePS4</h1>
-<p class="sub">Um botão. Probe local. Compatibilidade verificada.</p>
-<div class="orb" aria-hidden="true"><span>JB</span></div>
-<button id="start" type="button">INICIAR</button>
-<p class="privacy">Ao concluir, o relatório técnico reduzido é enviado automaticamente ao backend público do projeto. O JSON não inclui IP, cookies ou User-Agent completo.</p>
-<p class="privacy"><a href="./api/metadata" target="_blank" rel="noopener">CONSULTAR RELATÓRIOS RECEBIDOS</a></p>
+<p class="sub">Laboratório 14.02 · diagnóstico reproduzível · sem escrita no console</p>
+<div class="orb" aria-hidden="true"><span>14.02</span></div>
+<button id="start" type="button">INICIAR TESTE</button>
+<p class="privacy">Executa verificações não invasivas do navegador, cache offline e backend. Não executa exploits, não acessa memória do kernel e não instala payloads.</p>
+<p class="privacy">O relatório reduzido é enviado ao backend para análise. O armazenamento atualmente conectado é público: não envie dados pessoais. O relatório não inclui cookies, IP, User-Agent completo ou credenciais; a infraestrutura ainda recebe metadados normais de conexão.</p>
+<p class="privacy"><a href="./api/metadata" target="_blank" rel="noopener">VER RELATÓRIOS TÉCNICOS</a></p>
 <div id="state" role="status" aria-live="polite">PRONTO</div>
-<p id="detail">Pressione uma vez para preparar o host offline. Ao reabrir o navegador, o diagnóstico local será retomado automaticamente.</p>
+<p id="detail">O primeiro acionamento prepara os arquivos offline. Depois, o teste valida APIs do navegador, cache e gravação/leitura/remoção de um registro temporário no backend.</p>
 <details id="reportPanel" hidden><summary>VER RELATÓRIO JSON</summary><textarea id="report" readonly spellcheck="false" aria-label="Relatório de diagnóstico"></textarea></details>
 <div id="progress"><i id="bar"></i></div>
-<footer>JBHEREPS4 · 14.02 RESEARCH · METADATA AUTO-SYNC · SEM ALTERAÇÃO DE FIRMWARE</footer>
+<footer>JBHEREPS4 · 14.02 · DIAGNÓSTICO NÃO INVASIVO · SEM ALTERAÇÃO DE FIRMWARE</footer>
 </main>
 <script src="./probe.js" defer></script>
 <script src="./main.js" defer></script>
