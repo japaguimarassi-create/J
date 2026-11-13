@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR" manifest="./cache.appcache">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#070b12">
+<meta name="description" content="JBherePS4 — host offline de diagnóstico e compatibilidade PS4.">
+<link rel="manifest" href="./manifest.webmanifest">
+<title>JBherePS4</title>
+<style>
+:root{color-scheme:dark;--bg:#070b12;--text:#f0f5fc;--muted:#91a2b8;--blue:#66baff;--green:#5bd8a5;--amber:#f2c36d;--red:#ff7888}
+*{box-sizing:border-box}html,body{min-height:100%;margin:0}
+body{display:grid;place-items:center;background:radial-gradient(ellipse at 50% 25%,#14243a 0,#070b12 58%);font:15px/1.5 system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(--text);padding:22px}
+main{width:min(100%,440px);text-align:center}.mark{font-size:11px;letter-spacing:.24em;color:var(--blue);font-weight:800}
+h1{font-size:clamp(34px,10vw,48px);line-height:1;margin:15px 0 8px;letter-spacing:-.05em}
+.sub{color:var(--muted);font-size:13px;margin:0 0 34px}
+.orb{width:170px;height:170px;border:1px solid #2b4968;border-radius:50%;margin:0 auto 28px;display:grid;place-items:center;box-shadow:0 0 0 12px #0d1725,0 0 65px #1f6ba044;background:radial-gradient(circle,#193653 0,#0c1724 62%,#0a111b 100%)}
+.orb span{font-size:38px;font-weight:900;letter-spacing:-.08em;color:#9bd2ff;text-shadow:0 0 24px #4aa9ff66}
+button{width:100%;border:1px solid #6dc2ff;background:linear-gradient(180deg,#2087cf,#12639c);color:#fff;font-size:16px;font-weight:850;letter-spacing:.08em;padding:17px 20px;border-radius:13px;box-shadow:0 8px 30px #0873bc33;cursor:pointer;touch-action:manipulation}
+button:disabled{opacity:.55;cursor:wait}
+#state{min-height:25px;margin:20px 0 4px;font-weight:800;color:var(--blue)}
+#detail{min-height:58px;margin:0;color:var(--muted);font-size:12px}
+#progress{height:3px;background:#142236;border-radius:9px;overflow:hidden;margin:20px 0 0}
+#progress i{display:block;width:0;height:100%;background:var(--green);transition:width .25s}
+footer{margin-top:34px;color:#596b82;font-size:10px;letter-spacing:.08em}
+.good{color:var(--green)!important}.warn{color:var(--amber)!important}.bad{color:var(--red)!important}
+</style>
+</head>
+<body>
+<main>
+<div class="mark">OFFLINE HOST · PS4 RESEARCH</div>
+<h1>JBherePS4</h1>
+<p class="sub">Um botão. Preparação local. Verificação honesta.</p>
+<div class="orb" aria-hidden="true"><span>JB</span></div>
+<button id="start" type="button">INICIAR</button>
+<div id="state" role="status" aria-live="polite">PRONTO</div>
+<p id="detail">Pressione uma vez para preparar o host offline. Ao reabrir o navegador, o diagnóstico local será retomado automaticamente.</p>
+<div id="progress"><i id="bar"></i></div>
+<footer>JBHEREPS4 · 14.02 RESEARCH · SEM ALTERAÇÃO DE FIRMWARE</footer>
+</main>
+<script src="./main.js" defer></script>
+</body>
+</html>
