@@ -29,6 +29,7 @@ label{display:block;color:var(--muted);font-size:12px;font-weight:700;letter-spa
 <form id="imageForm">
 <div class="field"><label for="imagePrompt">DESCRIÇÃO</label><textarea id="imagePrompt" name="prompt" required placeholder="Descreva personagem, pose, cenário, estilo, iluminação, câmera e detalhes..."></textarea></div>
 <div class="field"><label for="negativePrompt">O QUE EVITAR</label><input id="negativePrompt" name="negative_prompt" placeholder="Low quality, blur, anatomy errors..."></div>
+<div class="field"><label for="loraPath">LORA APRENDIDO (OPCIONAL)</label><input id="loraPath" name="lora_path" placeholder="artifacts/generation/sdxl-lora"></div>
 <div class="row"><div class="field"><label for="imageWidth">LARGURA</label><select id="imageWidth" name="width"><option>1024</option><option>768</option><option>512</option><option>1280</option><option>1536</option></select></div><div class="field"><label for="imageHeight">ALTURA</label><select id="imageHeight" name="height"><option>1024</option><option>768</option><option>512</option><option>1280</option><option>1536</option></select></div></div>
 <div class="row"><div class="field"><label for="imageSteps">ETAPAS</label><input id="imageSteps" name="steps" type="number" min="1" max="100" value="30"></div><div class="field"><label for="imageSeed">SEED</label><input id="imageSeed" name="seed" type="number" value="20261113"></div></div>
 <div class="field"><label for="initImage">IMAGEM INICIAL (OPCIONAL)</label><input class="file" id="initImage" type="file" accept="image/png,image/jpeg,image/webp"></div>
