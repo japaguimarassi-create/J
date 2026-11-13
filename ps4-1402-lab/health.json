@@ -1,0 +1,9 @@
+{
+  "project": "PS4-14.02-ResearchKit-Web",
+  "version": "1.2.0",
+  "status": "ok",
+  "mode": "static-diagnostics-and-evidence-review",
+  "exploitExecution": false,
+  "firmware": "14.02",
+  "evidenceReviewed": "2026-11-12"
+}
