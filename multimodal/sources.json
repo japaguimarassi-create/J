@@ -12,9 +12,9 @@
       "media": ["image", "3d"],
       "scale": "5.2M+ digital items",
       "license": "CC0-1.0 for records explicitly marked Open Access",
-      "automatic_download": false,
+      "automatic_download": true,
       "url": "https://www.si.edu/openaccess",
-      "notes": "Use only media records carrying the CC0/Open Access designation. The Smithsonian API requires an API key. The source includes 2D images and downloadable 3D formats such as glTF, GLB and OBJ."
+      "notes": "The included exporter requires a free API key and checks each image media record for usage.access = CC0. Other media and third-party rights are not automatically assumed to be cleared."
     },
     {
       "id": "objaverse-xl",
