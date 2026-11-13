@@ -47,9 +47,6 @@ test("web app exposes real diagnostics and honest report fields", () => {
   assert.match(html, /SharedArrayBuffer \/ Atomics/);
   assert.match(html, /O que mudou no 14\.02/);
   assert.match(html, /firmware-delta\.js/);
-  assert.match(html, /AIO \/ Prolapse/);
-  assert.match(html, /Afterglow \/ kernel/);
-  assert.match(html, /BD-J \/ Blu-ray Java/);
   assert.match(html, /N\/A/);
 });
 
@@ -85,6 +82,10 @@ test("firmware delta data separates official notes from community findings", () 
   assert.ok(delta.officialTimeline.some((x) => x.firmware === "14.02"));
   assert.ok(delta.findings.some((x) => x.id === "prolapse"));
   assert.ok(delta.findings.some((x) => x.id === "afterglow"));
+  assert.ok(delta.findings.some((x) => x.id === "webkit"));
+  assert.ok(delta.findings.some((x) => x.id === "bdj"));
+  assert.ok(delta.preexistingControls.length >= 2);
+  assert.ok(delta.accessModel.length >= 3);
   assert.ok(delta.unknowns.length >= 3);
   assert.ok(delta.sources.every((x) => /^https:\/\//.test(x.url)));
 });
