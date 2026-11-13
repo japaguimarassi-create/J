@@ -1,48 +1,27 @@
 # JBherePS4
 
-Single-button offline host for PS4 browser diagnostics and firmware evidence.
+Single-button offline PS4 browser diagnostics. Version 1.1.0 adds the JBhere Safe Probe.
 
-## What the button does
+## Safe Probe
 
-1. Caches the host's static files using Service Worker/Cache Storage where available.
-2. Declares an HTML Application Cache fallback for legacy browsers that still support it.
-3. On the next browser launch, automatically resumes a small, non-invasive browser capability report.
-4. Reads the local evidence file and stops at the firmware compatibility gate.
-5. Stores the report locally in browser storage.
+The probe reads only browser-exposed information: User-Agent firmware hint, platform/language, online state, secure context, browser APIs and optional WebGL renderer. It stores the resulting JSON report in local browser storage.
 
-## What it does not do
+It does not exploit WebKit, attempt kernel access, invoke syscalls, read/write privileged memory, patch firmware, load ELF/BIN files, install PKGs, or load GoldHEN.
 
-This is not a jailbreak payload. It does not trigger WebKit memory corruption, spray/reclaim objects, invoke syscalls, read/write privileged memory, patch kernel text, run ELF/BIN payloads, install PKGs, downgrade firmware, hide activity from Sony, or load GoldHEN.
+## Firmware 14.02 and GoldHEN
 
-The requested target is PS4 14.02. The public Afterglow project lists firmwares through 14.00 and does not list 14.02. The project therefore refuses to guess 14.02 offsets or execute a 14.00 chain against a different kernel build.
+As reviewed on 2026-11-13, the official GoldHEN GitHub release page lists v2.4b18 and supported firmware through 11.00. A community host advertises a separate 2.4b18.13 payload up to 14.00 and explicitly refuses 14.01+. That is not proof of official 14.02 support. No verified public 14.02 exploit chain or GoldHEN compatibility is established by this project.
 
-## Payload architecture reviewed
+The site therefore does not download or execute any GoldHEN binary and stops at the compatibility gate.
 
-The public Afterglow technical documentation separates a browser-side userland primitive from the kernel stage. The kernel stage depends on a firmware-specific layout and patch set. A payload loader then maps and starts a payload, and GoldHEN expects the appropriate kernel patches to have been applied first.
+## Offline
 
-This is why an exploit cannot be created by guessing offsets: a valid target build, a reproducible vulnerability, verified primitives, exact offsets and hardware validation are required. A browser API check does not provide kernel access.
+The first visit must be HTTPS to register Service Worker/Cache Storage. Legacy Application Cache is retained as a fallback declaration, but browser support must be tested on the actual PS4. The probe does not transmit its report.
 
-## GoldHEN status
+## Sources
 
-The official GoldHEN releases repository was checked on 2026-11-13. The latest listed public beta was 2.4b18 (2024-10-28), whose supported-firmware list ends at 11.00. The latest stable release listed was 2.3. Neither release lists 14.02. The site does not download or load either binary.
-
-Sources:
-- https://github.com/well0nez/afterglow-web
-- https://github.com/well0nez/afterglow-web/blob/main/TECHNICAL.md
-- https://www.psdevwiki.com/ps4/Vulnerabilities
-- https://consolemods.org/wiki/PS4:Exploit_Chart
 - https://github.com/GoldHEN/GoldHEN/releases
-
-## Deployment
-
-Repository: japaguimarassi-create/J
-Root directory: ps4-1402-lab/one-button
-Framework: Other
-Build/install command: none
-Output directory: .
-
-## Offline notes
-
-The first visit must be through HTTPS to install Service Worker/Cache Storage. The HTML Application Cache fallback is included because the public Afterglow host uses that legacy mechanism for the PS4 browser. Support depends on the exact browser build; the page reports capabilities rather than claiming offline support without confirmation.
-
-The app sends no telemetry. Reports are stored only in local browser storage.
+- https://github.com/GoldHEN/GoldHEN/issues/422
+- https://github.com/patnawa/GoldhenPS4/releases
+- https://github.com/well0nez/afterglow-web
+- https://scenegaming.com/en/news/ps4-jailbreak-14-00-goldhen-firmware-14-02
