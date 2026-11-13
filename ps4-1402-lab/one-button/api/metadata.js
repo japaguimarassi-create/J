@@ -29,12 +29,11 @@ function sameSecret(a, b) {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
-function isReadAuthorized(req, url) {
+function isReadAuthorized(req) {
   const expected = process.env.METADATA_READ_TOKEN;
   const authorization = String(req.headers.authorization || "");
   const bearer = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
-  const queryKey = url.searchParams.get("key") || "";
-  return sameSecret(bearer, expected) || sameSecret(queryKey, expected);
+  return sameSecret(bearer, expected);
 }
 
 function isRateLimited(req) {
@@ -126,7 +125,7 @@ export default async function handler(req, res) {
 
     if (req.method === "GET") {
       if (!process.env.METADATA_READ_TOKEN) return send(res, 503, { ok: false, error: "Leitura privada ainda não foi configurada." });
-      if (!isReadAuthorized(req, requestUrl)) return send(res, 401, { ok: false, error: "Autenticação necessária." });
+      if (!isReadAuthorized(req)) return send(res, 401, { ok: false, error: "Autenticação necessária." });
       if (requestUrl.searchParams.get("selftest") === "1") {
         const result = await runPrivateSelfTest();
         return send(res, 200, result);
