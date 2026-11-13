@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 
 const PREFIX = "metadata/reports/";
 const MAX_BODY_BYTES = 16000;
+const rateBuckets = new Map();
 const CAPABILITY_KEYS = [
   "serviceWorker",
   "cacheStorage",
@@ -21,6 +22,18 @@ function send(res, status, body) {
   res.setHeader("Cache-Control", "no-store, max-age=0");
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.end(JSON.stringify(body));
+}
+
+function isRateLimited(req) {
+  const forwarded = String(req.headers["x-forwarded-for"] || "unknown").split(",")[0].trim();
+  const now = Date.now();
+  const entry = rateBuckets.get(forwarded);
+  if (!entry || now - entry.startedAt > 600000) {
+    rateBuckets.set(forwarded, { startedAt: now, count: 1 });
+    return false;
+  }
+  entry.count += 1;
+  return entry.count > 10;
 }
 
 function normalize(body) {
@@ -49,8 +62,12 @@ function normalize(body) {
 
 export default async function handler(req, res) {
   try {
+    const origin = req.headers.origin;
+    if (origin && req.headers.host && new URL(origin).host !== req.headers.host) {
+      return send(res, 403, { ok: false, error: "Origem não autorizada." });
+    }
     if (req.method === "GET") {
-      const result = await list({ prefix: PREFIX, limit: 25 });
+      const result = await list({ prefix: PREFIX, limit: 100 });
       const records = await Promise.all(result.blobs.map(async (blob) => {
         try {
           const response = await fetch(blob.url, { cache: "no-store" });
@@ -67,6 +84,7 @@ export default async function handler(req, res) {
       res.setHeader("Allow", "GET, POST");
       return send(res, 405, { ok: false, error: "Método não permitido." });
     }
+    if (isRateLimited(req)) return send(res, 429, { ok: false, error: "Limite de envios atingido; tente mais tarde." });
     const length = Number(req.headers["content-length"] || 0);
     if (length > MAX_BODY_BYTES) return send(res, 413, { ok: false, error: "Relatório excede o limite." });
     let body = req.body;
@@ -75,6 +93,7 @@ export default async function handler(req, res) {
       try { body = JSON.parse(body); } catch (error) { return send(res, 400, { ok: false, error: "JSON inválido." }); }
     }
     if (!body || typeof body !== "object") return send(res, 400, { ok: false, error: "Corpo JSON obrigatório." });
+    if (Buffer.byteLength(JSON.stringify(body), "utf8") > MAX_BODY_BYTES) return send(res, 413, { ok: false, error: "Relatório excede o limite." });
     const report = normalize(body);
     const id = randomUUID();
     const pathname = PREFIX + id + ".json";
