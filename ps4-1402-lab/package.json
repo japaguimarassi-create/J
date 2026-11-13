@@ -1,8 +1,8 @@
 {
   "name": "ps4-1402-host-lab",
-  "version": "1.4.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Read-only browser preflight and evidence-backed PS4 14.00 to 14.02 firmware delta",
+  "description": "Minimal mobile-first 100-phase browser diagnostics and firmware compatibility gate",
   "scripts": {
     "test": "node --test tests/*.test.js"
   },
