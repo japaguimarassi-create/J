@@ -31,17 +31,18 @@ a{color:var(--blue)}.privacy{font-size:10px;color:var(--muted);margin:12px 0 0}.
 <main>
 <div class="mark">PS4 SECURITY RESEARCH · SAFE MODE</div>
 <h1>JBherePS4</h1>
-<p class="sub">Laboratório 14.02 · diagnóstico de compatibilidade · sem alteração no console</p>
+<p class="sub">Laboratório 14.02 · auditoria de cadeia experimental · sem alteração no console</p>
 <div class="orb" aria-hidden="true"><span>14.02</span></div>
 <button id="start" type="button">EXECUTAR TESTE</button>
-<p class="privacy">Executa testes de compatibilidade do navegador e valida o armazenamento privado. Não executa exploit, não acessa memória do kernel nem instala payloads.</p>
+<p class="privacy">Executa testes de compatibilidade do navegador e valida o armazenamento privado. Não executa exploits, não acessa memória do kernel nem instala payloads.</p>
+<p class="privacy"><strong>ESTADO REAL DO 14.02:</strong> há um relato experimental de acesso parcial ao kernel, mas o próprio registro informa kernel panic ao iniciar jogos e falha na inicialização de HEN/GoldHEN. Não é um jailbreak utilizável ou validado independentemente. O laboratório não executa essa cadeia.</p>
 <p class="privacy">O relatório técnico reduzido é enviado para armazenamento PRIVADO, com leitura autenticada. Não inclui cookies, IP, User-Agent completo, credenciais nem dados da conta. A infraestrutura recebe os metadados normais da conexão.</p>
 <p class="privacy">RELATÓRIOS EM metadata/reports/ · ACESSO PRIVADO E AUTENTICADO</p>
 <div id="state" role="status" aria-live="polite">PRONTO</div>
 <p id="detail">Um toque prepara o cache, executa os testes e envia o relatório nesta sessão. É necessária conexão para o envio; sem rede, o JSON permanece salvo localmente.</p>
 <details id="reportPanel" hidden><summary>VER RELATÓRIO JSON</summary><textarea id="report" readonly spellcheck="false" aria-label="Relatório de diagnóstico"></textarea></details>
 <div id="progress"><i id="bar"></i></div>
-<footer>JBHEREPS4 v1.5.0 · 14.02 · DIAGNÓSTICO · BACKEND PRIVADO · SEM ALTERAÇÃO DE FIRMWARE</footer>
+<footer>JBHEREPS4 v1.5.1 · 14.02 · AUDITORIA EXPERIMENTAL · BACKEND PRIVADO</footer>
 </main>
 <script src="./probe.js" defer></script>
 <script src="./main.js" defer></script>
