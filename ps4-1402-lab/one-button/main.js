@@ -33,7 +33,7 @@
     log(lines,"WebKit exposto: "+probe.webkitHint);
     log(lines,"APIs disponíveis: "+probe.testSummary.supportedApiCount+"/"+probe.testSummary.totalApiCount);log(lines,"Testes seguros aprovados: "+probe.testSummary.safeChecksPassed+"/"+probe.testSummary.safeChecksTotal);
     log(lines,"Nenhuma primitiva de exploit foi executada.");
-    var report={product:"JBherePS4",version:"1.4.1",timestamp:new Date().toISOString(),probe:probe,evidence:evidence,tests:{browserProbe:"completed",firmwareDetection:probe.firmwareHint==="not-exposed"?"not-exposed":"hint-only",exploitExecution:"not-run",kernelAccess:false,firmwareModification:false,backendStorage:"pending"},jailbreakStatus:"NO_PUBLIC_14_02_CHAIN_VERIFIED",goldhenStatus:"NOT_SUPPORTED_BY_VERIFIED_PUBLIC_RELEASE",conclusion:"O navegador não expõe acesso ao kernel. A pesquisa pública consultada não apresenta cadeia pública de userland + kernel para 14.02. O teste não tenta corrupção de memória nem instalação de payload.",storage:{status:"uploading"},log:lines};
+    var report={product:"JBherePS4",version:"1.4.2",timestamp:new Date().toISOString(),probe:probe,evidence:evidence,tests:{browserProbe:"completed",firmwareDetection:probe.firmwareHint==="not-exposed"?"not-exposed":"hint-only",exploitExecution:"not-run",kernelAccess:false,firmwareModification:false,backendStorage:"pending"},jailbreakStatus:"NO_PUBLIC_14_02_CHAIN_VERIFIED",goldhenStatus:"NOT_SUPPORTED_BY_VERIFIED_PUBLIC_RELEASE",conclusion:"O navegador não expõe acesso ao kernel. A pesquisa pública consultada não apresenta cadeia pública de userland + kernel para 14.02. O teste não tenta corrupção de memória nem instalação de payload.",storage:{status:"uploading"},log:lines};
     save("jbhereps4:lastReport",JSON.stringify(report,null,2));
     show("VALIDANDO BACKEND","Testando gravação, leitura e exclusão de um JSON temporário antes de enviar o relatório.","",82);
     try{
@@ -53,7 +53,7 @@
     button.textContent=report.storage.status==="stored"?"EXECUTAR NOVAMENTE":"TENTAR ENVIO NOVAMENTE";button.disabled=false;busy=false;return report;
   }
   async function start(){
-    if(busy)return;busy=true;button.disabled=true;var lines=[];log(lines,"JBherePS4 v1.4.1 iniciado.");
+    if(busy)return;busy=true;button.disabled=true;var lines=[];log(lines,"JBherePS4 v1.4.2 iniciado.");
     try{
       if(read("jbhereps4:prepared")!=="7"){
         var complete=await prepareOffline(lines);
