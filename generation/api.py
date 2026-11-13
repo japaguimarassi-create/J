@@ -30,7 +30,7 @@ if HOST.lower() not in {"127.0.0.1", "localhost", "::1"} and not API_KEY:
 app = FastAPI(title="MotionForge Generation API", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:8000", "http://localhost:8000"],
+    allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["GET", "POST"],
     allow_headers=["Authorization", "Content-Type"],
@@ -72,10 +72,18 @@ def run_command(command: list[str], timeout: int) -> dict[str, Any]:
             status_code=500,
             detail={"error": "Generation process failed.", "exit_code": result.returncode, "stdout": output, "stderr": error},
         )
-    try:
-        parsed = json.loads(output.strip().splitlines()[-1])
-    except Exception:
-        parsed = {"stdout": output}
+    parsed: dict[str, Any] = {"stdout": output}
+    decoder = json.JSONDecoder()
+    for position in range(len(output) - 1, -1, -1):
+        if output[position] != "{":
+            continue
+        try:
+            candidate, _ = decoder.raw_decode(output[position:])
+            if isinstance(candidate, dict):
+                parsed = candidate
+                break
+        except json.JSONDecodeError:
+            continue
     parsed["process_exit_code"] = result.returncode
     return parsed
 
