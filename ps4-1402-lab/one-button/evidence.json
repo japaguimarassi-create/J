@@ -1,41 +1,53 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "project": "JBherePS4",
   "reviewedOn": "2026-11-13",
   "targetFirmware": "14.02",
+  "assessment": "NO_PUBLIC_JAILBREAK_CHAIN_VERIFIED",
   "firmware14_02": {
-    "publicChain": "NOT_VERIFIED",
-    "kernelExploit": "NOT_VERIFIED",
-    "userlandEntry": "NOT_VERIFIED",
+    "publicChain": "NOT_AVAILABLE_IN_PUBLIC_EXPLOIT_CHART",
+    "userlandEntry": "NO_PUBLIC_USERLAND_EXPLOIT_LISTED",
+    "kernelExploit": "NO_PUBLIC_KERNEL_EXPLOIT_LISTED",
     "reproducibleHardwareTest": false,
+    "prolapse": {
+      "status": "PATCHED_SINCE_14_02",
+      "note": "PS4 Dev Wiki indica que a vulnerabilidade AIO Prolapse foi corrigida desde o firmware 14.02."
+    },
+    "afterglow": {
+      "status": "POSSIBLY_PATCHED_14_02",
+      "note": "A vulnerabilidade Afterglow está documentada como funcional até 14.00; o estado exato em 14.02 é descrito como possivelmente corrigido e requer validação independente."
+    },
     "privateDemo": {
       "status": "REPORTED_NOT_PUBLIC",
       "reportedDate": "2026-11-05",
-      "description": "Relato de vídeo de HEN privado no navegador em 14.02; sem código, sem release e sem validação independente reproduzível.",
+      "description": "Relato de demonstração privada de HEN em 14.02, sem código público ou cadeia reproduzível verificada.",
       "source": "https://scenegaming.com/en/news/ps4-14-02-hen-webkit-demostracion-saudidos"
     },
     "thirdPartyHostClaim": {
       "status": "UNVERIFIED",
       "repository": "https://github.com/Jfkkfjzkz/ps4-akatsuki-jailbreak",
-      "createdAt": "2026-11-10",
-      "assessment": "O README declara 14.02, mas o TECHNICAL.md descreve WebKit como assumido igual a 13.52 e kernel offsets derivados de 14.00 com shiftfit. A tabela de 14.02 herda a entrada 14.00, sem offsets próprios medidos nem evidência pública de teste independente em hardware. Não tratar como jailbreak comprovado."
+      "assessment": "Não há evidência independente suficiente para considerar suporte 14.02 comprovado. Reivindicações em README não equivalem a cadeia validada em hardware."
     },
     "basis": [
       {
         "source": "https://consolemods.org/wiki/PS4:Exploit_Chart",
-        "finding": "A tabela pública consultada marca 14.02 sem userland e sem kernel exploit público."
+        "finding": "A tabela atualizada em 2026-11-06 lista 14.02 sem exploit público de userland e sem exploit público de kernel."
       },
       {
         "source": "https://www.psdevwiki.com/ps4/Vulnerabilities",
-        "finding": "Afterglow está documentado até 14.00; a página indica que pode ter sido corrigido em 14.02."
+        "finding": "A página indica Prolapse corrigido desde 14.02 e Afterglow possivelmente corrigido em 14.02."
       },
       {
         "source": "https://github.com/well0nez/afterglow-web",
-        "finding": "O projeto Afterglow publicado não declara suporte 14.02."
+        "finding": "A implementação pública conhecida de Afterglow tem alvo até 14.00; não comprova 14.02."
+      },
+      {
+        "source": "https://github.com/GoldHEN/GoldHEN/releases",
+        "finding": "A release oficial pública consultada não declara compatibilidade com 14.02."
       },
       {
         "source": "https://github.com/GoldHEN/GoldHEN/issues/422",
-        "finding": "Pedido público de compatibilidade GoldHEN 14.02, sem declaração de suporte dos desenvolvedores."
+        "finding": "Há pedido público de suporte para 14.02, não uma declaração de suporte."
       }
     ]
   },
@@ -62,34 +74,37 @@
     ],
     "firmware14_02Supported": false,
     "automaticLoadingAllowed": false,
-    "note": "A revisão comunitária 2.4b18.13 declara suporte para 14.00. Não declara 14.02. A release oficial upstream visível é 2.4b18."
+    "note": "Nenhuma release pública consultada declara suporte ao PS4 14.02."
   },
-  "payload": {
-    "name": "JBhere Safe Probe",
-    "version": "1.0.0",
-    "type": "browser-only diagnostic",
-    "collects": [
-      "User-Agent firmware hint",
-      "browser capability flags",
-      "WebGL availability and renderer if exposed",
-      "timestamp"
+  "lab": {
+    "name": "JBherePS4 Safe Research Harness",
+    "version": "1.4.0",
+    "tests": [
+      "browser API capability inventory",
+      "WebKit version hint when exposed",
+      "firmware hint when exposed",
+      "offline cache preparation",
+      "backend JSON write/read/delete self-test",
+      "minimized JSON report upload"
     ],
     "doesNot": [
-      "trigger exploit",
-      "read/write kernel memory",
-      "invoke syscalls",
-      "write firmware",
-      "load ELF/BIN",
-      "install or inject GoldHEN"
+      "execute memory corruption",
+      "invoke kernel syscalls",
+      "read or write kernel memory",
+      "modify firmware",
+      "load ELF/BIN payloads",
+      "install or inject GoldHEN",
+      "bypass Sony protections"
     ]
   },
-  "safety": {
-    "exploitCodeIncluded": false,
-    "kernelWrites": false,
-    "firmwareWrites": false,
-    "syscallsInvoked": false,
-    "binaryPayloadsIncluded": false,
-    "antiDetection": false,
-    "automaticGoldhenInstall": false
+  "storage": {
+    "activeStoreName": "jbhereps4-metadata",
+    "activeStoreAccess": "public",
+    "activeStoreRegion": "gru1",
+    "privateStoreName": "jbhereps4-meta-v2",
+    "privateStoreConnected": false,
+    "reportFolder": "metadata/reports/",
+    "reportVisibility": "public",
+    "note": "O backend atualmente conectado usa armazenamento público. O relatório enviado é minimizado; não inclui User-Agent completo, IP, cookies, credenciais ou identificadores de sessão. A infraestrutura ainda recebe metadados normais da conexão."
   }
 }
