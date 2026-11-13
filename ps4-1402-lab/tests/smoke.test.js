@@ -14,7 +14,7 @@ test("health endpoint identifies the read-only 14.02 project", () => {
   assert.equal(health.firmware, "14.02");
   assert.equal(health.status, "ok");
   assert.equal(health.exploitExecution, false);
-  assert.equal(health.version, "1.2.0");
+  assert.equal(health.version, "1.3.0");
 });
 
 test("evidence registry does not claim a verified public chain", () => {
@@ -38,14 +38,14 @@ test("web app exposes real diagnostics and honest report fields", () => {
   assert.match(html, /nenhum exploit foi executado/i);
   assert.match(html, /async function retry/);
   assert.match(html, /value="60">60 tentativas \(máximo\)<\/option>/);
-  assert.match(html, /Math\.min\(250\*i,2000\)/);
+  assert.match(html, /Math\.min\(250\*i,2000\)/);\n  assert.match(html, /scope:"browser-api-only"/);\n  assert.match(html, /kernelProbe:"not-performed"/);\n  assert.match(html, /Kernel \/ syscall fora do navegador/);\n  assert.match(html, /SharedArrayBuffer \/ Atomics/);\n  assert.match(html, /N\/A/);
 });
 
 test("offline worker is same-origin and GET-only", () => {
   const sw = read("sw.js");
   assert.match(sw, /request\.method!=="GET"/);
   assert.match(sw, /url\.origin!==self\.location\.origin/);
-  assert.match(sw, /caches\.open/);
+  assert.match(sw, /caches\.open/);\n  assert.match(sw, /ps4-1402-lab-v1\.3\.0/);
 });
 
 test("manifest and Vercel headers are valid JSON", () => {
