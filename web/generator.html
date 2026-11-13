@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0e14">
+<title>MotionForge AI Generator</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0e14;--panel:#121823;--line:#263244;--text:#e7edf7;--muted:#91a0b5;--accent:#68e5d0;--blue:#76a9ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#172238 0%,var(--bg) 58%);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+a{color:var(--accent)}button,input,select,textarea{font:inherit}button{cursor:pointer}.shell{max-width:1000px;margin:auto;padding:20px 16px 54px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:24px}.brand{display:flex;align-items:center;gap:11px;color:var(--text);text-decoration:none;font-weight:800;font-size:19px}.mark{display:flex;gap:3px;align-items:end;height:24px}.mark i{width:5px;border-radius:9px;background:var(--accent)}.mark i:nth-child(1){height:13px}.mark i:nth-child(2){height:23px}.mark i:nth-child(3){height:17px}.back{padding:9px 12px;border:1px solid var(--line);border-radius:10px;text-decoration:none;color:var(--muted)}
+.hero h1{font-size:clamp(27px,5vw,40px);line-height:1.08;margin:0 0 8px}.hero p{margin:0;color:var(--muted);max-width:680px}.server{margin:22px 0;padding:13px;border:1px solid var(--line);border-radius:14px;background:#0e141e;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}
+label{display:block;color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.04em;margin:0 0 6px}input,select,textarea{width:100%;background:#0a1019;border:1px solid var(--line);color:var(--text);border-radius:9px;padding:11px;min-width:0}textarea{resize:vertical;min-height:106px}.field{margin:14px 0}.row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:20px 0}.tab{border:1px solid var(--line);border-radius:12px;padding:13px 8px;color:var(--muted);background:var(--panel);font-weight:750}.tab.active{border-color:var(--accent);color:var(--accent);background:#15242a}.card{padding:19px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(145deg,#151e2b,#101620);box-shadow:0 14px 40px #0003}.card h2{margin:0 0 4px;font-size:22px}.sub{color:var(--muted);font-size:13px;margin:0 0 16px}.panel{display:none}.panel.active{display:block}.actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:17px}.primary{border:0;background:var(--accent);color:#071411;font-weight:850;border-radius:10px;padding:12px 18px;min-height:46px}.primary:disabled{opacity:.55;cursor:wait}.status{color:var(--muted);font-size:13px;min-height:22px}.result{margin-top:18px}.result img{max-width:100%;max-height:640px;border-radius:12px;border:1px solid var(--line);display:block}.result video{max-width:100%;border-radius:12px}.pill{display:inline-block;padding:4px 8px;border-radius:7px;background:#1a2a31;color:var(--accent);font-size:11px;font-weight:800}.note{border-left:3px solid #4f729d;padding:9px 12px;background:#101927;color:var(--muted);font-size:12px;margin-top:16px}.fine{color:var(--muted);font-size:12px;margin-top:22px}.file{padding:12px;border:1px dashed #46566d;border-radius:10px}
+@media(max-width:620px){.shell{padding:15px 12px 36px}.server{grid-template-columns:1fr}.row{grid-template-columns:1fr}.card{padding:15px}.tabs{gap:5px}.tab{font-size:13px}.hero p{font-size:14px}}
+</style>
+</head>
+<body>
+<div class="shell">
+<header><a class="brand" href="./index.html"><span class="mark"><i></i><i></i><i></i></span>motionforge / AI</a><a class="back" href="./index.html">← Studio</a></header>
+<section class="hero"><h1>Crie imagens, vídeos e mundos 3D.</h1><p>Um painel para os três geradores do MotionForge. Os modelos rodam no host de GPU configurado; o celular funciona como controle remoto.</p></section>
+<div class="server">
+<div><label for="apiBase">ENDEREÇO DA API DE GERAÇÃO</label><input id="apiBase" value="http://127.0.0.1:8189" spellcheck="false"></div>
+<div><label for="apiKey">CHAVE (SE CONFIGURADA)</label><input id="apiKey" type="password" placeholder="Opcional em localhost"></div>
+</div>
+<nav class="tabs" aria-label="Tipo de geração"><button class="tab active" data-tab="image">◇ Imagem 2D</button><button class="tab" data-tab="video">▶ Vídeo</button><button class="tab" data-tab="model3d">◈ Modelo 3D</button></nav>
+<section class="panel active" id="image">
+<div class="card"><span class="pill">SDXL · DIFFUSERS</span><h2>Gerar imagem ou desenho</h2><p class="sub">Texto para imagem ou imagem para imagem com um checkpoint SDXL.</p>
+<form id="imageForm">
+<div class="field"><label for="imagePrompt">DESCRIÇÃO</label><textarea id="imagePrompt" name="prompt" required placeholder="Descreva personagem, pose, cenário, estilo, iluminação, câmera e detalhes..."></textarea></div>
+<div class="field"><label for="negativePrompt">O QUE EVITAR</label><input id="negativePrompt" name="negative_prompt" placeholder="Low quality, blur, anatomy errors..."></div>
+<div class="row"><div class="field"><label for="imageWidth">LARGURA</label><select id="imageWidth" name="width"><option>1024</option><option>768</option><option>512</option><option>1280</option><option>1536</option></select></div><div class="field"><label for="imageHeight">ALTURA</label><select id="imageHeight" name="height"><option>1024</option><option>768</option><option>512</option><option>1280</option><option>1536</option></select></div></div>
+<div class="row"><div class="field"><label for="imageSteps">ETAPAS</label><input id="imageSteps" name="steps" type="number" min="1" max="100" value="30"></div><div class="field"><label for="imageSeed">SEED</label><input id="imageSeed" name="seed" type="number" value="20261113"></div></div>
+<div class="field"><label for="initImage">IMAGEM INICIAL (OPCIONAL)</label><input class="file" id="initImage" type="file" accept="image/png,image/jpeg,image/webp"></div>
+<div class="actions"><button class="primary" type="submit">Gerar imagem ↗</button><span class="status" id="imageStatus" aria-live="polite"></span></div>
+</form><div class="result" id="imageResult"></div></div>
+</section>
+<section class="panel" id="video">
+<div class="card"><span class="pill">LTX-2.5 · COMFYUI</span><h2>Gerar vídeo</h2><p class="sub">Envie um prompt ou anime uma imagem inicial usando um workflow API do ComfyUI.</p>
+<form id="videoForm">
+<div class="field"><label for="videoPrompt">DESCRIÇÃO DO VÍDEO</label><textarea id="videoPrompt" name="prompt" required placeholder="Explique movimento, câmera, ritmo, ambiente e evolução da cena..."></textarea></div>
+<div class="row"><div class="field"><label for="workflowName">ARQUIVO WORKFLOW (.JSON)</label><input id="workflowName" name="workflow_name" required placeholder="ltx25-api.json"></div><div class="field"><label for="comfyUrl">COMFYUI URL</label><input id="comfyUrl" name="comfy_url" value="http://127.0.0.1:8188"></div></div>
+<div class="row"><div class="field"><label for="promptNode">ID DO NÓ DE PROMPT</label><input id="promptNode" name="prompt_node" placeholder="ID no workflow API"></div><div class="field"><label for="promptInput">CAMPO DO PROMPT</label><input id="promptInput" name="prompt_input" value="text"></div></div>
+<div class="row"><div class="field"><label for="imageNode">ID DO NÓ DE IMAGEM (SE USAR)</label><input id="imageNode" name="image_node" placeholder="ID no workflow API"></div><div class="field"><label for="imageInput">CAMPO DA IMAGEM</label><input id="imageInput" name="image_input" value="image"></div></div>
+<div class="field"><label for="videoImage">IMAGEM INICIAL (OPCIONAL)</label><input class="file" id="videoImage" type="file" accept="image/png,image/jpeg,image/webp"></div>
+<div class="actions"><button class="primary" type="submit">Gerar vídeo ↗</button><span class="status" id="videoStatus" aria-live="polite"></span></div>
+</form><div class="result" id="videoResult"></div><div class="note">O arquivo workflow deve existir em generation/workflows/. Os IDs dos nós variam de acordo com o workflow exportado. Acesso a pesos LTX pode exigir autorização e aceitação da licença.</div></div>
+</section>
+<section class="panel" id="model3d">
+<div class="card"><span class="pill">HUNYUAN3D-2.1</span><h2>Transformar imagem em 3D</h2><p class="sub">Crie uma malha 3D a partir de uma imagem. Materiais PBR são opcionais.</p>
+<form id="modelForm">
+<div class="field"><label for="modelImage">IMAGEM DO OBJETO OU PERSONAGEM</label><input class="file" id="modelImage" type="file" accept="image/png,image/jpeg,image/webp" required></div>
+<div class="field"><label><input id="texture" type="checkbox" style="width:auto;margin-right:8px"> GERAR TEXTURAS PBR (EXIGE MAIS VRAM)</label></div>
+<div class="actions"><button class="primary" type="submit">Gerar modelo 3D ↗</button><span class="status" id="modelStatus" aria-live="polite"></span></div>
+</form><div class="result" id="modelResult"></div><div class="note">O Hunyuan3D-2.1 declara cerca de 10 GB de VRAM para gerar a forma e 29 GB para forma + textura. A licença limita território e uso; os resultados não podem ser usados para melhorar outra IA.</div></div>
+</section>
+<p class="fine">MotionForge AI · Os arquivos gerados ficam no host de GPU. Modelos e pesos não são enviados ao Git. A qualidade e os limites dependem do checkpoint, da licença e do hardware disponível.</p>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+document.querySelectorAll("[data-tab]").forEach(button=>button.addEventListener("click",()=>{
+  document.querySelectorAll("[data-tab]").forEach(item=>item.classList.toggle("active",item===button));
+  document.querySelectorAll(".panel").forEach(panel=>panel.classList.toggle("active",panel.id===button.dataset.tab));
+}));
+function base(){return $("apiBase").value.trim().replace(/\/+$/,"")}
+function headers(){const key=$("apiKey").value.trim();return key?{"Authorization":"Bearer "+key}:{}}
+async function send(form, endpoint, status, button, resultBox, render){
+  const submit=button;
+  submit.disabled=true; status.textContent="Enviando para o host de GPU..."; resultBox.replaceChildren();
+  try{
+    const response=await fetch(base()+endpoint,{method:"POST",headers:headers(),body:new FormData(form)});
+    const payload=await response.json().catch(()=>({detail:"Resposta não é JSON."}));
+    if(!response.ok) throw new Error(typeof payload.detail==="string"?payload.detail:JSON.stringify(payload.detail||payload));
+    render(payload);
+    status.textContent="Concluído.";
+  }catch(error){status.textContent="Falha: "+error.message}
+  finally{submit.disabled=false}
+}
+function link(url,label){const a=document.createElement("a");a.href=base()+url;a.textContent=label;a.target="_blank";a.rel="noopener";return a}
+$("imageForm").addEventListener("submit",event=>{
+  event.preventDefault();const form=event.currentTarget;const data=new FormData(form);
+  const file=$("initImage").files[0];if(file)data.append("init_image",file);
+  const button=form.querySelector("button[type=submit]");
+  send({elements:[],querySelector(){return null}}, "", $("imageStatus"), button, $("imageResult"),()=>{});
+  button.disabled=true;
+  fetch(base()+"/api/image",{method:"POST",headers:headers(),body:data}).then(async response=>{
+    const payload=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(typeof payload.detail==="string"?payload.detail:JSON.stringify(payload.detail||payload));
+    const image=document.createElement("img");image.src=base()+payload.url;image.alt="Imagem gerada";
+    $("imageResult").replaceChildren(image,link(payload.url,"Abrir arquivo"));
+    $("imageStatus").textContent="Concluído.";
+  }).catch(error=>$("imageStatus").textContent="Falha: "+error.message).finally(()=>button.disabled=false);
+});
+$("videoForm").addEventListener("submit",event=>{
+  event.preventDefault();const form=event.currentTarget;const data=new FormData(form);
+  const file=$("videoImage").files[0];if(file)data.append("init_image",file);
+  const button=form.querySelector("button[type=submit]");button.disabled=true;$("videoStatus").textContent="Enviando workflow ao ComfyUI...";
+  fetch(base()+"/api/video",{method:"POST",headers:headers(),body:data}).then(async response=>{
+    const payload=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(typeof payload.detail==="string"?payload.detail:JSON.stringify(payload.detail||payload));
+    const nodes=[];
+    (payload.urls||[]).forEach((url,index)=>{
+      const item=document.createElement("div");item.append(link(url,"Abrir vídeo/arquivo "+(index+1)));nodes.push(item);
+    });
+    $("videoResult").replaceChildren(...nodes);
+    $("videoStatus").textContent="Concluído. ID: "+(payload.prompt_id||"");
+  }).catch(error=>$("videoStatus").textContent="Falha: "+error.message).finally(()=>button.disabled=false);
+});
+$("modelForm").addEventListener("submit",event=>{
+  event.preventDefault();const data=new FormData();const image=$("modelImage").files[0];if(!image){$("modelStatus").textContent="Selecione uma imagem.";return}
+  data.append("image",image);data.append("texture",$("texture").checked?"true":"false");
+  const button=event.currentTarget.querySelector("button[type=submit]");button.disabled=true;$("modelStatus").textContent="Gerando malha 3D...";
+  fetch(base()+"/api/model3d",{method:"POST",headers:headers(),body:data}).then(async response=>{
+    const payload=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(typeof payload.detail==="string"?payload.detail:JSON.stringify(payload.detail||payload));
+    $("modelResult").replaceChildren(link(payload.url,"Baixar modelo 3D (.glb)"));
+    $("modelStatus").textContent="Concluído.";
+  }).catch(error=>$("modelStatus").textContent="Falha: "+error.message).finally(()=>button.disabled=false);
+});
+</script>
+</body>
+</html>
