@@ -34,6 +34,23 @@
  <article class="panel"><div class="row" style="justify-content:space-between"><h3>Registro da sessão</h3><button class="btn alt" id="clear">LIMPAR LOG</button></div><div id="log" class="terminal" role="log" aria-live="polite">[SYS] Aguardando início.</div><p class="helper">Os logs ficam no navegador e só saem do dispositivo quando você exporta. O site não envia resultados.</p></article>
 </section>
 
+<section id="delta" class="section">
+ <div class="head"><div><div class="eyebrow">02 / FIRMWARE DELTA</div><h2>O que mudou no 14.02?</h2><p>Separação entre correção documentada, hipótese e componente ainda sem teste público.</p></div><span class="pill amber">REVISÃO 13 NOV 2026</span></div>
+ <article class="panel">
+  <div class="result"><div><b>AIO / Prolapse</b><small>O PS4 Developer Wiki marca a vulnerabilidade AIO usada no 14.00 como corrigida no 14.02. É a correção técnica mais concreta encontrada.</small></div><span class="pill red">CORRIGIDO</span></div>
+  <div class="result"><div><b>Afterglow / kernel</b><small>Funciona documentadamente até 14.00; a wiki diz que pode ter sido corrigido em 14.02, mas não confirma o patch.</small></div><span class="pill amber">INCERTO</span></div>
+  <div class="result"><div><b>WebKit / userland</b><small>A cadeia publicada foi testada em 14.00. Não encontramos confirmação de que a mesma implementação funcione em 14.02.</small></div><span class="pill amber">NÃO TESTADO</span></div>
+  <div class="result"><div><b>BD-J / Blu-ray Java</b><small>O método documentado para 14.00 não comprova compatibilidade com 14.02. A rota BD-JB-EX descrita na wiki depende de acesso privilegiado/kernel prévio; não é uma entrada independente.</small></div><span class="pill amber">NÃO VALIDADO</span></div>
+  <div class="result"><div><b>Restrições de sockets</b><small>A criação de sockets fora de AF_UNIX em apps não privilegiados já é restringida desde 14.00; não há evidência pública de que 14.02 tenha removido essa restrição.</small></div><span class="pill">MANTIDO DESDE 14.00</span></div>
+  <p class="helper">“Não testado” não significa “vulnerável”. A documentação pública não permite afirmar quais outras partes permaneceram inalteradas.</p>
+ </article>
+ <article class="panel">
+  <b>Como acessar as informações sem inventar permissões</b>
+  <p>O host no navegador só consegue observar APIs e dados que o processo do navegador já expõe. Ele não consegue abrir dispositivos de kernel, ler memória privilegiada ou chamar syscalls nativas diretamente. Para comparar componentes do firmware, o caminho verificável é analisar metadados e hashes de pacotes oficiais 14.00/14.02 ou manifests extraídos por ferramentas de pesquisa, sem executar código no console.</p>
+  <p><a href="https://www.psdevwiki.com/ps4/Vulnerabilities" target="_blank" rel="noopener noreferrer">Matriz técnica de vulnerabilidades ↗</a> · <a href="https://consolemods.org/wiki/PS4:Exploit_Chart" target="_blank" rel="noopener noreferrer">Matriz comunitária de compatibilidade ↗</a> · <a href="https://www.playstation.com/en-us/support/hardware/ps4/system-software/" target="_blank" rel="noopener noreferrer">Página oficial de software do PS4 ↗</a></p>
+ </article>
+</section>
+
 <section id="status" class="section">
  <div class="head"><div><div class="eyebrow">02 / FIRMWARE GATE</div><h2>Compatibilidade documentada</h2><p>Userland, kernel e payload são camadas diferentes.</p></div><span class="pill red">14.02 NÃO VALIDADO</span></div>
  <article class="panel">
@@ -55,7 +72,7 @@
  </div>
 </section>
 <section class="warning"><div class="mark">i</div><div><strong>Limite de segurança</strong><p>O Research Lab não tenta UAF, heap spray, ROP, syscalls, leitura/escrita de memória do console, patch do kernel, execução de ELF/BIN, downgrade ou bypass de proteção. O botão verifica somente APIs comuns do navegador e arquivos estáticos do próprio site. A base de evidências é revisada manualmente; não é um scanner de vulnerabilidades.</p></div></section>
-<footer class="foot"><span>PS4 14.02 HOST LAB · v1.3.0</span><span>Sem afiliação com Sony</span><span id="footNetwork">REDE: —</span></footer>
+<footer class="foot"><span>PS4 14.02 HOST LAB · v1.4.0</span><span>Sem afiliação com Sony</span><span id="footNetwork">REDE: —</span></footer>
 </main>
 <script>
 (function(){
