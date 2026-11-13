@@ -1,9 +1,15 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "project": "JBherePS4",
   "reviewedOn": "2026-11-13",
   "targetFirmware": "14.02",
   "assessment": "NO_PUBLIC_JAILBREAK_CHAIN_VERIFIED",
+  "publicStatus": {
+    "status": "NO_JAILBREAK_FOR_14_02",
+    "source": "https://consolemods.org/wiki/PS4:FAQ",
+    "finding": "A FAQ da ConsoleMods consultada em 2026-11-13 declara firmwares 4.05 a 14.00 explorados e implementados e afirma que não há jailbreak para 14.02.",
+    "lastChecked": "2026-11-13"
+  },
   "firmware14_02": {
     "publicChain": "NOT_AVAILABLE_IN_PUBLIC_EXPLOIT_CHART",
     "userlandEntry": "NO_PUBLIC_USERLAND_EXPLOIT_LISTED",
@@ -11,27 +17,14 @@
     "reproducibleHardwareTest": false,
     "prolapse": {
       "status": "PATCHED_SINCE_14_02",
-      "note": "PS4 Dev Wiki indica que a vulnerabilidade AIO Prolapse foi corrigida desde o firmware 14.02.",
       "publicDocumentation": "https://www.psdevwiki.com/ps4/Vulnerabilities"
     },
     "afterglow": {
-      "status": "POSSIBLY_PATCHED_14_02",
-      "note": "A vulnerabilidade Afterglow está documentada como funcional até 14.00; o estado exato em 14.02 é descrito como possivelmente corrigido e requer validação independente.",
-      "supportedFirmwares": [
-        "12.00",
-        "12.02",
-        "12.50",
-        "12.52",
-        "13.00",
-        "13.02",
-        "13.04",
-        "13.50",
-        "13.52",
-        "14.00"
-      ],
-      "hardwareValidatedAt14_00": true,
+      "status": "NOT_VERIFIED_ON_14_02",
+      "knownPublicTarget": "14.00",
+      "publicSource": "https://github.com/well0nez/afterglow-web",
       "hardwareValidatedAt14_02": false,
-      "publicSource": "https://github.com/well0nez/afterglow-web"
+      "note": "A existência de uma build ou de offsets declarados para 14.02 não constitui validação em hardware."
     },
     "privateDemo": {
       "status": "REPORTED_NOT_PUBLIC",
@@ -39,73 +32,96 @@
       "description": "Relato de demonstração privada de HEN em 14.02, sem código público ou cadeia reproduzível verificada.",
       "source": "https://scenegaming.com/en/news/ps4-14-02-hen-webkit-demostracion-saudidos"
     },
-    "thirdPartyHostClaim": {
-      "status": "UNVERIFIED",
-      "repository": "https://github.com/Jfkkfjzkz/ps4-akatsuki-jailbreak",
-      "assessment": "Não há evidência independente suficiente para considerar suporte 14.02 comprovado. Reivindicações em README não equivalem a cadeia validada em hardware."
-    },
-    "basis": [
-      {
-        "source": "https://consolemods.org/wiki/PS4:Exploit_Chart",
-        "finding": "A tabela atualizada em 2026-11-06 lista 14.02 sem exploit público de userland e sem exploit público de kernel."
-      },
-      {
-        "source": "https://www.psdevwiki.com/ps4/Vulnerabilities",
-        "finding": "A página indica Prolapse corrigido desde 14.02 e Afterglow possivelmente corrigido em 14.02."
-      },
-      {
-        "source": "https://github.com/well0nez/afterglow-web",
-        "finding": "A implementação pública conhecida de Afterglow tem alvo até 14.00; não comprova 14.02."
-      },
-      {
-        "source": "https://github.com/GoldHEN/GoldHEN/releases",
-        "finding": "A release oficial pública consultada não declara compatibilidade com 14.02."
-      },
-      {
-        "source": "https://github.com/GoldHEN/GoldHEN/issues/422",
-        "finding": "Há pedido público de suporte para 14.02, não uma declaração de suporte."
-      }
-    ]
+    "goldhen": {
+      "latestOfficialUpstreamRelease": "2.4b18",
+      "officialRelease": "https://github.com/GoldHEN/GoldHEN/releases",
+      "officialSupportedFirmware": ["5.05", "6.71", "6.72", "9.00", "9.60", "10.00", "10.01", "10.50", "10.70", "10.71", "11.00"],
+      "firmware14_02Supported": false,
+      "issue14_02": "https://github.com/GoldHEN/GoldHEN/issues/422",
+      "note": "Nenhuma release oficial consultada declara suporte ao firmware 14.02."
+    }
   },
-  "goldhen": {
-    "latestOfficialUpstreamRelease": "2.4b18",
-    "officialRelease": "https://github.com/GoldHEN/GoldHEN/releases",
-    "officialSupportedFirmware": [
-      "5.05",
-      "6.71",
-      "6.72",
-      "9.00",
-      "9.60",
-      "10.00",
-      "10.01",
-      "10.50",
-      "10.70",
-      "10.71",
-      "11.00"
+  "candidateAudit": {
+    "repository": "https://github.com/Jfkkfjzkz/ps4-akatsuki-jailbreak",
+    "claimedTargets": ["14.00", "14.02"],
+    "assessment": "UNVERIFIED_14_02_PORT",
+    "observedIssues": [
+      {
+        "file": "ps4_offsets.js",
+        "finding": "PS4[14.02] é criado com Object.assign({}, PS4[14.00], ...), herdando os offsets da tabela 14.00.",
+        "impact": "Não comprova offsets medidos no kernel 14.02."
+      },
+      {
+        "file": "ps4_offsets.js",
+        "finding": "A descrição explícita declara WebKit presumido idêntico ao 13.52 e offsets derivados de 14.00 com shiftfit.",
+        "impact": "Presunção e ajuste não equivalem a comparação de dumps, validação de gadgets ou teste no hardware 14.02."
+      },
+      {
+        "file": "afterglow-g.js",
+        "finding": "O cabeçalho e as constantes da implementação identificam a base do exploit como firmware 14.00.",
+        "impact": "A adaptação declarada para 14.02 requer validação independente."
+      },
+      {
+        "file": "index.html",
+        "finding": "A verificação visual de senha contém a condição if (true || input.value === PASS) e a proteção de referenciador retorna sempre true.",
+        "impact": "O bloqueio da interface não funciona como autenticação de segurança. Isso não demonstra nem invalida o exploit de kernel."
+      },
+      {
+        "file": "README.md",
+        "finding": "O README afirma suporte 14.02 e lista um kernel_1402.bin, mas não fornece evidência reproduzível de teste físico ou medição dos offsets da configuração 14.02.",
+        "impact": "A alegação precisa ser tratada como não verificada."
+      }
     ],
-    "communityBuild": "2.4b18.13",
-    "communityBuildSource": "https://github.com/EEJTek/GoldHEN_v2.4b18.12",
-    "communityBuildClaimedFirmware": [
-      "14.00"
-    ],
-    "firmware14_02Supported": false,
-    "automaticLoadingAllowed": false,
-    "note": "Nenhuma release pública consultada declara suporte ao PS4 14.02.",
-    "issue14_02": "https://github.com/GoldHEN/GoldHEN/issues/422"
+    "hardwareValidatedAt14_02": false,
+    "recommendation": "DO_NOT_RUN_AS_PROVEN_JAILBREAK"
+  },
+  "receivedPs4BrowserProfile": {
+    "source": "Relatórios JBherePS4 recebidos em 2026-11-13",
+    "firmwareHint": "14.02",
+    "webkitHint": "605.1.15",
+    "deviceClass": "ps4-browser",
+    "online": true,
+    "secureContext": true,
+    "supportedApiCount": 11,
+    "totalApiCount": 18,
+    "safeChecksPassed": 10,
+    "safeChecksTotal": 16,
+    "capabilities": {
+      "serviceWorker": false,
+      "cacheStorage": true,
+      "applicationCache": true,
+      "webAssembly": false,
+      "bigInt": true,
+      "sharedArrayBuffer": false,
+      "atomics": true,
+      "indexedDB": false,
+      "localStorage": true,
+      "cryptoSubtle": true,
+      "fetch": true,
+      "webGL": false,
+      "webGL2": false,
+      "webAssemblyValidation": false,
+      "cryptoGetRandomValues": true,
+      "typedArray": true,
+      "performanceObserver": true,
+      "textEncoder": true
+    },
+    "interpretation": "Este perfil mostra APIs ausentes no navegador observado. Isso não prova nem descarta uma vulnerabilidade específica de WebKit; ausência de WebAssembly, por exemplo, não é prova de ausência de exploração JavaScript."
   },
   "lab": {
     "name": "JBherePS4 Safe Research Harness",
-    "version": "1.4.2",
+    "version": "1.5.0",
     "tests": [
       "browser API capability inventory",
       "PlayStation 4 browser and firmware hint if User-Agent exposes it",
       "AppleWebKit version hint if User-Agent exposes it",
-      "small deterministic TypedArray test using 64 KiB",
+      "deterministic TypedArray test using 64 KiB",
       "validation of an empty WebAssembly module",
       "BigInt, WebGL/WebGL2, IndexedDB, Cache Storage, Service Worker and WebCrypto availability",
       "temporary LocalStorage write/read/delete",
-      "backend JSON write/read/delete self-test",
-      "minimized report upload with sanitized test matrix",
+      "private Blob JSON write/read/delete self-test",
+      "private report upload with server-side verification",
+      "authenticated report listing from metadata/reports/",
       "single-click cache preparation followed immediately by diagnostics"
     ],
     "doesNot": [
@@ -120,13 +136,13 @@
     ]
   },
   "storage": {
-    "activeStoreName": "jbhereps4-metadata",
-    "activeStoreAccess": "public",
+    "activeStoreName": "jbhereps4-reports-private-02",
+    "activeStoreId": "store_u1QU1HP2287bedqj",
+    "activeStoreAccess": "private",
     "activeStoreRegion": "gru1",
-    "privateStoreName": "jbhereps4-meta-v2",
-    "privateStoreConnected": false,
     "reportFolder": "metadata/reports/",
-    "reportVisibility": "public",
-    "note": "O backend atualmente conectado usa armazenamento público. O relatório enviado é minimizado; não inclui User-Agent completo, IP, cookies, credenciais ou identificadores de sessão. A infraestrutura ainda recebe metadados normais da conexão."
+    "reportVisibility": "private",
+    "readRequiresAuthentication": true,
+    "selfTest": "writes, reads back and deletes a temporary private JSON file"
   }
 }
