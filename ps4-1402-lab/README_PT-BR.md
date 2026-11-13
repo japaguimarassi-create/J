@@ -57,3 +57,8 @@ As alegações de 14.02 encontradas em repositórios não são tratadas como sup
 ## Privacidade
 
 Diagnósticos e relatórios são executados localmente no navegador. O site não envia os resultados de diagnóstico para uma API própria e não solicita credenciais PSN.
+
+
+## Matriz de capacidades (v1.3.0)
+
+O preflight percorre APIs comuns do navegador uma a uma. Os códigos são locais: **1** = teste da API passou, **0** = teste falhou, **N/A** = API indisponível ou fora do escopo. O verificador inclui SharedArrayBuffer/Atomics, quota de armazenamento e BroadcastChannel quando disponíveis. Não tenta syscalls, leitura/escrita do kernel, corrupção de memória ou escalada de privilégios; JavaScript comum não expõe essas interfaces.
