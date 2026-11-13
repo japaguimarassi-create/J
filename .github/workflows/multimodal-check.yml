@@ -1,0 +1,29 @@
+name: MotionForge Multimodal Checks
+
+on:
+  push:
+    branches:
+      - motionforge-multimodal-learning
+    paths:
+      - "multimodal/**"
+      - ".github/workflows/multimodal-check.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Compile Python modules
+        run: python -m compileall -q multimodal
+      - name: Run license and path tests
+        run: python -m unittest discover -s multimodal -p "test_*.py" -v
