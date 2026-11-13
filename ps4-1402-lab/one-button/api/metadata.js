@@ -9,11 +9,17 @@ const CAPABILITY_KEYS = [
   "cacheStorage",
   "applicationCache",
   "webAssembly",
+  "bigInt",
+  "sharedArrayBuffer",
+  "atomics",
   "indexedDB",
   "localStorage",
   "cryptoSubtle",
   "fetch",
-  "webGL"
+  "webGL",
+  "webGL2",
+  "performanceObserver",
+  "textEncoder"
 ];
 
 function send(res, status, body) {
@@ -50,9 +56,15 @@ function normalize(body) {
     receivedAt: new Date().toISOString(),
     clientTimestamp: typeof body.timestamp === "string" && !Number.isNaN(Date.parse(body.timestamp)) ? body.timestamp : null,
     firmwareHint: hint,
+    webkitHint: typeof body.webkitHint === "string" && /^[0-9.]{1,24}$/.test(body.webkitHint) ? body.webkitHint : "not-exposed",
+    deviceClass: body.deviceClass === "ps4-browser" ? "ps4-browser" : "unknown-browser",
     online: body.online === true,
     secureContext: body.secureContext === true,
     capabilities: caps,
+    testSummary: {
+      supportedApiCount: Number.isInteger(body.testSummary && body.testSummary.supportedApiCount) ? Math.max(0, Math.min(30, body.testSummary.supportedApiCount)) : null,
+      totalApiCount: Number.isInteger(body.testSummary && body.testSummary.totalApiCount) ? Math.max(0, Math.min(30, body.testSummary.totalApiCount)) : null
+    },
     evidenceSummary: {
       firmware14_02PublicChain: typeof evidence.firmware14_02PublicChain === "string" ? evidence.firmware14_02PublicChain.slice(0, 40) : "UNKNOWN",
       goldhen14_02Supported: evidence.goldhen14_02Supported === true
@@ -84,6 +96,8 @@ export default async function handler(req, res) {
       res.setHeader("Allow", "GET, POST");
       return send(res, 405, { ok: false, error: "Método não permitido." });
     }
+    if (!origin || origin !== "https://" + req.headers.host) return send(res, 403, { ok: false, error: "Envio exige origem do próprio site." });
+    if (!String(req.headers["content-type"] || "").toLowerCase().includes("application/json")) return send(res, 415, { ok: false, error: "Content-Type application/json obrigatório." });
     if (isRateLimited(req)) return send(res, 429, { ok: false, error: "Limite de envios atingido; tente mais tarde." });
     if (req.method === "POST" && req.body && req.body.cleanupKnownTests === true) {
       if (!origin || origin !== "https://" + req.headers.host) {
