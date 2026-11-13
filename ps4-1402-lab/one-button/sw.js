@@ -1,5 +1,5 @@
 "use strict";
-var CACHE_NAME = "jbhereps4-host-v3";
+var CACHE_NAME = "jbhereps4-host-v4";
 var ASSETS = ["./", "./index.html", "./main.js", "./probe.js", "./sw.js", "./cache.appcache", "./manifest.webmanifest", "./evidence.json"];
 self.addEventListener("install", function (event) {
   event.waitUntil(caches.open(CACHE_NAME).then(function (cache) { return cache.addAll(ASSETS); }).then(function () { return self.skipWaiting(); }));
@@ -13,6 +13,7 @@ self.addEventListener("fetch", function (event) {
   if (event.request.method !== "GET") return;
   var url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
+  if (url.pathname.indexOf("/api/") === 0) return;
   event.respondWith(caches.match(event.request).then(function (cached) {
     if (cached) return cached;
     return fetch(event.request).then(function (response) {
