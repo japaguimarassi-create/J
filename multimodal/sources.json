@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "default_policy": {
+    "allow": ["CC0-1.0", "CC-BY-4.0"],
+    "exclude": ["CC-BY-NC-4.0", "CC-BY-NC-SA-4.0", "CC-BY-ND-4.0", "CC-BY-SA-4.0", "unknown"],
+    "require_item_level_rights": true,
+    "require_attribution_metadata": true
+  },
+  "sources": [
+    {
+      "id": "smithsonian-open-access",
+      "media": ["image", "3d"],
+      "scale": "5.2M+ digital items",
+      "license": "CC0-1.0 for records explicitly marked Open Access",
+      "automatic_download": false,
+      "url": "https://www.si.edu/openaccess",
+      "notes": "Use only media records carrying the CC0/Open Access designation. The Smithsonian API requires an API key. The source includes 2D images and downloadable 3D formats such as glTF, GLB and OBJ."
+    },
+    {
+      "id": "objaverse-xl",
+      "media": ["3d"],
+      "scale": "10M+ 3D objects",
+      "license": "Mixed item-level Creative Commons licenses; the collection also has ODC-By metadata terms",
+      "automatic_download": true,
+      "url": "https://objaverse.allenai.org/docs/intro/",
+      "notes": "The exporter downloads only individual assets whose metadata says CC0 or CC-BY 4.0. Non-commercial, share-alike, no-derivatives and unknown entries are excluded by default. Read the current item metadata and terms before changing the policy."
+    },
+    {
+      "id": "wikimedia-commons",
+      "media": ["image", "video"],
+      "scale": "Large community-maintained media collection",
+      "license": "Varies per file",
+      "automatic_download": true,
+      "url": "https://commons.wikimedia.org/wiki/Commons:Reuse_content_outside_Wikimedia",
+      "notes": "The exporter reads each file's own license metadata. Only CC0 and CC-BY 4.0 are auto-approved by default. Other files remain in the manifest for review and are not downloaded."
+    },
+    {
+      "id": "open-images",
+      "media": ["image"],
+      "scale": "9,178,275 images in the complete set",
+      "license": "Per-image license claims require item-level verification",
+      "automatic_download": false,
+      "url": "https://storage.googleapis.com/openimages/web/download.html",
+      "notes": "The official repository warns that Google does not warrant the license status of each image. Do not ingest the whole set blindly. Add entries only after verifying the rights record for each image."
+    },
+    {
+      "id": "pe-video-dataset",
+      "media": ["video"],
+      "scale": "998,862 videos",
+      "license": "CC-BY-NC-4.0",
+      "automatic_download": false,
+      "url": "https://ai.meta.com/datasets/pe-video/",
+      "notes": "Non-commercial license. Excluded from the default training policy, especially for any commercial or unrestricted downstream use. Use only after explicitly accepting the non-commercial restriction."
+    }
+  ]
+}
