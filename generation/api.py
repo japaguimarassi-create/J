@@ -185,6 +185,8 @@ def generate_video(
 ) -> dict[str, Any]:
     if not prompt.strip() or len(prompt) > 4000:
         raise HTTPException(status_code=400, detail="Prompt must contain 1-4000 characters.")
+    if not prompt_node.strip():
+        raise HTTPException(status_code=400, detail="prompt_node is required; inspect the exported ComfyUI API workflow.")
     workflow_file = safe_filename(workflow_name)
     if not workflow_file.endswith(".json"):
         raise HTTPException(status_code=400, detail="Workflow file must end in .json.")
