@@ -53,7 +53,7 @@
     button.textContent=report.storage.status==="stored"?"EXECUTAR NOVAMENTE":"TENTAR ENVIO NOVAMENTE";button.disabled=false;busy=false;return report;
   }
   async function start(){
-    if(busy)return;busy=true;button.disabled=true;var lines=[];log(lines,"JBherePS4 v1.4.2 iniciado.");
+    if(busy)return;busy=true;button.disabled=true;var lines=[];log(lines,"JBherePS4 v1.5.0 iniciado.");
     try{
       if(read("jbhereps4:prepared")!=="7"){
         var complete=await prepareOffline(lines);
