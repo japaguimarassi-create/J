@@ -3,7 +3,7 @@
   "short_name": "PS4 Lab",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#07111f",
-  "theme_color": "#07111f",
-  "description": "Diagnóstico web offline para pesquisa de compatibilidade PS4."
+  "background_color": "#071421",
+  "theme_color": "#071421",
+  "description": "Diagnóstico local e revisão de evidências públicas para PS4 14.02."
 }
