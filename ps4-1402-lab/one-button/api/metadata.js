@@ -1,28 +1,16 @@
-import { put, list, del } from "@vercel/blob";
-import { randomUUID } from "node:crypto";
+import { put, list, get, del } from "@vercel/blob";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 
 const PREFIX = "metadata/reports/";
+const SELF_TEST_PREFIX = "metadata/self-tests/";
 const MAX_BODY_BYTES = 16000;
+const MAX_REPORTS = 50;
 const rateBuckets = new Map();
 const CAPABILITY_KEYS = [
-  "serviceWorker",
-  "cacheStorage",
-  "applicationCache",
-  "webAssembly",
-  "bigInt",
-  "sharedArrayBuffer",
-  "atomics",
-  "indexedDB",
-  "localStorage",
-  "cryptoSubtle",
-  "fetch",
-  "webGL",
-  "webGL2",
-  "webAssemblyValidation",
-  "cryptoGetRandomValues",
-  "typedArray",
-  "performanceObserver",
-  "textEncoder"
+  "serviceWorker", "cacheStorage", "applicationCache", "webAssembly", "bigInt",
+  "sharedArrayBuffer", "atomics", "indexedDB", "localStorage", "cryptoSubtle",
+  "fetch", "webGL", "webGL2", "webAssemblyValidation", "cryptoGetRandomValues",
+  "typedArray", "performanceObserver", "textEncoder"
 ];
 
 function send(res, status, body) {
@@ -30,7 +18,23 @@ function send(res, status, body) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.setHeader("Cache-Control", "no-store, max-age=0");
   res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "no-referrer");
   res.end(JSON.stringify(body));
+}
+
+function sameSecret(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || !a || !b) return false;
+  const left = Buffer.from(a, "utf8");
+  const right = Buffer.from(b, "utf8");
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+function isReadAuthorized(req, url) {
+  const expected = process.env.METADATA_READ_TOKEN;
+  const authorization = String(req.headers.authorization || "");
+  const bearer = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+  const queryKey = url.searchParams.get("key") || "";
+  return sameSecret(bearer, expected) || sameSecret(queryKey, expected);
 }
 
 function isRateLimited(req) {
@@ -54,8 +58,9 @@ function normalize(body) {
   const caps = {};
   for (const key of CAPABILITY_KEYS) caps[key] = !!(body.capabilities && body.capabilities[key] === true);
   const evidence = body.evidenceSummary && typeof body.evidenceSummary === "object" ? body.evidenceSummary : {};
+  const summary = body.testSummary && typeof body.testSummary === "object" ? body.testSummary : {};
   return {
-    schema: "jbhereps4-server-report/1",
+    schema: "jbhereps4-server-report/2",
     receivedAt: new Date().toISOString(),
     clientTimestamp: typeof body.timestamp === "string" && !Number.isNaN(Date.parse(body.timestamp)) ? body.timestamp : null,
     firmwareHint: hint,
@@ -65,100 +70,158 @@ function normalize(body) {
     secureContext: body.secureContext === true,
     capabilities: caps,
     testSummary: {
-      supportedApiCount: Number.isInteger(body.testSummary && body.testSummary.supportedApiCount) ? Math.max(0, Math.min(30, body.testSummary.supportedApiCount)) : null,
-      totalApiCount: Number.isInteger(body.testSummary && body.testSummary.totalApiCount) ? Math.max(0, Math.min(30, body.testSummary.totalApiCount)) : null,
-      safeChecksPassed: Number.isInteger(body.testSummary && body.testSummary.safeChecksPassed) ? Math.max(0, Math.min(30, body.testSummary.safeChecksPassed)) : null,
-      safeChecksTotal: Number.isInteger(body.testSummary && body.testSummary.safeChecksTotal) ? Math.max(0, Math.min(30, body.testSummary.safeChecksTotal)) : null
+      supportedApiCount: Number.isInteger(summary.supportedApiCount) ? Math.max(0, Math.min(30, summary.supportedApiCount)) : null,
+      totalApiCount: Number.isInteger(summary.totalApiCount) ? Math.max(0, Math.min(30, summary.totalApiCount)) : null,
+      safeChecksPassed: Number.isInteger(summary.safeChecksPassed) ? Math.max(0, Math.min(30, summary.safeChecksPassed)) : null,
+      safeChecksTotal: Number.isInteger(summary.safeChecksTotal) ? Math.max(0, Math.min(30, summary.safeChecksTotal)) : null
     },
-    safeChecks: Array.isArray(body.safeChecks) ? body.safeChecks.slice(0, 20).map(function (entry) {
-      return {
-        name: typeof (entry && entry.name) === "string" ? entry.name.slice(0, 64) : "check",
-        status: entry && entry.status === "PASS" ? "PASS" : "UNAVAILABLE",
-        detail: typeof (entry && entry.detail) === "string" ? entry.detail.slice(0, 80) : ""
-      };
-    }) : [],
+    safeChecks: Array.isArray(body.safeChecks) ? body.safeChecks.slice(0, 20).map((entry) => ({
+      name: typeof (entry && entry.name) === "string" ? entry.name.slice(0, 64) : "check",
+      status: entry && entry.status === "PASS" ? "PASS" : "UNAVAILABLE",
+      detail: typeof (entry && entry.detail) === "string" ? entry.detail.slice(0, 80) : ""
+    })) : [],
     evidenceSummary: {
-      firmware14_02PublicChain: typeof evidence.firmware14_02PublicChain === "string" ? evidence.firmware14_02PublicChain.slice(0, 40) : "UNKNOWN",
+      firmware14_02PublicChain: typeof evidence.firmware14_02PublicChain === "string" ? evidence.firmware14_02PublicChain.slice(0, 64) : "UNKNOWN",
       goldhen14_02Supported: evidence.goldhen14_02Supported === true
     }
   };
 }
 
+async function readPrivateReport(pathname) {
+  const blob = await get(pathname, { access: "private", useCache: false });
+  if (!blob || blob.statusCode !== 200 || !blob.stream) throw new Error("Relatório privado não pôde ser lido.");
+  return await new Response(blob.stream).json();
+}
+
+async function migrateLegacyPublicReports() {
+  const legacyToken = process.env.BLOB_READ_WRITE_TOKEN_LEGACY_PUBLIC;
+  if (!legacyToken) return { migrated: 0, deleted: 0, failed: 0, reason: "legacy-token-not-configured" };
+  const old = await list({ prefix: PREFIX, limit: 100, token: legacyToken });
+  let migrated = 0;
+  let deleted = 0;
+  let failed = 0;
+  for (const item of old.blobs || []) {
+    try {
+      const source = await get(item.pathname, { access: "public", token: legacyToken, useCache: false });
+      if (!source || source.statusCode !== 200 || !source.stream) throw new Error("legacy-read-failed");
+      const raw = await new Response(source.stream).text();
+      const parsed = JSON.parse(raw);
+      if (!parsed || parsed.schema !== "jbhereps4-server-report/1") throw new Error("legacy-schema-mismatch");
+      await put(item.pathname, raw, {
+        access: "private",
+        addRandomSuffix: false,
+        contentType: "application/json; charset=utf-8"
+      });
+      const copied = await readPrivateReport(item.pathname);
+      if (copied.schema !== parsed.schema || copied.receivedAt !== parsed.receivedAt) throw new Error("private-copy-verification-failed");
+      migrated += 1;
+      await del(item.pathname, { token: legacyToken });
+      deleted += 1;
+    } catch (error) {
+      failed += 1;
+    }
+  }
+  return { migrated, deleted, failed, scanned: (old.blobs || []).length };
+}
+
 export default async function handler(req, res) {
   try {
+    const requestUrl = new URL(req.url, "https://" + String(req.headers.host || "localhost"));
     const origin = req.headers.origin;
     if (origin && req.headers.host && new URL(origin).host !== req.headers.host) {
       return send(res, 403, { ok: false, error: "Origem não autorizada." });
     }
+
     if (req.method === "GET") {
-      const result = await list({ prefix: PREFIX, limit: 100 });
-      const records = await Promise.all(result.blobs.map(async (blob) => {
+      if (!process.env.METADATA_READ_TOKEN) return send(res, 503, { ok: false, error: "Leitura privada ainda não foi configurada." });
+      if (!isReadAuthorized(req, requestUrl)) return send(res, 401, { ok: false, error: "Autenticação necessária." });
+      if (requestUrl.searchParams.get("migrate") === "legacy") {
+        const migration = await migrateLegacyPublicReports();
+        return send(res, 200, { ok: true, migration });
+      }
+      const result = await list({ prefix: PREFIX, limit: MAX_REPORTS });
+      const records = await Promise.all((result.blobs || []).map(async (blob) => {
         try {
-          const response = await fetch(blob.url, { cache: "no-store" });
-          if (!response.ok) throw new Error("HTTP " + response.status);
-          return { pathname: blob.pathname, uploadedAt: blob.uploadedAt, report: await response.json() };
+          return {
+            pathname: blob.pathname,
+            uploadedAt: blob.uploadedAt,
+            report: await readPrivateReport(blob.pathname)
+          };
         } catch (error) {
-          return { pathname: blob.pathname, uploadedAt: blob.uploadedAt, readError: "Não foi possível ler este JSON." };
+          return { pathname: blob.pathname, uploadedAt: blob.uploadedAt, readError: "Não foi possível ler este JSON privado." };
         }
       }));
       records.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
-      return send(res, 200, { ok: true, folder: PREFIX, count: records.length, reports: records });
+      return send(res, 200, { ok: true, access: "private", folder: PREFIX, count: records.length, reports: records });
     }
+
     if (req.method !== "POST") {
       res.setHeader("Allow", "GET, POST");
       return send(res, 405, { ok: false, error: "Método não permitido." });
     }
-    if (!origin || origin !== "https://" + req.headers.host) return send(res, 403, { ok: false, error: "Envio exige origem do próprio site." });
-    if (!String(req.headers["content-type"] || "").toLowerCase().includes("application/json")) return send(res, 415, { ok: false, error: "Content-Type application/json obrigatório." });
-    if (isRateLimited(req)) return send(res, 429, { ok: false, error: "Limite de envios atingido; tente mais tarde." });
-    if (req.method === "POST" && req.body && req.body.cleanupKnownTests === true) {
-      if (!origin || origin !== "https://" + req.headers.host) {
-        return send(res, 403, { ok: false, error: "Origem não autorizada." });
-      }
-      const testPaths = [
-        "metadata/reports/3f47b122-1a2b-4ea1-817a-37b3444c7ef4.json",
-        "metadata/reports/0095ee0f-87c0-43b1-88af-ba9430d4bb56.json"
-      ];
-      await del(testPaths);
-      return send(res, 200, { ok: true, removedTestReports: testPaths.length });
+
+    if (!origin || origin !== "https://" + req.headers.host) {
+      return send(res, 403, { ok: false, error: "Envio exige origem HTTPS do próprio site." });
     }
+    if (!String(req.headers["content-type"] || "").toLowerCase().includes("application/json")) {
+      return send(res, 415, { ok: false, error: "Content-Type application/json obrigatório." });
+    }
+    if (isRateLimited(req)) return send(res, 429, { ok: false, error: "Limite temporário de envios atingido." });
+
     const length = Number(req.headers["content-length"] || 0);
     if (length > MAX_BODY_BYTES) return send(res, 413, { ok: false, error: "Relatório excede o limite." });
+
     let body = req.body;
     if (typeof body === "string") {
       if (Buffer.byteLength(body, "utf8") > MAX_BODY_BYTES) return send(res, 413, { ok: false, error: "Relatório excede o limite." });
       try { body = JSON.parse(body); } catch (error) { return send(res, 400, { ok: false, error: "JSON inválido." }); }
     }
-    if (!body || typeof body !== "object") return send(res, 400, { ok: false, error: "Corpo JSON obrigatório." });
-    if (Buffer.byteLength(JSON.stringify(body), "utf8") > MAX_BODY_BYTES) return send(res, 413, { ok: false, error: "Relatório excede o limite." });
+    if (!body || typeof body !== "object" || Array.isArray(body)) return send(res, 400, { ok: false, error: "Corpo JSON obrigatório." });
+    if (Buffer.byteLength(JSON.stringify(body), "utf8") > MAX_BODY_BYTES) {
+      return send(res, 413, { ok: false, error: "Relatório excede o limite." });
+    }
+
     const report = normalize(body);
     if (body.selfTest === true) {
-      if (!origin || origin !== "https://" + req.headers.host) {
-        return send(res, 403, { ok: false, error: "Autoteste exige origem do próprio site." });
+      const testPath = SELF_TEST_PREFIX + randomUUID() + ".json";
+      let deleted = false;
+      try {
+        await put(testPath, JSON.stringify({ ok: true, testedAt: new Date().toISOString(), report }), {
+          access: "private",
+          addRandomSuffix: false,
+          contentType: "application/json; charset=utf-8"
+        });
+        const verify = await get(testPath, { access: "private", useCache: false });
+        if (!verify || verify.statusCode !== 200 || !verify.stream) throw new Error("Blob privado escrito, mas não pôde ser lido.");
+        const testData = await new Response(verify.stream).json();
+        if (!testData || testData.ok !== true || testData.report.schema !== "jbhereps4-server-report/2") {
+          throw new Error("JSON do autoteste privado inválido.");
+        }
+        await del(testPath);
+        deleted = true;
+        return send(res, 200, { ok: true, selfTest: "passed", access: "private", write: true, read: true, delete: deleted });
+      } catch (error) {
+        if (!deleted) {
+          try { await del(testPath); } catch (cleanupError) {}
+        }
+        throw error;
       }
-      const testPath = "metadata/self-tests/" + randomUUID() + ".json";
-      const testBlob = await put(testPath, JSON.stringify({ ok: true, testedAt: new Date().toISOString(), report }), {
-        access: "public",
-        addRandomSuffix: false,
-        contentType: "application/json; charset=utf-8"
-      });
-      const verify = await fetch(testBlob.url, { cache: "no-store" });
-      if (!verify.ok) throw new Error("Blob escrito, mas não pôde ser lido.");
-      const testData = await verify.json();
-      if (!testData || testData.ok !== true) throw new Error("JSON de autoteste inválido.");
-      await del(testBlob.pathname);
-      return send(res, 200, { ok: true, selfTest: "passed", write: true, read: true, delete: true });
     }
+
     const id = randomUUID();
     const pathname = PREFIX + id + ".json";
-    const blob = await put(pathname, JSON.stringify(report, null, 2), {
-      access: "public",
+    await put(pathname, JSON.stringify(report, null, 2), {
+      access: "private",
       addRandomSuffix: false,
       contentType: "application/json; charset=utf-8"
     });
-    return send(res, 201, { ok: true, id, pathname: blob.pathname, url: blob.url, receivedAt: report.receivedAt });
+    const check = await readPrivateReport(pathname);
+    if (check.schema !== "jbhereps4-server-report/2" || check.clientTimestamp !== report.clientTimestamp) {
+      throw new Error("Verificação pós-gravação do relatório falhou.");
+    }
+    return send(res, 201, { ok: true, id, pathname, receivedAt: report.receivedAt, access: "private" });
   } catch (error) {
     console.error("JBherePS4 metadata API:", error && error.message ? error.message : error);
-    return send(res, 500, { ok: false, error: "Falha ao gravar ou consultar metadata." });
+    return send(res, 500, { ok: false, error: "Falha ao gravar ou consultar metadata privada." });
   }
 }
