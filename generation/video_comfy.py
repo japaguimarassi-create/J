@@ -134,8 +134,9 @@ def generate(args: argparse.Namespace) -> dict[str, Any]:
     if not isinstance(workflow, dict) or not workflow:
         raise ValueError("Workflow must be a non-empty ComfyUI API-format JSON object.")
     prompt = workflow.get("prompt") if isinstance(workflow.get("prompt"), dict) else workflow
-    if args.prompt_node:
-        set_node_input(prompt, args.prompt_node, args.prompt_input, args.prompt_text)
+    if not args.prompt_node:
+        raise ValueError("Specify --prompt-node so the prompt is actually applied to the workflow.")
+    set_node_input(prompt, args.prompt_node, args.prompt_input, args.prompt_text)
     if args.negative_node:
         set_node_input(prompt, args.negative_node, args.negative_input, args.negative_text)
     if args.image:
@@ -196,7 +197,7 @@ def main() -> None:
     parser.add_argument("--comfy-url", default="http://127.0.0.1:8188")
     parser.add_argument("--workflow", type=Path, required=True)
     parser.add_argument("--prompt-text", required=True)
-    parser.add_argument("--prompt-node")
+    parser.add_argument("--prompt-node", required=True)
     parser.add_argument("--prompt-input", default="text")
     parser.add_argument("--negative-text", default="")
     parser.add_argument("--negative-node")
