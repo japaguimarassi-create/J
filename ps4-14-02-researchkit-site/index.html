@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#08111d">
+  <meta name="description" content="PS4 14.02 ResearchKit: diagnóstico técnico offline, tentativas controladas, evidências e relatórios. Não executa exploits.">
+  <meta name="color-scheme" content="dark">
+  <title>PS4 14.02 · ResearchKit</title>
+  <link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="assets/site.css">
+  <script defer src="assets/app.js"></script>
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="ResearchKit início">
+      <span class="brand-icon">R</span>
+      <span class="brand-copy"><b>RESEARCH<span>KIT</span></b><small>PLAYSTATION 4 · 14.02</small></span>
+    </a>
+    <nav class="nav" aria-label="Navegação principal">
+      <a href="#diagnostico">Diagnóstico</a>
+      <a href="#compatibilidade">Compatibilidade</a>
+      <a href="#pesquisa">Pesquisa</a>
+    </nav>
+    <span class="local-badge"><i></i> <span id="connectionState">INICIANDO</span></span>
+  </header>
+
+  <main id="top" class="container">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">PS4 FIRMWARE INTELLIGENCE / BUILD 1.1.0</p>
+        <h1>Teste o ambiente.<br><em>Não confunda sinais com jailbreak.</em></h1>
+        <p class="lead">Painel técnico para verificar o navegador, o servidor, APIs locais, cache offline e compatibilidade documentada. Cada teste é executado, registrado e pode ser repetido automaticamente quando falha por erro transitório.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#diagnostico">ABRIR DIAGNÓSTICO <span>↓</span></a>
+          <a class="button secondary" href="#pesquisa">VER EVIDÊNCIAS</a>
+        </div>
+        <p class="build-line">SEM CDN · SEM TELEMETRIA · SEM BINÁRIOS DE TERCEIROS</p>
+      </div>
+      <aside class="firmware-card">
+        <div class="card-topline"><span>ALVO SELECIONADO</span><span class="status-dot warn"></span></div>
+        <div class="firmware-number">14.02</div>
+        <div class="firmware-label">PLAYSTATION 4 SYSTEM SOFTWARE</div>
+        <div class="state-line"><span>Entrada WebKit</span><b class="bad">Não confirmada</b></div>
+        <div class="state-line"><span>Kernel chain</span><b class="bad">Não validada</b></div>
+        <div class="state-line"><span>HEN / GoldHEN</span><b class="bad">Sem suporte confirmado</b></div>
+        <p class="card-foot">Estado técnico consultado em 12 nov 2026. Ver fontes antes de qualquer alteração no console.</p>
+      </aside>
+    </section>
+
+    <section class="warning-banner" role="note">
+      <span class="warning-mark">!</span>
+      <div><strong>Este site não executa jailbreak no firmware 14.02.</strong><p>O projeto de referência contém uma porta Afterglow explicitamente não testada nesse host e offsets derivados por suposição. Uma tela de execução, um crash ou um teste de navegador não comprovam acesso ao kernel.</p></div>
+    </section>
+
+    <section id="diagnostico" class="section">
+      <div class="section-heading">
+        <div><p class="eyebrow">01 / EXECUÇÃO LOCAL</p><h2>Diagnóstico automatizado</h2><p class="section-description">O botão abaixo começa verificações reais do ambiente aberto. As repetições são limitadas e não tentam explorar o console.</p></div>
+        <span class="section-code">PREFLIGHT · READ-ONLY</span>
+      </div>
+      <div class="diagnostic-grid">
+        <div class="panel config-panel">
+          <div class="panel-title"><div><span class="mini-label">CONFIGURAÇÃO</span><h3>Console e tentativas</h3></div><span class="tag">LOCAL</span></div>
+          <label for="firmware">Firmware informado</label>
+          <div class="input-row"><input id="firmware" type="text" value="14.02" maxlength="8" inputmode="decimal" autocomplete="off" spellcheck="false"><button id="detectBtn" class="button ghost" type="button">DETECTAR</button></div>
+          <p class="helper" id="uaHint">Lendo User-Agent do navegador…</p>
+          <label for="attemptLimit" class="field-label">Máximo de tentativas por teste</label>
+          <select id="attemptLimit" class="select"><option value="1">1 tentativa</option><option value="2">2 tentativas</option><option value="3" selected>3 tentativas</option></select>
+          <p class="helper">Somente falhas transitórias são repetidas. Uma API realmente indisponível é marcada como aviso, sem insistência.</p>
+          <div class="control-actions"><button id="runBtn" class="button primary full" type="button">INICIAR DIAGNÓSTICO <span>→</span></button><button id="cancelBtn" class="button danger full" type="button" disabled>INTERROMPER</button></div>
+          <div id="progressWrap" class="progress-wrap" hidden>
+            <div class="progress-meta"><span id="progressLabel">Preparando diagnóstico…</span><b id="progressPct">0%</b></div>
+            <div class="progress-track"><div id="progressBar"></div></div>
+            <div class="progress-foot"><span id="testCounter">0 / 0</span><span>tentativas controladas</span></div>
+          </div>
+        </div>
+
+        <div class="panel results-panel">
+          <div class="panel-title"><div><span class="mini-label">RESULTADOS</span><h3>Checklist técnico</h3></div><span class="tag" id="resultState">AGUARDANDO</span></div>
+          <div id="summary" class="summary" hidden></div>
+          <div id="results" class="results-list" aria-live="polite"><div class="empty-state"><span>—</span><b>Nenhum teste executado</b><p>Inicie o diagnóstico para verificar este navegador.</p></div></div>
+          <div class="report-actions" id="reportActions" hidden><button id="downloadMd" class="button secondary" type="button">EXPORTAR .MD</button><button id="downloadJson" class="button secondary" type="button">EXPORTAR JSON</button><button id="copySummary" class="button ghost" type="button">COPIAR RESUMO</button></div>
+        </div>
+      </div>
+      <div class="panel log-panel">
+        <div class="panel-title"><div><span class="mini-label">EVENT STREAM</span><h3>Registro da sessão</h3></div><button id="clearLog" class="text-button" type="button">LIMPAR LOG</button></div>
+        <div id="log" class="terminal" role="log" aria-live="polite"><p class="terminal-muted">[SYS] Aguardando início do diagnóstico.</p></div>
+        <p class="helper log-help">Os registros ficam apenas nesta sessão do navegador. Nenhum resultado é enviado para um servidor externo.</p>
+      </div>
+    </section>
+
+    <section id="compatibilidade" class="section">
+      <div class="section-heading"><div><p class="eyebrow">02 / FIRMWARE GATE</p><h2>Compatibilidade documentada</h2><p class="section-description">As camadas são separadas para evitar que uma entrada de navegador seja confundida com jailbreak completo.</p></div><span class="section-code">EVIDENCE-BASED</span></div>
+      <div class="matrix panel">
+        <div class="matrix-head"><span>FIRMWARE</span><span>USERLAND / WEBKIT</span><span>KERNEL</span><span>HEN</span><span>STATUS</span></div>
+        <div class="matrix-row"><b>14.02</b><span class="state-bad">Sem entrada pública confirmada</span><span class="state-bad">Sem cadeia validada</span><span class="state-bad">Não suportado</span><strong class="pill red">NÃO VALIDADO</strong></div>
+        <div class="matrix-row"><b>14.00</b><span class="state-claimed">Métodos comunitários documentados</span><span class="state-claimed">Afterglow divulgado</span><span class="state-claimed">Dependente da cadeia</span><strong class="pill amber">NÃO EXECUTADO AQUI</strong></div>
+        <div class="matrix-row"><b>13.52 e anteriores</b><span class="state-claimed">Varia por versão exata</span><span class="state-claimed">Varia por método</span><span class="state-claimed">Consultar lista oficial</span><strong class="pill blue">CONSULTAR FONTES</strong></div>
+      </div>
+      <p class="helper matrix-note">Esta tabela é uma síntese documental, não um teste do console. Não atualize o firmware esperando obter jailbreak e não trate DNS, cache ou restauração de página como downgrade.</p>
+    </section>
+
+    <section id="pesquisa" class="section">
+      <div class="section-heading"><div><p class="eyebrow">03 / ANÁLISE DE REFERÊNCIAS</p><h2>O que foi verificado</h2><p class="section-description">Fontes primárias e comunitárias relevantes para auditar a alegação de suporte a 14.02.</p></div><span class="section-code">SOURCE REVIEW</span></div>
+      <div class="research-grid">
+        <article class="research-card"><span class="pill amber">14.00 · DECLARADO</span><h3>Afterglow Web</h3><p>O README original apresenta a cadeia para 14.00. A página 14.02 do B41M declara expressamente que o port Afterglow-G não foi testado nesse host.</p><a href="https://github.com/well0nez/afterglow-web" target="_blank" rel="noopener noreferrer">Repositório original ↗</a></article>
+        <article class="research-card"><span class="pill amber">14.02 · ALEGADO</span><h3>B41M / 17PlayBox</h3><p>A pasta 1402 possui scripts, offsets e binários próprios. O README geral não lista 14.02 na tabela de firmwares suportados; os offsets de 14.02 são herdados de 14.00 com compatibilidade assumida.</p><a href="https://github.com/B4411M/all/tree/main/1402" target="_blank" rel="noopener noreferrer">Auditar pasta 1402 ↗</a></article>
+        <article class="research-card"><span class="pill blue">MATRIZ COMUNITÁRIA</span><h3>ConsoleMods Exploit Chart</h3><p>Use a matriz por versão exata para distinguir método WebKit, exploit de kernel e suporte HEN. Não extrapole uma versão para outra.</p><a href="https://consolemods.org/wiki/PS4:Exploit_Chart" target="_blank" rel="noopener noreferrer">Abrir matriz ↗</a></article>
+        <article class="research-card"><span class="pill blue">REFERÊNCIA TÉCNICA</span><h3>PS4 Developer Wiki</h3><p>Documentação comunitária de vulnerabilidades e versões. A hipótese de correção em 14.02 não substitui prova de engenharia reversa em hardware.</p><a href="https://www.psdevwiki.com/ps4/Vulnerabilities" target="_blank" rel="noopener noreferrer">Consultar vulnerabilidades ↗</a></article>
+        <article class="research-card"><span class="pill blue">RELEASES OFICIAIS</span><h3>GoldHEN</h3><p>Confira releases e firmwares suportados diretamente no projeto oficial. Este site não hospeda nem carrega payloads.</p><a href="https://github.com/GoldHEN/GoldHEN/releases" target="_blank" rel="noopener noreferrer">Releases oficiais ↗</a></article>
+        <article class="research-card"><span class="pill blue">DOCUMENTAÇÃO</span><h3>ConsoleMods FAQ</h3><p>Conceitos de jailbreak, limitações e recomendações comunitárias para evitar falsos positivos e procedimentos incompatíveis.</p><a href="https://consolemods.org/wiki/PS4:FAQ" target="_blank" rel="noopener noreferrer">Abrir FAQ ↗</a></article>
+      </div>
+    </section>
+
+    <section class="notice notice-secondary">
+      <span class="notice-mark">i</span><div><strong>Escopo de segurança</strong><p>O ResearchKit não tenta UAF, heap spray, syscall, ROP, leitura/escrita de memória do console, patch de kernel, execução de binários, alteração de firmware ou bypass de proteção. Os testes são limitados às APIs comuns do navegador e aos arquivos estáticos do próprio site.</p></div>
+    </section>
+  </main>
+
+  <footer class="footer"><span>PS4 14.02 RESEARCHKIT · v1.1.0</span><span>Projeto comunitário independente · sem afiliação com Sony</span><span id="footerNetwork">STATUS: —</span></footer>
+</body>
+</html>

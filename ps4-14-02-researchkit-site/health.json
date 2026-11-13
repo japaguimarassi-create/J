@@ -1,0 +1,8 @@
+{
+  "project": "PS4-14.02-ResearchKit-Web",
+  "version": "1.1.0",
+  "status": "ok",
+  "mode": "static-diagnostics-only",
+  "exploitExecution": false,
+  "generatedFor": "Vercel static hosting"
+}

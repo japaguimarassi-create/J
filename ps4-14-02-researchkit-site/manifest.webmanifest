@@ -1,0 +1,14 @@
+{
+  "name": "PS4 14.02 ResearchKit",
+  "short_name": "ResearchKit",
+  "description": "Diagnóstico local e pesquisa técnica de compatibilidade PS4.",
+  "lang": "pt-BR",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#08111d",
+  "theme_color": "#08111d",
+  "icons": [
+    {"src": "assets/mark.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+  ]
+}
