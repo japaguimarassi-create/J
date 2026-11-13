@@ -162,22 +162,24 @@
   },
   "lab": {
     "name": "JBherePS4 Safe Research Harness",
-    "version": "1.5.1",
+    "version": "1.6.0",
     "tests": [
       "browser API capability inventory",
-      "PlayStation 4 browser and firmware hint if User-Agent exposes it",
+      "PlayStation 4 browser and firmware hint if User-Agent exposes it; firmware hint is non-authoritative",
       "AppleWebKit version hint if User-Agent exposes it",
       "deterministic TypedArray test using 64 KiB",
-      "validation of an empty WebAssembly module",
+      "validation of an empty WebAssembly module without executing external modules",
       "BigInt, WebGL/WebGL2, IndexedDB, Cache Storage, Service Worker and WebCrypto availability",
       "temporary LocalStorage write/read/delete",
       "private Blob JSON write/read/delete self-test",
       "private report upload with server-side verification",
-      "authenticated report listing from metadata/reports/",
-      "single-click cache preparation followed immediately by diagnostics",
+      "local JSON report persistence and download/copy controls",
+      "single-click temporary diagnostic session with progress and safe error handling",
+      "offline cache preparation where supported",
       "audit of a public self-reported partial 14.02 kernel chain and its documented HEN failure"
     ],
     "doesNot": [
+      "activate HEN or jailbreak the console",
       "execute memory corruption",
       "invoke kernel syscalls",
       "read or write kernel memory",
@@ -186,7 +188,14 @@
       "install or inject GoldHEN",
       "bypass Sony protections",
       "prove the presence or absence of a CVE from API support flags",
-      "execute the experimental 14.02 kernel chain or test payload binaries"
+      "execute the experimental 14.02 kernel chain or test payload binaries",
+      "treat a User-Agent firmware string as authoritative evidence"
+    ],
+    "temporaryMode": "TEMPORARY_BROWSER_DIAGNOSTIC_SESSION_ONLY_NOT_A_JAILBREAK",
+    "reportExport": [
+      "download JSON",
+      "copy JSON",
+      "retain report locally when offline or backend unavailable"
     ]
   },
   "storage": {
