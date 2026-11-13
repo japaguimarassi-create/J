@@ -1,9 +1,9 @@
 {
   "project": "PS4-14.02-ResearchKit-Web",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "status": "ok",
-  "mode": "browser-api-probes-and-evidence-review",
+  "mode": "browser-preflight-and-firmware-delta-evidence",
   "exploitExecution": false,
   "firmware": "14.02",
-  "evidenceReviewed": "2026-11-12"
+  "evidenceReviewed": "2026-11-13"
 }
