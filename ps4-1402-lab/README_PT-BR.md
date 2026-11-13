@@ -1,4 +1,4 @@
-# PS4 14.02 Host Lab — v1.2.0
+# PS4 14.02 Host Lab — v1.4.0
 
 Site estático para GitHub + Vercel, com interface responsiva, verificações locais do navegador, retry/backoff limitado a falhas transitórias, cancelamento entre testes, logs locais, revisão estruturada de evidências e exportação Markdown/JSON.
 
@@ -69,3 +69,23 @@ O preflight percorre APIs comuns do navegador uma a uma. Os códigos são locais
 O painel de delta registra o estado das evidências públicas: AIO/Prolapse é marcado pela PS4 Developer Wiki como corrigido em 14.02; Afterglow é incerto (pode ter sido corrigido); WebKit e BD-J não têm validação pública confirmada para 14.02. A restrição de sockets não AF_UNIX em apps não privilegiados já existe desde 14.00. A nota oficial da Sony é genérica e não identifica módulos/CVEs.
 
 O navegador não pode chamar syscalls nativas nem acessar memória/kernel privilegiado. Uma análise adicional segura pode comparar metadados, manifests e hashes de pacotes oficiais 14.00/14.02, sem executar payloads nem modificar o console.
+
+
+## Comparação documental 14.00 → 14.02 (v1.4.0)
+
+O painel **Firmware Delta** carrega `firmware-delta.json` e apresenta os dados em interface, sem executar comandos no PS4.
+
+- Nota oficial 14.00: desempenho e estabilidade.
+- Nota oficial 14.02: correções de segurança, sem identificação pública dos módulos ou CVEs.
+- PS4 Developer Wiki: indica a correção da falha AIO/Prolapse no 14.02; trata o estado do Afterglow como incerto.
+- ConsoleMods: não lista uma cadeia pública de userland + kernel para 14.02.
+
+O código distingue correções relatadas, hipóteses e pontos desconhecidos. A ausência de um item nas notas oficiais não é prova de que esse componente permaneceu inalterado.
+
+Fontes usadas no delta:
+- https://www.playstation.com/en-us/support/hardware/ps4/system-software/
+- https://www.psdevwiki.com/ps4/Vulnerabilities
+- https://www.psdevwiki.com/ps4/System_Software
+- https://consolemods.org/wiki/PS4:Exploit_Chart
+- https://consolemods.org/wiki/PS4:Getting_Started
+- https://github.com/siongadev/PS4-14.00-Jailbreak-Research/blob/main/docs/PROGRESS.md
