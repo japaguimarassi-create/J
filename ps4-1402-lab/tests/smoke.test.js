@@ -38,14 +38,20 @@ test("web app exposes real diagnostics and honest report fields", () => {
   assert.match(html, /nenhum exploit foi executado/i);
   assert.match(html, /async function retry/);
   assert.match(html, /value="60">60 tentativas \(máximo\)<\/option>/);
-  assert.match(html, /Math\.min\(250\*i,2000\)/);\n  assert.match(html, /scope:"browser-api-only"/);\n  assert.match(html, /kernelProbe:"not-performed"/);\n  assert.match(html, /Kernel \/ syscall fora do navegador/);\n  assert.match(html, /SharedArrayBuffer \/ Atomics/);\n  assert.match(html, /N\/A/);
+  assert.match(html, /Math\.min\(250\*i,2000\)/);
+  assert.match(html, /scope:"browser-api-only"/);
+  assert.match(html, /kernelProbe:"not-performed"/);
+  assert.match(html, /Kernel \/ syscall fora do navegador/);
+  assert.match(html, /SharedArrayBuffer \/ Atomics/);
+  assert.match(html, /N\/A/);
 });
 
 test("offline worker is same-origin and GET-only", () => {
   const sw = read("sw.js");
   assert.match(sw, /request\.method!=="GET"/);
   assert.match(sw, /url\.origin!==self\.location\.origin/);
-  assert.match(sw, /caches\.open/);\n  assert.match(sw, /ps4-1402-lab-v1\.3\.0/);
+  assert.match(sw, /caches\.open/);
+  assert.match(sw, /ps4-1402-lab-v1\.3\.0/);
 });
 
 test("manifest and Vercel headers are valid JSON", () => {
