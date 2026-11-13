@@ -93,35 +93,27 @@ async function readPrivateReport(pathname) {
   return await new Response(blob.stream).json();
 }
 
-async function migrateLegacyPublicReports() {
-  const legacyToken = process.env.BLOB_READ_WRITE_TOKEN_LEGACY_PUBLIC;
-  if (!legacyToken) return { migrated: 0, deleted: 0, failed: 0, reason: "legacy-token-not-configured" };
-  const old = await list({ prefix: PREFIX, limit: 100, token: legacyToken });
-  let migrated = 0;
-  let deleted = 0;
-  let failed = 0;
-  for (const item of old.blobs || []) {
-    try {
-      const source = await get(item.pathname, { access: "public", token: legacyToken, useCache: false });
-      if (!source || source.statusCode !== 200 || !source.stream) throw new Error("legacy-read-failed");
-      const raw = await new Response(source.stream).text();
-      const parsed = JSON.parse(raw);
-      if (!parsed || parsed.schema !== "jbhereps4-server-report/1") throw new Error("legacy-schema-mismatch");
-      await put(item.pathname, raw, {
-        access: "private",
-        addRandomSuffix: false,
-        contentType: "application/json; charset=utf-8"
-      });
-      const copied = await readPrivateReport(item.pathname);
-      if (copied.schema !== parsed.schema || copied.receivedAt !== parsed.receivedAt) throw new Error("private-copy-verification-failed");
-      migrated += 1;
-      await del(item.pathname, { token: legacyToken });
-      deleted += 1;
-    } catch (error) {
-      failed += 1;
+async function runPrivateSelfTest() {
+  const testPath = SELF_TEST_PREFIX + randomUUID() + ".json";
+  let deleted = false;
+  try {
+    await put(testPath, JSON.stringify({ ok: true, testedAt: new Date().toISOString() }), {
+      access: "private",
+      addRandomSuffix: false,
+      contentType: "application/json; charset=utf-8"
+    });
+    const verify = await get(testPath, { access: "private", useCache: false });
+    if (!verify || verify.statusCode !== 200 || !verify.stream) throw new Error("Private Blob write/read failed.");
+    const data = await new Response(verify.stream).json();
+    if (!data || data.ok !== true || typeof data.testedAt !== "string") throw new Error("Private Blob JSON verification failed.");
+    await del(testPath);
+    deleted = true;
+    return { ok: true, selfTest: "passed", access: "private", write: true, read: true, delete: true };
+  } finally {
+    if (!deleted) {
+      try { await del(testPath); } catch (error) {}
     }
   }
-  return { migrated, deleted, failed, scanned: (old.blobs || []).length };
 }
 
 export default async function handler(req, res) {
@@ -135,9 +127,9 @@ export default async function handler(req, res) {
     if (req.method === "GET") {
       if (!process.env.METADATA_READ_TOKEN) return send(res, 503, { ok: false, error: "Leitura privada ainda não foi configurada." });
       if (!isReadAuthorized(req, requestUrl)) return send(res, 401, { ok: false, error: "Autenticação necessária." });
-      if (requestUrl.searchParams.get("migrate") === "legacy") {
-        const migration = await migrateLegacyPublicReports();
-        return send(res, 200, { ok: true, migration });
+      if (requestUrl.searchParams.get("selftest") === "1") {
+        const result = await runPrivateSelfTest();
+        return send(res, 200, result);
       }
       const result = await list({ prefix: PREFIX, limit: MAX_REPORTS });
       const records = await Promise.all((result.blobs || []).map(async (blob) => {
