@@ -51,8 +51,10 @@ Register for a free Smithsonian API key and set it only as an environment variab
 
 ~~~bash
 export SMITHSONIAN_API_KEY="YOUR_KEY"
-python multimodal/export_smithsonian.py --limit 5000 --out datasets/smithsonian_manifest.jsonl
+python multimodal/export_smithsonian.py --media-type image --limit 5000 --out datasets/smithsonian_manifest.jsonl
 python multimodal/collect.py --manifest datasets/smithsonian_manifest.jsonl --limit 5000 --max-total-gb 8
+python multimodal/export_smithsonian.py --media-type 3d --limit 500 --out datasets/smithsonian_3d.jsonl
+python multimodal/collect.py --manifest datasets/smithsonian_3d.jsonl --limit 500 --max-total-gb 8
 ~~~
 
 The exporter reads the usage flag on each individual media record and only exports items marked CC0. The API key is private: do not paste it into source files, notebooks or GitHub.
