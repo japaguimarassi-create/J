@@ -12,5 +12,9 @@ self.addEventListener("fetch",event=>{
     event.respondWith(fetch(request).then(response=>{if(response.ok)caches.open(CACHE).then(c=>c.put("./index.html",response.clone()));return response}).catch(()=>caches.match("./index.html")));
     return;
   }
-  event.respondWith(caches.match(request).then(hit=>hit||fetch(request).then(response=>{if(response.ok)caches.open(CACHE).then(c=>c.put(request,response.clone()));return response})));
+  const cacheKey=new Request(url.origin+url.pathname);
+  event.respondWith(caches.match(cacheKey).then(hit=>hit||fetch(request).then(response=>{
+    if(response.ok)caches.open(CACHE).then(c=>c.put(cacheKey,response.clone()));
+    return response;
+  })));
 });
