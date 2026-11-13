@@ -11,11 +11,27 @@
     "reproducibleHardwareTest": false,
     "prolapse": {
       "status": "PATCHED_SINCE_14_02",
-      "note": "PS4 Dev Wiki indica que a vulnerabilidade AIO Prolapse foi corrigida desde o firmware 14.02."
+      "note": "PS4 Dev Wiki indica que a vulnerabilidade AIO Prolapse foi corrigida desde o firmware 14.02.",
+      "publicDocumentation": "https://www.psdevwiki.com/ps4/Vulnerabilities"
     },
     "afterglow": {
       "status": "POSSIBLY_PATCHED_14_02",
-      "note": "A vulnerabilidade Afterglow está documentada como funcional até 14.00; o estado exato em 14.02 é descrito como possivelmente corrigido e requer validação independente."
+      "note": "A vulnerabilidade Afterglow está documentada como funcional até 14.00; o estado exato em 14.02 é descrito como possivelmente corrigido e requer validação independente.",
+      "supportedFirmwares": [
+        "12.00",
+        "12.02",
+        "12.50",
+        "12.52",
+        "13.00",
+        "13.02",
+        "13.04",
+        "13.50",
+        "13.52",
+        "14.00"
+      ],
+      "hardwareValidatedAt14_00": true,
+      "hardwareValidatedAt14_02": false,
+      "publicSource": "https://github.com/well0nez/afterglow-web"
     },
     "privateDemo": {
       "status": "REPORTED_NOT_PUBLIC",
@@ -74,18 +90,22 @@
     ],
     "firmware14_02Supported": false,
     "automaticLoadingAllowed": false,
-    "note": "Nenhuma release pública consultada declara suporte ao PS4 14.02."
+    "note": "Nenhuma release pública consultada declara suporte ao PS4 14.02.",
+    "issue14_02": "https://github.com/GoldHEN/GoldHEN/issues/422"
   },
   "lab": {
     "name": "JBherePS4 Safe Research Harness",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "tests": [
       "browser API capability inventory",
-      "WebKit version hint when exposed",
-      "firmware hint when exposed",
-      "offline cache preparation",
+      "PlayStation 4 browser and firmware hint if User-Agent exposes it",
+      "AppleWebKit version hint if User-Agent exposes it",
+      "small deterministic TypedArray test using 64 KiB",
+      "validation of an empty WebAssembly module",
+      "BigInt, WebGL/WebGL2, IndexedDB, Cache Storage, Service Worker and WebCrypto availability",
+      "temporary LocalStorage write/read/delete",
       "backend JSON write/read/delete self-test",
-      "minimized JSON report upload"
+      "minimized report upload with sanitized test matrix"
     ],
     "doesNot": [
       "execute memory corruption",
@@ -94,7 +114,8 @@
       "modify firmware",
       "load ELF/BIN payloads",
       "install or inject GoldHEN",
-      "bypass Sony protections"
+      "bypass Sony protections",
+      "prove the presence or absence of a CVE from API support flags"
     ]
   },
   "storage": {
