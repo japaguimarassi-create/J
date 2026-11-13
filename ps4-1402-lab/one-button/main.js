@@ -6,7 +6,7 @@
   var bar = document.getElementById("bar");
   var reportPanel = document.getElementById("reportPanel");
   var reportField = document.getElementById("report");
-  var cacheName = "jbhereps4-host-v3";
+  var cacheName = "jbhereps4-host-v4";
   var assets = ["./", "./index.html", "./main.js", "./probe.js", "./sw.js", "./cache.appcache", "./manifest.webmanifest", "./evidence.json"];
   var busy = false;
   function show(title, message, tone, percent) {
@@ -37,9 +37,8 @@
       } catch (error) { logLine(lines, "Cache API: " + error.message); }
     }
     var complete = cached.length === assets.length;
-    save("jbhereps4:prepared", complete ? "3" : "partial");
+    save("jbhereps4:prepared", complete ? "4" : "partial");
     logLine(lines, "Arquivos em cache: " + cached.length + "/" + assets.length);
-    logLine(lines, "Application Cache legado: " + (!!window.applicationCache));
     return complete;
   }
   async function readEvidence() {
@@ -47,42 +46,78 @@
     if (!response.ok) throw new Error("Evidências HTTP " + response.status);
     return response.json();
   }
+  async function uploadReport(probe, evidence) {
+    var payload = {
+      schema: "jbhereps4-client-report/1",
+      timestamp: probe.timestamp,
+      firmwareHint: probe.firmwareHint,
+      online: probe.online,
+      secureContext: probe.secureContext,
+      capabilities: probe.capabilities,
+      evidenceSummary: {
+        firmware14_02PublicChain: evidence.firmware14_02 ? evidence.firmware14_02.publicChain : "UNKNOWN",
+        goldhen14_02Supported: !!(evidence.goldhen && evidence.goldhen.firmware14_02Supported)
+      }
+    };
+    var response = await fetch("./api/metadata", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      body: JSON.stringify(payload),
+      cache: "no-store"
+    });
+    var result;
+    try { result = await response.json(); } catch (error) { throw new Error("Backend retornou resposta inválida."); }
+    if (!response.ok || !result.ok) throw new Error(result.error || ("HTTP " + response.status));
+    return result;
+  }
   async function runDiagnostics(lines) {
-    show("EXECUTANDO PROBE SEGURO", "Coletando apenas informações expostas pelo navegador. Nenhum acesso privilegiado será tentado.", "", 78);
+    show("EXECUTANDO PROBE", "Coletando apenas indicadores públicos do navegador.", "", 76);
     var probe = window.JBhereSafeProbe && window.JBhereSafeProbe.run();
     if (!probe) throw new Error("Módulo probe.js não carregado.");
     var evidence = await readEvidence();
-    logLine(lines, "Firmware reportado pelo navegador: " + probe.firmwareHint);
-    logLine(lines, "WebAssembly: " + probe.capabilities.webAssembly);
-    logLine(lines, "WebGL disponível: " + !!(probe.capabilities.webGL && probe.capabilities.webGL.available));
+    logLine(lines, "Firmware reportado: " + probe.firmwareHint);
     logLine(lines, "Nenhuma primitiva de exploit foi testada.");
     var report = {
-      product: "JBherePS4", version: "1.2.0", timestamp: new Date().toISOString(),
+      product: "JBherePS4", version: "1.3.0", timestamp: new Date().toISOString(),
       probe: probe, evidence: evidence,
       exploitExecuted: false, kernelAccess: false, firmwareModified: false,
       jailbreakStatus: "BLOCKED_NO_VERIFIED_14_02_CHAIN",
       goldhenStatus: "NOT_LOADED_UNSUPPORTED_FIRMWARE",
       conclusion: "O probe mede somente o navegador. Não demonstra vulnerabilidade nem permite instalar GoldHEN.",
-      log: lines
+      storage: { status: "uploading" }, log: lines
     };
+    save("jbhereps4:lastReport", JSON.stringify(report, null, 2));
+    show("ENVIANDO METADATA", "Gravando o relatório reduzido em metadata/reports/.", "", 88);
+    try {
+      var stored = await uploadReport(probe, evidence);
+      report.storage = { status: "stored", id: stored.id, pathname: stored.pathname, publicUrl: stored.url };
+      logLine(lines, "Relatório armazenado: " + stored.pathname);
+      show("RELATÓRIO RECEBIDO", "Backend confirmou o arquivo " + stored.id + ". O JSON já está disponível na pasta metadata/reports/.", "good", 100);
+    } catch (error) {
+      report.storage = { status: "upload_failed", error: String(error.message || error).slice(0, 180) };
+      logLine(lines, "Upload indisponível: " + report.storage.error);
+      show("RELATÓRIO LOCAL · UPLOAD FALHOU", "O JSON foi preservado neste navegador. Conecte à internet e execute novamente para reenviar. " + report.storage.error, "warn", 100);
+    }
     var serialized = JSON.stringify(report, null, 2);
     save("jbhereps4:lastReport", serialized);
     save("jbhereps4:lastLog", JSON.stringify(lines));
     reportField.value = serialized;
     reportPanel.hidden = false;
-    show("14.02 · SEM CADEIA PÚBLICA VALIDADA", "Diagnóstico concluído. Veja o relatório JSON abaixo. O teste não explora o kernel e não carrega GoldHEN.", "warn", 100);
-    button.textContent = "EXECUTAR NOVAMENTE"; button.disabled = false; busy = false;
+    reportPanel.open = true;
+    button.textContent = report.storage.status === "stored" ? "EXECUTAR NOVAMENTE" : "REENVIAR RELATÓRIO";
+    button.disabled = false;
+    busy = false;
     return report;
   }
   async function start() {
     if (busy) return;
     busy = true; button.disabled = true;
-    var lines = []; logLine(lines, "JBherePS4 v1.2.0 iniciado.");
+    var lines = []; logLine(lines, "JBherePS4 v1.3.0 iniciado.");
     try {
-      if (read("jbhereps4:prepared") !== "3") {
+      if (read("jbhereps4:prepared") !== "4") {
         var complete = await prepareOffline(lines);
         if (complete) {
-          show("HOST PREPARADO", "Arquivos armazenados. O diagnóstico será retomado automaticamente ao reabrir o navegador.", "good", 100);
+          show("HOST PREPARADO", "Arquivos locais armazenados. Reabra o navegador para iniciar o diagnóstico e envio automático.", "good", 100);
           button.textContent = "HOST PREPARADO"; button.disabled = false; busy = false; return;
         }
       }
@@ -94,15 +129,15 @@
       button.disabled = false; button.textContent = "TENTAR NOVAMENTE"; busy = false;
     }
   }
-  button.addEventListener("click", start);
   try {
     var previous = read("jbhereps4:lastReport");
     if (previous) { reportField.value = previous; reportPanel.hidden = false; }
   } catch (error) {}
+  button.addEventListener("click", start);
   if ("serviceWorker" in navigator && window.isSecureContext) {
     window.addEventListener("load", function () { navigator.serviceWorker.register("./sw.js").catch(function () {}); });
   }
-  if (read("jbhereps4:prepared") === "3") {
+  if (read("jbhereps4:prepared") === "4") {
     button.textContent = "RETOMAR DIAGNÓSTICO";
     window.addEventListener("load", function () { window.setTimeout(start, 500); });
   }
