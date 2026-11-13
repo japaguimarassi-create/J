@@ -35,7 +35,7 @@ test("web app exposes real diagnostics and honest report fields", () => {
   }
   assert.match(html, /exploitExecuted:false/);
   assert.match(html, /kernelModified:false/);
-  assert.match(html, /Nenhum exploit foi executado/);
+  assert.match(html, /nenhum exploit foi executado/i);
   assert.match(html, /async function retry/);
 });
 
