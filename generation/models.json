@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "models": {
+    "image": {
+      "name": "Stable Diffusion XL Base 1.0",
+      "repository": "stabilityai/stable-diffusion-xl-base-1.0",
+      "runtime": "Hugging Face Diffusers",
+      "tasks": ["text-to-image", "image-to-image"],
+      "license": "CreativeML Open RAIL++-M",
+      "license_url": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0",
+      "weights_in_git": false
+    },
+    "video": {
+      "name": "LTX-2.5",
+      "repository": "https://github.com/Lightricks/LTX-2",
+      "runtime": "ComfyUI API workflow",
+      "tasks": ["text-to-video", "image-to-video", "multi-shot", "audio-video"],
+      "license": "LTX-2.x Community License",
+      "license_url": "https://github.com/Lightricks/LTX-2",
+      "weights_in_git": false,
+      "workflow_required": true
+    },
+    "3d": {
+      "name": "Hunyuan3D-2.1",
+      "repository": "https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1",
+      "runtime": "Upstream Python pipeline",
+      "tasks": ["image-to-3d", "PBR-texturing"],
+      "license": "Tencent Hunyuan 3D 2.1 Community License",
+      "license_url": "https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1/blob/main/LICENSE",
+      "weights_in_git": false,
+      "minimum_vram_gb_shape": 10,
+      "recommended_vram_gb_shape_and_texture": 29,
+      "output_policy": "Do not use Hunyuan3D outputs to train or improve any other AI model."
+    }
+  }
+}
