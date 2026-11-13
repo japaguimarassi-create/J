@@ -1,6 +1,6 @@
 "use strict";
-var CACHE_NAME = "jbhereps4-host-v1";
-var ASSETS = ["./", "./index.html", "./main.js", "./sw.js", "./cache.appcache", "./manifest.webmanifest", "./evidence.json"];
+var CACHE_NAME = "jbhereps4-host-v2";
+var ASSETS = ["./", "./index.html", "./main.js", "./probe.js", "./sw.js", "./cache.appcache", "./manifest.webmanifest", "./evidence.json"];
 self.addEventListener("install", function (event) {
   event.waitUntil(caches.open(CACHE_NAME).then(function (cache) { return cache.addAll(ASSETS); }).then(function () { return self.skipWaiting(); }));
 });
