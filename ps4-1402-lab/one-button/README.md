@@ -1,37 +1,33 @@
-# JBherePS4
+# JBherePS4 v1.3.0
 
-Single-button offline PS4 browser diagnostics. Version 1.2.0 includes the JBhere Safe Probe and a visible local JSON report.
+Single-button PS4 browser diagnostics with automatic metadata upload.
 
-## Safe Probe
+## Report backend
 
-Reads only browser-exposed information: User-Agent firmware hint, platform/language, online state, secure context, browser APIs and optional WebGL renderer. The resulting JSON report is saved locally and displayed in the page under "VER RELATÓRIO JSON".
+A successful browser diagnostic automatically POSTs a minimized JSON report to `/api/metadata`. The Vercel Function stores each report as a Blob at `metadata/reports/<uuid>.json`. The GET endpoint `/api/metadata` returns the latest reports in JSON so they can be reviewed without copying data from the console.
 
-It does not exploit WebKit, attempt kernel access, invoke syscalls, read/write privileged memory, patch firmware, load ELF/BIN files, install PKGs, or load GoldHEN.
+The report contains only:
+- Firmware hint if the browser exposes it.
+- Boolean browser capability flags.
+- Online and secure-context booleans.
+- Public compatibility evidence summary and timestamps.
 
-## PS4 firmware 14.02 status (reviewed 2026-11-13)
+The report excludes the full User-Agent, IP address, cookies, session identifiers, platform/language strings, and WebGL renderer strings. Vercel infrastructure may still retain ordinary request/security logs outside this application report.
 
-A private HEN demonstration was reported in a video dated 2026-11-05, but no source code or reproducible release is public. This does not prove that no vulnerability exists; it means there is no public, independently reproducible chain to test.
+**Visibility:** the Blob store and GET endpoint are public. Anyone who knows the endpoint can read the minimized technical reports. Do not submit personal information.
 
-A third-party repository claims 14.02 support. Its own technical notes describe the WebKit compatibility as assumed from 13.52 and its kernel offsets as derived from 14.00 with a "shiftfit". That is not a measured, independently verified 14.02 port. The project therefore treats the claim as unverified and does not execute its binaries.
+If upload fails or the PS4 is offline, the report remains in local browser storage and the page reports the error. Re-run while online to upload again.
 
-## GoldHEN
+## Safety
 
-- Official upstream GitHub release visible: v2.4b18; its declared firmware list ends at 11.00.
-- Community revision v2.4b18.13 reports support for 14.00.
-- Neither source declares 14.02 support.
+This is a browser-only diagnostic. It does not trigger an exploit, access kernel memory, invoke syscalls, patch firmware, load ELF/BIN payloads, or install GoldHEN.
 
-The site does not download or load GoldHEN binaries.
+## Runtime
 
-## Sources
+The API is a Vercel Node.js Function. Reports are stored in Vercel Blob, not the ephemeral function filesystem. Blob region: GRU (São Paulo). Store name: `jbhereps4-metadata`.
 
-- https://github.com/GoldHEN/GoldHEN/releases
-- https://github.com/GoldHEN/GoldHEN/issues/422
-- https://github.com/EEJTek/GoldHEN_v2.4b18.12
-- https://github.com/Jfkkfjzkz/ps4-akatsuki-jailbreak
-- https://www.psdevwiki.com/ps4/Vulnerabilities
-- https://consolemods.org/wiki/PS4%3AExploit_Chart
-- https://scenegaming.com/en/news/ps4-14-02-hen-webkit-demostracion-saudidos
+## Official documentation
 
-## Offline behavior
-
-The first visit must be HTTPS to register Service Worker/Cache Storage. Legacy Application Cache remains declared as a fallback, but its support must be checked on the actual PS4 browser. The report remains on the console's local browser storage unless manually copied.
+- https://vercel.com/docs/vercel-blob/private-storage
+- https://vercel.com/docs/vercel-blob/using-blob-sdk
+- https://vercel.com/docs/vercel-blob/usage-and-pricing
