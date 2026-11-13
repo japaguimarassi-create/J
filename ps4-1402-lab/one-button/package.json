@@ -1,9 +1,9 @@
 {
   "name": "jbhereps4",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "private": true,
   "type": "module",
-  "description": "PS4 14.02 compatibility research lab with non-invasive browser checks and report backend",
+  "description": "PS4 14.02 browser compatibility lab with single-click diagnostics and report backend",
   "scripts": {
     "test": "node --test tests/*.test.js"
   },
