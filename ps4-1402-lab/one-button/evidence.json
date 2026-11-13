@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "project": "JBherePS4",
   "reviewedOn": "2026-11-13",
   "targetFirmware": "14.02",
@@ -162,7 +162,7 @@
   },
   "lab": {
     "name": "JBherePS4 Safe Research Harness",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "tests": [
       "browser API capability inventory",
       "PlayStation 4 browser and firmware hint if User-Agent exposes it; firmware hint is non-authoritative",
@@ -176,7 +176,11 @@
       "local JSON report persistence and download/copy controls",
       "single-click temporary diagnostic session with progress and safe error handling",
       "offline cache preparation where supported",
-      "audit of a public self-reported partial 14.02 kernel chain and its documented HEN failure"
+      "audit of a public self-reported partial 14.02 kernel chain and its documented HEN failure",
+      "functional IndexedDB write/read/delete test using a unique temporary database",
+      "functional Cache Storage write/read/delete test using an isolated temporary cache",
+      "WebCrypto SHA-256 known-answer test",
+      "WebGL/WebGL2 context release after capability checks"
     ],
     "doesNot": [
       "activate HEN or jailbreak the console",
@@ -216,5 +220,10 @@
       "status": "EMPTY_AFTER_MIGRATION"
     },
     "selfTestEndpoint": "GET /api/metadata?selftest=1 with authenticated access"
-  }
+  },
+  "securityNotes": [
+    "Private report reads accept a Bearer token only; query-string tokens are rejected by design.",
+    "Temporary IndexedDB and Cache Storage probes use unique names and attempt cleanup.",
+    "Browser API compatibility results are not exploit evidence and do not establish firmware vulnerability."
+  ]
 }
