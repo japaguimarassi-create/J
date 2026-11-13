@@ -4,19 +4,18 @@ import argparse
 import hashlib
 import json
 import random
+import re
 from pathlib import Path
 from typing import Any
 
-ALLOWED = {"cc0", "cc0-1.0", "public domain", "by", "cc-by", "cc-by-4.0"}
+ALLOWED = {"CC0-1.0", "CC-BY-4.0"}
 
 
 def canonical_license(raw: Any) -> str:
-    value = str(raw or "").strip().casefold().replace("_", "-")
-    value = " ".join(value.split())
-    compact = value.replace(" ", "")
-    if compact in {"cc0", "cc0-1.0", "cczero"}:
+    compact = re.sub(r"[^a-z0-9]+", "", str(raw or "").casefold())
+    if compact in {"cc0", "cc01", "cczero", "publicdomain"}:
         return "CC0-1.0"
-    if compact in {"by", "cc-by", "cc-by-4.0", "ccby", "ccby4.0"}:
+    if compact in {"by", "by40", "ccby", "ccby40"}:
         return "CC-BY-4.0"
     if "nc" in compact:
         return "CC-BY-NC-OR-RESTRICTED"
@@ -25,6 +24,7 @@ def canonical_license(raw: Any) -> str:
     if "nd" in compact:
         return "CC-BY-ND-OR-RESTRICTED"
     return str(raw or "unknown")
+
 
 
 def json_safe(value: Any) -> Any:
@@ -85,7 +85,7 @@ def main() -> None:
     missing = required.difference(set(table.columns))
     if missing:
         raise RuntimeError("Objaverse-XL metadata schema changed; missing columns: " + ", ".join(sorted(missing)))
-    eligible = table[table["license"].map(lambda value: str(value or "").strip().casefold().replace("_", "-") in ALLOWED)].copy()
+    eligible = table[table["license"].map(lambda value: canonical_license(value) in ALLOWED)].copy()
     if eligible.empty:
         raise RuntimeError("No records matched the conservative CC0/CC-BY filter. Inspect the current metadata before changing policy.")
     chosen = eligible.sample(n=min(args.limit, len(eligible)), random_state=args.seed)
