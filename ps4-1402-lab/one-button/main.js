@@ -36,10 +36,11 @@
         }
       } catch (error) { logLine(lines, "Cache API: " + error.message); }
     }
-    save("jbhereps4:prepared", "3");
+    var complete = cached.length === assets.length;
+    save("jbhereps4:prepared", complete ? "3" : "partial");
     logLine(lines, "Arquivos em cache: " + cached.length + "/" + assets.length);
     logLine(lines, "Application Cache legado: " + (!!window.applicationCache));
-    return cached.length === assets.length;
+    return complete;
   }
   async function readEvidence() {
     var response = await fetch("./evidence.json", { cache: "no-store" });
