@@ -50,6 +50,29 @@ def valid_url(value: str) -> bool:
     return True
 
 
+def extension_from_url(url: str, mime_hint: Any = "") -> str:
+    parsed = urllib.parse.urlparse(url)
+    extension = Path(urllib.parse.unquote(parsed.path)).suffix.lower()
+    if extension:
+        return extension
+    query = urllib.parse.parse_qs(parsed.query)
+    for key in ("id", "file", "filename", "name"):
+        for value in query.get(key, []):
+            extension = Path(urllib.parse.unquote(value)).suffix.lower()
+            if extension:
+                return extension
+    mime = str(mime_hint or "").casefold()
+    fallback = {
+        "image/jpeg": ".jpg",
+        "image/png": ".png",
+        "image/webp": ".webp",
+        "video/mp4": ".mp4",
+        "video/webm": ".webm",
+        "model/gltf-binary": ".glb",
+        "model/obj": ".obj",
+    }
+    return fallback.get(mime, "")
+
 def existing_ids(path: Path) -> set[str]:
     found: set[str] = set()
     if not path.exists():
@@ -74,7 +97,7 @@ def download_one(record: dict[str, Any], root: Path, max_file_bytes: int, timeou
         return None
     if not valid_url(url):
         return None
-    extension = Path(urllib.parse.urlparse(url).path).suffix.lower()
+    extension = extension_from_url(url, record.get("mime_type"))
     if extension not in EXTENSIONS[media]:
         return None
     target_dir = root / "raw" / media
