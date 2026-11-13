@@ -156,3 +156,16 @@ Opções do agente:
 - `MOTIONFORGE_HOST=127.0.0.1`: restringir o backend ao host local; use o padrão de rede apenas quando precisar conectar o celular e tiver chave definida.
 
 Sem um host Ollama ativo e acessível, o APK ainda monta e exporta vídeo localmente, mas o brainstorming com as três IAs não pode executar. Não há como fazer os modelos de 12B/20B/27B rodarem automaticamente num celular que não dispõe de recursos suficientes.
+
+
+## MotionForge AI Generation Studio
+
+A new branch, motionforge-multimodal-learning, adds image, video and 3D generation integrations.
+
+- Open the generation page at web/generator.html when the local editor server is running.
+- Read generation/README.md for setup, model licenses and training instructions.
+- Read multimodal/README.md for dataset collection and visual learning.
+
+The image path uses SDXL through Diffusers and supports a locally trained LoRA. The video path executes an LTX-2.5 workflow through ComfyUI. The 3D path connects to the official Hunyuan3D-2.1 pipeline. Model weights, source media and generated outputs are deliberately kept outside Git.
+
+Start the editor with python server.py and the local generation API with python -m generation.api. See the generation README for model-specific installation, hardware requirements and license restrictions.
