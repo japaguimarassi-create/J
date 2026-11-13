@@ -35,7 +35,19 @@
     "goldhen": {
       "latestOfficialUpstreamRelease": "2.4b18",
       "officialRelease": "https://github.com/GoldHEN/GoldHEN/releases",
-      "officialSupportedFirmware": ["5.05", "6.71", "6.72", "9.00", "9.60", "10.00", "10.01", "10.50", "10.70", "10.71", "11.00"],
+      "officialSupportedFirmware": [
+        "5.05",
+        "6.71",
+        "6.72",
+        "9.00",
+        "9.60",
+        "10.00",
+        "10.01",
+        "10.50",
+        "10.70",
+        "10.71",
+        "11.00"
+      ],
       "firmware14_02Supported": false,
       "issue14_02": "https://github.com/GoldHEN/GoldHEN/issues/422",
       "note": "Nenhuma release oficial consultada declara suporte ao firmware 14.02."
@@ -43,7 +55,10 @@
   },
   "candidateAudit": {
     "repository": "https://github.com/Jfkkfjzkz/ps4-akatsuki-jailbreak",
-    "claimedTargets": ["14.00", "14.02"],
+    "claimedTargets": [
+      "14.00",
+      "14.02"
+    ],
     "assessment": "UNVERIFIED_14_02_PORT",
     "observedIssues": [
       {
@@ -143,6 +158,15 @@
     "reportFolder": "metadata/reports/",
     "reportVisibility": "private",
     "readRequiresAuthentication": true,
-    "selfTest": "writes, reads back and deletes a temporary private JSON file"
+    "selfTest": "writes, reads back and deletes a temporary private JSON file",
+    "legacyPublicStore": {
+      "name": "jbhereps4-metadata",
+      "access": "public",
+      "migratedReports": 4,
+      "remainingObjects": 0,
+      "remainingSizeBytes": 0,
+      "status": "EMPTY_AFTER_MIGRATION"
+    },
+    "selfTestEndpoint": "GET /api/metadata?selftest=1 with authenticated access"
   }
 }
