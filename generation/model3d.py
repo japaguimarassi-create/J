@@ -34,9 +34,10 @@ def load_hunyuan(root: Path, model_id: str) -> tuple[Any, Any, Any]:
             "Hunyuan3D source checkout not found. Clone https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1 "
             "into " + str(root)
         )
+    root_path = str(root)
     shape_path = str(root / "hy3dshape")
     paint_path = str(root / "hy3dpaint")
-    for item in (shape_path, paint_path):
+    for item in (root_path, shape_path, paint_path):
         if item not in sys.path:
             sys.path.insert(0, item)
     try:
