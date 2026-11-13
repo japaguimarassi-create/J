@@ -1,33 +1,41 @@
-# JBherePS4 v1.3.0
+# JBherePS4 v1.4.0
 
-Single-button PS4 browser diagnostics with automatic metadata upload.
+PS4 14.02 non-invasive browser research harness.
 
-## Report backend
+## What this build actually does
 
-A successful browser diagnostic automatically POSTs a minimized JSON report to `/api/metadata`. The Vercel Function stores each report as a Blob at `metadata/reports/<uuid>.json`. The GET endpoint `/api/metadata` returns the latest reports in JSON so they can be reviewed without copying data from the console.
+- Prepares an offline cache of the host and test modules.
+- Detects a PS4 browser hint and firmware/WebKit version only if exposed in the User-Agent.
+- Checks browser APIs such as Service Worker, Cache Storage, WebAssembly, BigInt, IndexedDB, WebGL and related capabilities.
+- Performs a backend storage self-test: temporary JSON write, read, and delete.
+- Uploads a minimized technical report to \`metadata/reports/\`.
+- Preserves the full local report in browser localStorage.
 
-The report contains only:
-- Firmware hint if the browser exposes it.
-- Boolean browser capability flags.
-- Online and secure-context booleans.
-- Public compatibility evidence summary and timestamps.
+## What it does not do
 
-The JSON report excludes the full User-Agent, IP address, cookies, session identifiers, platform/language strings, and WebGL renderer strings. The hosting provider still necessarily receives network connection metadata such as the connecting IP, and may retain standard security/request logs. Vercel infrastructure may still retain ordinary request/security logs outside this application report.
+This is not a jailbreak and does not execute an exploit. It does not attempt memory corruption, kernel access, syscalls, firmware modification, ELF/BIN loading, payload injection, or GoldHEN installation. Browser feature detection cannot establish that a kernel vulnerability exists.
 
-**Visibility:** the Blob store and GET endpoint are public. Anyone who knows the endpoint can read the minimized technical reports. Do not submit personal information.
+## PS4 14.02 research status (reviewed 2026-11-13)
 
-If upload fails or the PS4 is offline, the report remains in local browser storage and the page reports the error. Re-run while online to upload again.
+The current public ConsoleMods exploit chart lists 14.02 without a public userland exploit or public kernel exploit. PS4 Dev Wiki marks Prolapse as patched since 14.02 and Afterglow as possibly patched in 14.02. Consequently, no public, independently reproducible full jailbreak chain is established for this firmware.
 
-## Safety
+GoldHEN's official public release list does not declare 14.02 support. Do not treat a third-party host's firmware claim as proof without independently reproducible hardware evidence.
 
-This is a browser-only diagnostic. It does not trigger an exploit, access kernel memory, invoke syscalls, patch firmware, load ELF/BIN payloads, or install GoldHEN.
+## Metadata backend
 
-## Runtime
+The active connected store is \`jbhereps4-metadata\`, region GRU, and its access mode is **public**. The report endpoint lists minimized reports at \`/api/metadata\`. Do not submit personal data. The application report omits full User-Agent, IP address, cookies, credentials, and session identifiers; the hosting provider still receives ordinary connection metadata.
 
-The API is a Vercel Node.js Function. Reports are stored in Vercel Blob, not the ephemeral function filesystem. Blob region: GRU (São Paulo). Store name: `jbhereps4-metadata`.
+A separate private store named \`jbhereps4-meta-v2\` exists but is not connected to this Vercel project. It is not used by this deployment.
 
-## Official documentation
+## Validation
 
+Before sending a report, the browser calls the API's self-test path. The function writes a temporary JSON blob, reads it back, validates it, deletes it, and only then stores the real report. If any stage fails, the report remains local and the page displays the error.
+
+## Sources
+
+- https://consolemods.org/wiki/PS4:Exploit_Chart
+- https://www.psdevwiki.com/ps4/Vulnerabilities
+- https://github.com/well0nez/afterglow-web
+- https://github.com/GoldHEN/GoldHEN/releases
+- https://github.com/GoldHEN/GoldHEN/issues/422
 - https://vercel.com/docs/vercel-blob/private-storage
-- https://vercel.com/docs/vercel-blob/using-blob-sdk
-- https://vercel.com/docs/vercel-blob/usage-and-pricing
