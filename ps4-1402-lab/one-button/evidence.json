@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "project": "JBherePS4",
   "reviewedOn": "2026-11-13",
   "targetFirmware": "14.02",
@@ -8,33 +8,41 @@
     "kernelExploit": "NOT_VERIFIED",
     "userlandEntry": "NOT_VERIFIED",
     "reproducibleHardwareTest": false,
+    "privateDemo": {
+      "status": "REPORTED_NOT_PUBLIC",
+      "reportedDate": "2026-11-05",
+      "description": "Relato de vídeo de HEN privado no navegador em 14.02; sem código, sem release e sem validação independente reproduzível.",
+      "source": "https://scenegaming.com/en/news/ps4-14-02-hen-webkit-demostracion-saudidos"
+    },
+    "thirdPartyHostClaim": {
+      "status": "UNVERIFIED",
+      "repository": "https://github.com/Jfkkfjzkz/ps4-akatsuki-jailbreak",
+      "createdAt": "2026-11-10",
+      "assessment": "O README declara 14.02, mas o TECHNICAL.md descreve WebKit como assumido igual a 13.52 e kernel offsets derivados de 14.00 com shiftfit. A tabela de 14.02 herda a entrada 14.00, sem offsets próprios medidos nem evidência pública de teste independente em hardware. Não tratar como jailbreak comprovado."
+    },
     "basis": [
       {
-        "source": "https://github.com/well0nez/afterglow-web",
-        "finding": "O projeto upstream Afterglow documenta cadeia até 14.00; não lista 14.02."
+        "source": "https://consolemods.org/wiki/PS4:Exploit_Chart",
+        "finding": "A tabela pública consultada marca 14.02 sem userland e sem kernel exploit público."
       },
       {
-        "source": "https://github.com/GoldHEN/GoldHEN/releases",
-        "finding": "A página oficial de releases lista GoldHEN 2.4b18 com suporte declarado até 11.00."
+        "source": "https://www.psdevwiki.com/ps4/Vulnerabilities",
+        "finding": "Afterglow está documentado até 14.00; a página indica que pode ter sido corrigido em 14.02."
+      },
+      {
+        "source": "https://github.com/well0nez/afterglow-web",
+        "finding": "O projeto Afterglow publicado não declara suporte 14.02."
       },
       {
         "source": "https://github.com/GoldHEN/GoldHEN/issues/422",
-        "finding": "Pedido público de compatibilidade 14.02 aberto em 7 de novembro de 2026; sem evidência de suporte publicado."
-      },
-      {
-        "source": "https://github.com/patnawa/GoldhenPS4/releases",
-        "finding": "Um host comunitário anuncia payload 2.4b18.13 para 14.00, mas afirma que 14.01+ é recusado. Não é evidência de compatibilidade 14.02 nem substitui confirmação upstream."
-      },
-      {
-        "source": "https://scenegaming.com/en/news/ps4-jailbreak-14-00-goldhen-firmware-14-02",
-        "finding": "Relato comunitário de 13 de novembro de 2026 diz que 14.02 não possui método público confirmado."
+        "finding": "Pedido público de compatibilidade GoldHEN 14.02, sem declaração de suporte dos desenvolvedores."
       }
     ]
   },
   "goldhen": {
-    "officialGithubLatest": "2.4b18",
-    "officialGithubRelease": "https://github.com/GoldHEN/GoldHEN/releases",
-    "officialGithubSupportedFirmware": [
+    "latestOfficialUpstreamRelease": "2.4b18",
+    "officialRelease": "https://github.com/GoldHEN/GoldHEN/releases",
+    "officialSupportedFirmware": [
       "5.05",
       "6.71",
       "6.72",
@@ -47,11 +55,14 @@
       "10.71",
       "11.00"
     ],
-    "communityClaimedBuild": "2.4b18.13",
-    "communityClaimedMaxFirmware": "14.00",
-    "communitySource": "https://github.com/patnawa/GoldhenPS4/releases",
+    "communityBuild": "2.4b18.13",
+    "communityBuildSource": "https://github.com/EEJTek/GoldHEN_v2.4b18.12",
+    "communityBuildClaimedFirmware": [
+      "14.00"
+    ],
     "firmware14_02Supported": false,
-    "automaticLoadingAllowed": false
+    "automaticLoadingAllowed": false,
+    "note": "A revisão comunitária 2.4b18.13 declara suporte para 14.00. Não declara 14.02. A release oficial upstream visível é 2.4b18."
   },
   "payload": {
     "name": "JBhere Safe Probe",
