@@ -1,0 +1,8 @@
+{
+  "name": "jbhereps4",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Single-button offline PS4 browser research host",
+  "scripts": { "test": "node --test tests/*.test.js" },
+  "engines": { "node": ">=20" }
+}
