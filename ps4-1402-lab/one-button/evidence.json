@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "project": "JBherePS4",
   "reviewedOn": "2026-11-13",
   "targetFirmware": "14.02",
@@ -11,34 +11,66 @@
     "basis": [
       {
         "source": "https://github.com/well0nez/afterglow-web",
-        "finding": "O upstream descreve suporte até 14.00; 14.02 não está na lista de firmwares suportados."
+        "finding": "O projeto upstream Afterglow documenta cadeia até 14.00; não lista 14.02."
       },
       {
-        "source": "https://www.psdevwiki.com/ps4/Vulnerabilities",
-        "finding": "A cadeia Afterglow está documentada para 14.00; a compatibilidade com 14.02 não está confirmada."
+        "source": "https://github.com/GoldHEN/GoldHEN/releases",
+        "finding": "A página oficial de releases lista GoldHEN 2.4b18 com suporte declarado até 11.00."
       },
       {
-        "source": "https://consolemods.org/wiki/PS4:Exploit_Chart",
-        "finding": "A tabela comunitária consultada não confirma uma cadeia pública de userland e kernel para 14.02."
+        "source": "https://github.com/GoldHEN/GoldHEN/issues/422",
+        "finding": "Pedido público de compatibilidade 14.02 aberto em 7 de novembro de 2026; sem evidência de suporte publicado."
+      },
+      {
+        "source": "https://github.com/patnawa/GoldhenPS4/releases",
+        "finding": "Um host comunitário anuncia payload 2.4b18.13 para 14.00, mas afirma que 14.01+ é recusado. Não é evidência de compatibilidade 14.02 nem substitui confirmação upstream."
+      },
+      {
+        "source": "https://scenegaming.com/en/news/ps4-jailbreak-14-00-goldhen-firmware-14-02",
+        "finding": "Relato comunitário de 13 de novembro de 2026 diz que 14.02 não possui método público confirmado."
       }
     ]
   },
-  "payloadArchitecture": [
-    "browser-entry-and-userland-primitive",
-    "kernel-vulnerability-and-privilege-transition",
-    "firmware-specific-kernel-layout-and-patches",
-    "payload-loader",
-    "homebrew-enabler"
-  ],
   "goldhen": {
-    "latestPublicBetaChecked": "2.4b18",
-    "latestStableChecked": "2.3",
-    "betaRelease": "https://github.com/GoldHEN/GoldHEN/releases/tag/2.4b18",
-    "stableRelease": "https://github.com/GoldHEN/GoldHEN/releases/tag/2.3",
-    "betaPublishedAt": "2024-10-28",
-    "betaSupportedFirmwareListed": ["5.05", "6.71", "6.72", "9.00", "9.60", "10.00", "10.01", "10.50", "10.70", "10.71", "11.00"],
-    "firmware14_02Listed": false,
+    "officialGithubLatest": "2.4b18",
+    "officialGithubRelease": "https://github.com/GoldHEN/GoldHEN/releases",
+    "officialGithubSupportedFirmware": [
+      "5.05",
+      "6.71",
+      "6.72",
+      "9.00",
+      "9.60",
+      "10.00",
+      "10.01",
+      "10.50",
+      "10.70",
+      "10.71",
+      "11.00"
+    ],
+    "communityClaimedBuild": "2.4b18.13",
+    "communityClaimedMaxFirmware": "14.00",
+    "communitySource": "https://github.com/patnawa/GoldhenPS4/releases",
+    "firmware14_02Supported": false,
     "automaticLoadingAllowed": false
+  },
+  "payload": {
+    "name": "JBhere Safe Probe",
+    "version": "1.0.0",
+    "type": "browser-only diagnostic",
+    "collects": [
+      "User-Agent firmware hint",
+      "browser capability flags",
+      "WebGL availability and renderer if exposed",
+      "timestamp"
+    ],
+    "doesNot": [
+      "trigger exploit",
+      "read/write kernel memory",
+      "invoke syscalls",
+      "write firmware",
+      "load ELF/BIN",
+      "install or inject GoldHEN"
+    ]
   },
   "safety": {
     "exploitCodeIncluded": false,
