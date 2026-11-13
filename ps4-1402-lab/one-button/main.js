@@ -1,7 +1,7 @@
 "use strict";
 (function () {
   var button=document.getElementById("start"),state=document.getElementById("state"),detail=document.getElementById("detail"),bar=document.getElementById("bar"),reportPanel=document.getElementById("reportPanel"),reportField=document.getElementById("report");
-  var cacheName="jbhereps4-host-v6";
+  var cacheName="jbhereps4-host-v7";
   var assets=["./","./index.html","./main.js","./probe.js","./sw.js","./cache.appcache","./manifest.webmanifest","./evidence.json"];
   var busy=false;
   function show(title,message,tone,percent){state.textContent=title;state.className=tone||"";detail.textContent=message;bar.style.width=String(percent||0)+"%";}
@@ -13,7 +13,7 @@
     var cached=[];
     if("serviceWorker" in navigator&&window.isSecureContext){try{await navigator.serviceWorker.register("./sw.js");await navigator.serviceWorker.ready;log(lines,"Service Worker registrado.");}catch(e){log(lines,"Service Worker indisponível: "+e.message);}}
     if("caches" in window){try{var cache=await caches.open(cacheName);for(var i=0;i<assets.length;i++){try{var r=await fetch(assets[i],{cache:"reload"});if(!r.ok)throw new Error("HTTP "+r.status);await cache.put(assets[i],r.clone());cached.push(assets[i]);}catch(e){log(lines,"Cache "+assets[i]+": "+e.message);}show("CACHE "+(i+1)+"/"+assets.length,"Preparando os recursos locais.", "",5+Math.round((i+1)/assets.length*60));}}catch(e){log(lines,"Cache API: "+e.message);}}
-    var complete=cached.length===assets.length;save("jbhereps4:prepared",complete?"6":"partial");log(lines,"Arquivos em cache: "+cached.length+"/"+assets.length);return complete;
+    var complete=cached.length===assets.length;save("jbhereps4:prepared",complete?"7":"partial");log(lines,"Arquivos em cache: "+cached.length+"/"+assets.length);return complete;
   }
   async function readEvidence(){var r=await fetch("./evidence.json",{cache:"no-store"});if(!r.ok)throw new Error("Evidências HTTP "+r.status);return r.json();}
   async function postJSON(payload){var r=await fetch("./api/metadata",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload),cache:"no-store"});var data;try{data=await r.json();}catch(e){throw new Error("Backend retornou JSON inválido.");}if(!r.ok||!data.ok)throw new Error(data.error||("HTTP "+r.status));return data;}
@@ -55,9 +55,10 @@
   async function start(){
     if(busy)return;busy=true;button.disabled=true;var lines=[];log(lines,"JBherePS4 v1.4.1 iniciado.");
     try{
-      if(read("jbhereps4:prepared")!=="6"){
+      if(read("jbhereps4:prepared")!=="7"){
         var complete=await prepareOffline(lines);
-        if(complete){show("LABORATÓRIO PREPARADO","Recursos offline armazenados. Reabra o navegador para executar a bateria de diagnóstico.","good",100);button.textContent="LABORATÓRIO PREPARADO";button.disabled=false;busy=false;return;}
+        log(lines,complete?"Cache offline completo.":"Cache parcial; continuando com os testes disponíveis.");
+        show("CACHE PRONTO","Preparação concluída. Iniciando os testes nesta mesma sessão.","",66);
       }
       await runDiagnostics(lines);
     }catch(e){log(lines,"Interrupção segura: "+e.message);save("jbhereps4:lastLog",JSON.stringify(lines));show("TESTE INTERROMPIDO","Nenhuma alteração foi feita no console. "+e.message,"bad",0);button.disabled=false;button.textContent="TENTAR NOVAMENTE";busy=false;}
@@ -65,5 +66,5 @@
   var previous=read("jbhereps4:lastReport");if(previous){reportField.value=previous;reportPanel.hidden=false;}
   button.addEventListener("click",start);
   if("serviceWorker" in navigator&&window.isSecureContext)window.addEventListener("load",function(){navigator.serviceWorker.register("./sw.js").catch(function(){});});
-  if(read("jbhereps4:prepared")==="6"){button.textContent="RETOMAR DIAGNÓSTICO";window.addEventListener("load",function(){window.setTimeout(start,500);});}
+  if(read("jbhereps4:prepared")==="7")button.textContent="EXECUTAR TESTE NOVAMENTE";
 })();
