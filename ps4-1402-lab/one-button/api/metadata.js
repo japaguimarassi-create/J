@@ -1,4 +1,4 @@
-import { put, list } from "@vercel/blob";
+import { put, list, del } from "@vercel/blob";
 import { randomUUID } from "node:crypto";
 
 const PREFIX = "metadata/reports/";
@@ -95,6 +95,23 @@ export default async function handler(req, res) {
     if (!body || typeof body !== "object") return send(res, 400, { ok: false, error: "Corpo JSON obrigatório." });
     if (Buffer.byteLength(JSON.stringify(body), "utf8") > MAX_BODY_BYTES) return send(res, 413, { ok: false, error: "Relatório excede o limite." });
     const report = normalize(body);
+    if (body.selfTest === true) {
+      if (!origin || origin !== "https://" + req.headers.host) {
+        return send(res, 403, { ok: false, error: "Autoteste exige origem do próprio site." });
+      }
+      const testPath = "metadata/self-tests/" + randomUUID() + ".json";
+      const testBlob = await put(testPath, JSON.stringify({ ok: true, testedAt: new Date().toISOString(), report }), {
+        access: "public",
+        addRandomSuffix: false,
+        contentType: "application/json; charset=utf-8"
+      });
+      const verify = await fetch(testBlob.url, { cache: "no-store" });
+      if (!verify.ok) throw new Error("Blob escrito, mas não pôde ser lido.");
+      const testData = await verify.json();
+      if (!testData || testData.ok !== true) throw new Error("JSON de autoteste inválido.");
+      await del(testBlob.pathname);
+      return send(res, 200, { ok: true, selfTest: "passed", write: true, read: true, delete: true });
+    }
     const id = randomUUID();
     const pathname = PREFIX + id + ".json";
     const blob = await put(pathname, JSON.stringify(report, null, 2), {
