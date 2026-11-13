@@ -3,7 +3,7 @@
   "version": "1.6.0",
   "private": true,
   "type": "module",
-  "description": "PS4 14.02 diagnostics, experimental chain audit and private reports",
+  "description": "PS4 14.02 safe browser behavior diagnostics and private reports",
   "scripts": {
     "test": "node --test tests/*.test.js"
   },
