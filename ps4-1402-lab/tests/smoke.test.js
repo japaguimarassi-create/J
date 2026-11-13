@@ -58,7 +58,9 @@ test("offline worker is same-origin and GET-only", () => {
   assert.match(sw, /request\.method!=="GET"/);
   assert.match(sw, /url\.origin!==self\.location\.origin/);
   assert.match(sw, /caches\.open/);
-  assert.match(sw, /ps4-1402-lab-v1\.4\.0/);\n  assert.match(sw, /firmware-delta\.json/);\n  assert.match(sw, /firmware-delta\.js/);
+  assert.match(sw, /ps4-1402-lab-v1\.4\.0/);
+  assert.match(sw, /firmware-delta\.json/);
+  assert.match(sw, /firmware-delta\.js/);
 });
 
 test("manifest and Vercel headers are valid JSON", () => {
@@ -89,8 +91,9 @@ test("firmware delta data separates official notes from community findings", () 
 
 test("browser scripts parse as JavaScript", () => {
   const html = read("index.html");
-  const scripts = [...html.matchAll(/<script>([\\s\\S]*?)<\\/script>/g)];
-  assert.ok(scripts.length >= 1);
-  for (const match of scripts) new Function(match[1]);
+  const scriptStart = html.indexOf("<script>") + "<script>".length;
+  const scriptEnd = html.indexOf("</script>", scriptStart);
+  assert.ok(scriptStart >= "<script>".length && scriptEnd > scriptStart);
+  new Function(html.slice(scriptStart, scriptEnd));
   new Function(read("firmware-delta.js"));
 });
