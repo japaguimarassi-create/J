@@ -5,6 +5,7 @@ __pycache__/
 artifacts/*.pt
 artifacts/*.metrics.json
 artifacts/multimodal/
+artifacts/generation/
 data/distilled.jsonl
 data/brainstorm-audit.jsonl
 datasets/
