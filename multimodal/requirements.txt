@@ -1,0 +1,4 @@
+torch>=2.3
+open_clip_torch>=2.26,<3
+Pillow>=10.0
+tqdm>=4.66
