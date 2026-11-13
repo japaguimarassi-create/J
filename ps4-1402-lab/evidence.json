@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "project": "PS4 14.02 Research Lab",
+  "reviewedOn": "2026-11-12",
+  "targetFirmware": "14.02",
+  "status": "NO_PUBLIC_CHAIN_INDEPENDENTLY_VERIFIED",
+  "findings": [
+    {
+      "id": "faq",
+      "status": "community-reference",
+      "finding": "ConsoleMods FAQ indica implementações públicas até 14.00 e informa que não há jailbreak para 14.02.",
+      "source": "https://consolemods.org/wiki/PS4:FAQ"
+    },
+    {
+      "id": "chart",
+      "status": "community-reference",
+      "finding": "ConsoleMods Exploit Chart indica ausência de exploit público de userland e kernel para 14.02.",
+      "source": "https://consolemods.org/wiki/PS4:Exploit_Chart"
+    },
+    {
+      "id": "psdevwiki",
+      "status": "technical-reference",
+      "finding": "PS4 Developer Wiki descreve Afterglow até 14.00 e indica que pode ter sido corrigido em 14.02.",
+      "source": "https://www.psdevwiki.com/ps4/Vulnerabilities"
+    },
+    {
+      "id": "afterglow-upstream",
+      "status": "upstream-scope",
+      "finding": "O repositório original Afterglow lista firmwares até 14.00, sem declarar suporte validado a 14.02.",
+      "source": "https://github.com/well0nez/afterglow-web"
+    },
+    {
+      "id": "akatsuki",
+      "status": "unverified-claim",
+      "finding": "O Akatsuki alega 14.02, mas ps4_offsets.js copia PS4[14.00] para PS4[14.02] e chama WebKit de assumido; afterglow-g.js identifica seus offsets de kernel como 14.00; index.html usa true || no gate de senha. Não foi fornecida prova independente reproduzível em hardware.",
+      "source": "https://github.com/Jfkkfjzkz/ps4-akatsuki-jailbreak"
+    },
+    {
+      "id": "b41m",
+      "status": "unverified-claim",
+      "finding": "B41M possui diretório 1402, mas seu README geral não lista 14.02 como suportado e o port Afterglow é declarado não testado.",
+      "source": "https://github.com/B4411M/all/tree/main/1402"
+    }
+  ],
+  "sources": [
+    {
+      "label": "ConsoleMods FAQ",
+      "url": "https://consolemods.org/wiki/PS4:FAQ"
+    },
+    {
+      "label": "ConsoleMods Exploit Chart",
+      "url": "https://consolemods.org/wiki/PS4:Exploit_Chart"
+    },
+    {
+      "label": "PS4 Developer Wiki",
+      "url": "https://www.psdevwiki.com/ps4/Vulnerabilities"
+    },
+    {
+      "label": "Afterglow Web",
+      "url": "https://github.com/well0nez/afterglow-web"
+    },
+    {
+      "label": "Akatsuki host",
+      "url": "https://github.com/Jfkkfjzkz/ps4-akatsuki-jailbreak"
+    },
+    {
+      "label": "B41M 14.02",
+      "url": "https://github.com/B4411M/all/tree/main/1402"
+    }
+  ]
+}
