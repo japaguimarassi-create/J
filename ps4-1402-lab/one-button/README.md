@@ -1,27 +1,37 @@
 # JBherePS4
 
-Single-button offline PS4 browser diagnostics. Version 1.1.0 adds the JBhere Safe Probe.
+Single-button offline PS4 browser diagnostics. Version 1.2.0 includes the JBhere Safe Probe and a visible local JSON report.
 
 ## Safe Probe
 
-The probe reads only browser-exposed information: User-Agent firmware hint, platform/language, online state, secure context, browser APIs and optional WebGL renderer. It stores the resulting JSON report in local browser storage.
+Reads only browser-exposed information: User-Agent firmware hint, platform/language, online state, secure context, browser APIs and optional WebGL renderer. The resulting JSON report is saved locally and displayed in the page under "VER RELATÓRIO JSON".
 
 It does not exploit WebKit, attempt kernel access, invoke syscalls, read/write privileged memory, patch firmware, load ELF/BIN files, install PKGs, or load GoldHEN.
 
-## Firmware 14.02 and GoldHEN
+## PS4 firmware 14.02 status (reviewed 2026-11-13)
 
-As reviewed on 2026-11-13, the official GoldHEN GitHub release page lists v2.4b18 and supported firmware through 11.00. A community host advertises a separate 2.4b18.13 payload up to 14.00 and explicitly refuses 14.01+. That is not proof of official 14.02 support. No verified public 14.02 exploit chain or GoldHEN compatibility is established by this project.
+A private HEN demonstration was reported in a video dated 2026-11-05, but no source code or reproducible release is public. This does not prove that no vulnerability exists; it means there is no public, independently reproducible chain to test.
 
-The site therefore does not download or execute any GoldHEN binary and stops at the compatibility gate.
+A third-party repository claims 14.02 support. Its own technical notes describe the WebKit compatibility as assumed from 13.52 and its kernel offsets as derived from 14.00 with a "shiftfit". That is not a measured, independently verified 14.02 port. The project therefore treats the claim as unverified and does not execute its binaries.
 
-## Offline
+## GoldHEN
 
-The first visit must be HTTPS to register Service Worker/Cache Storage. Legacy Application Cache is retained as a fallback declaration, but browser support must be tested on the actual PS4. The probe does not transmit its report.
+- Official upstream GitHub release visible: v2.4b18; its declared firmware list ends at 11.00.
+- Community revision v2.4b18.13 reports support for 14.00.
+- Neither source declares 14.02 support.
+
+The site does not download or load GoldHEN binaries.
 
 ## Sources
 
 - https://github.com/GoldHEN/GoldHEN/releases
 - https://github.com/GoldHEN/GoldHEN/issues/422
-- https://github.com/patnawa/GoldhenPS4/releases
-- https://github.com/well0nez/afterglow-web
-- https://scenegaming.com/en/news/ps4-jailbreak-14-00-goldhen-firmware-14-02
+- https://github.com/EEJTek/GoldHEN_v2.4b18.12
+- https://github.com/Jfkkfjzkz/ps4-akatsuki-jailbreak
+- https://www.psdevwiki.com/ps4/Vulnerabilities
+- https://consolemods.org/wiki/PS4%3AExploit_Chart
+- https://scenegaming.com/en/news/ps4-14-02-hen-webkit-demostracion-saudidos
+
+## Offline behavior
+
+The first visit must be HTTPS to register Service Worker/Cache Storage. Legacy Application Cache remains declared as a fallback, but its support must be checked on the actual PS4 browser. The report remains on the console's local browser storage unless manually copied.
