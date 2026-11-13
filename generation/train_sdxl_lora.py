@@ -22,7 +22,8 @@ def train(args: argparse.Namespace) -> dict[str, Any]:
             "Detected " + format(total_vram, ".1f") + " GB VRAM; configured minimum is "
             + str(args.minimum_vram_gb) + " GB. Reduce memory settings or use a larger GPU."
         )
-    script = args.diffusers_root / "examples" / "text_to_image" / "train_text_to_image_lora_sdxl.py"
+    diffusers_root = args.diffusers_root.resolve()
+    script = diffusers_root / "examples" / "text_to_image" / "train_text_to_image_lora_sdxl.py"
     if not script.is_file():
         raise FileNotFoundError(
             "Diffusers training example not found: " + str(script)
@@ -94,7 +95,7 @@ def train(args: argparse.Namespace) -> dict[str, Any]:
     }
     report_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print("Starting SDXL LoRA training on " + torch.cuda.get_device_name(0), flush=True)
-    result = subprocess.run(command, cwd=args.diffusers_root, check=False)
+    result = subprocess.run(command, cwd=diffusers_root, check=False)
     config["exit_code"] = result.returncode
     config["status"] = "completed" if result.returncode == 0 else "failed"
     report_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
