@@ -4,6 +4,9 @@ __pycache__/
 *.py[cod]
 artifacts/*.pt
 artifacts/*.metrics.json
+artifacts/multimodal/
 data/distilled.jsonl
 data/brainstorm-audit.jsonl
+datasets/
+multimodal_cache/
 .DS_Store
