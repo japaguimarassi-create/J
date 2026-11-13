@@ -25,7 +25,7 @@ The default policy excludes non-commercial, no-derivatives, share-alike and unkn
 
 The registry in sources.json records the scale and limitations of candidate sources:
 
-- Smithsonian Open Access reports more than 5.2 million digital items, including 2D and 3D media. Only records explicitly designated CC0 are eligible.
+- Smithsonian Open Access reports more than 5.2 million digital items, including 2D and 3D media. The included exporter checks each media record for usage.access = CC0 before adding it.
 - Objaverse-XL contains 10M+ 3D objects, but each object has its own license. The exporter selects CC0 and CC BY 4.0 items only.
 - Wikimedia Commons has image and video files with different licenses. The exporter reads the license attached to each file and only marks exact allowlisted licenses as verified.
 - Open Images lists 9,178,275 images, but the official repository warns that it does not warrant the license status of each individual image. This source is catalogued, not blindly downloaded.
@@ -45,7 +45,19 @@ For video frame extraction, install FFmpeg and make ffmpeg and ffprobe available
 python -m pip install objaverse
 ~~~
 
-## 1. Collect images and videos from Wikimedia Commons
+## 1. Collect CC0 images from Smithsonian Open Access
+
+Register for a free Smithsonian API key and set it only as an environment variable. The exporter never writes the key to the manifest:
+
+~~~bash
+export SMITHSONIAN_API_KEY="YOUR_KEY"
+python multimodal/export_smithsonian.py --limit 5000 --out datasets/smithsonian_manifest.jsonl
+python multimodal/collect.py --manifest datasets/smithsonian_manifest.jsonl --limit 5000 --max-total-gb 8
+~~~
+
+The exporter reads the usage flag on each individual media record and only exports items marked CC0. The API key is private: do not paste it into source files, notebooks or GitHub.
+
+## 2. Collect images and videos from Wikimedia Commons
 
 Create a rights-aware manifest. The search result itself is not enough: the script reads each file's own license metadata.
 
@@ -63,7 +75,7 @@ python multimodal/collect.py --manifest datasets/wikimedia_videos.jsonl --limit 
 
 The collector checks the item-level license, rights_verified, HTTPS URL, file extension and file-size cap. It writes local files under datasets/raw/ and appends their metadata to datasets/assets.jsonl. Files are never uploaded to this Git branch.
 
-## 2. Collect 3D models from Objaverse-XL
+## 3. Collect 3D models from Objaverse-XL
 
 The Objaverse-XL API downloads metadata and can enumerate millions of objects. The exporter filters each object by its individual license before downloading any model.
 
@@ -73,7 +85,7 @@ python multimodal/export_objaverse_xl.py --limit 5000 --workers 4
 
 The initial 5,000 is a safe pilot. Increase --limit only after checking disk space, bandwidth, source terms and the first downloaded sample. The exporter stores models below datasets/raw/objaverse_xl/ and appends item-level metadata to datasets/assets.jsonl.
 
-## 3. Render 3D models into visual training views
+## 4. Render 3D models into visual training views
 
 CLIP learns from images, so 3D assets must first be rendered into preview images. Blender can create several camera views for each downloaded model:
 
@@ -83,7 +95,7 @@ blender --background --python multimodal/render_3d.py -- --manifest datasets/ass
 
 The renderer writes turntable-style views to datasets/previews/. Invalid or unsupported model files are skipped and reported; they are not silently counted as rendered.
 
-## 4. Prepare training pairs
+## 5. Prepare training pairs
 
 Images are used directly, videos are sampled into a small number of frames using FFmpeg, and 3D models are represented by their Blender-rendered previews. Each frame/view inherits the source asset's caption and rights metadata.
 
@@ -93,7 +105,7 @@ python multimodal/prepare_pairs.py --manifest datasets/assets.jsonl --out datase
 
 The generated JSONL contains image paths, descriptions, asset IDs, media types, source URLs and license metadata. It does not copy media into the repository.
 
-## 5. Train the visual learner
+## 6. Train the visual learner
 
 The training script uses OpenCLIP ViT-B/32 as a frozen encoder and trains two small projection heads with a contrastive loss. It saves a checkpoint and metrics after every epoch, supports resume, and handles Ctrl+C by saving a checkpoint.
 
