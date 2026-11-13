@@ -1,35 +1,37 @@
-# JBherePS4 v1.4.0
+# JBherePS4 v1.4.1
 
-PS4 14.02 non-invasive browser research harness.
+PS4 14.02 browser compatibility lab with source-backed exploit status and non-invasive tests.
 
-## What this build actually does
+## Test suite
 
-- Prepares an offline cache of the host and test modules.
-- Detects a PS4 browser hint and firmware/WebKit version only if exposed in the User-Agent.
-- Checks browser APIs such as Service Worker, Cache Storage, WebAssembly, BigInt, IndexedDB, WebGL and related capabilities.
-- Performs a backend storage self-test: temporary JSON write, read, and delete.
-- Uploads a minimized technical report to \`metadata/reports/\`.
-- Preserves the full local report in browser localStorage.
+- Detects a PS4 browser and firmware hint only when the User-Agent exposes it.
+- Records an AppleWebKit version hint when exposed.
+- Runs a deterministic TypedArray check on a 64 KiB buffer.
+- Validates an empty WebAssembly module without loading external code.
+- Checks BigInt, Atomics, SharedArrayBuffer, WebGL/WebGL2, IndexedDB, Cache Storage, Service Worker, LocalStorage and WebCrypto.
+- Tests a temporary LocalStorage value by writing, reading and deleting it.
+- Tests the Blob backend with temporary JSON write/read/delete before uploading the report.
+- Stores a minimized report under `metadata/reports/`.
 
-## What it does not do
+These are compatibility checks, not vulnerability tests. A supported browser API does not prove a CVE, userland exploit or kernel exploit.
 
-This is not a jailbreak and does not execute an exploit. It does not attempt memory corruption, kernel access, syscalls, firmware modification, ELF/BIN loading, payload injection, or GoldHEN installation. Browser feature detection cannot establish that a kernel vulnerability exists.
+## PS4 14.02 evidence (reviewed 2026-11-13)
 
-## PS4 14.02 research status (reviewed 2026-11-13)
+- The public exploit chart lists no public userland exploit or public kernel exploit for 14.02.
+- Prolapse is documented as patched since 14.02.
+- Afterglow is publicly released for 12.00, 12.02, 12.50, 12.52, 13.00, 13.02, 13.04, 13.50, 13.52 and 14.00. Its status on 14.02 is unconfirmed and may be patched.
+- A private 14.02 HEN demonstration was reported on 2026-11-05, but no public source code or independently reproducible procedure was reported.
+- The official GoldHEN public release list does not include 14.02.
 
-The current public ConsoleMods exploit chart lists 14.02 without a public userland exploit or public kernel exploit. PS4 Dev Wiki marks Prolapse as patched since 14.02 and Afterglow as possibly patched in 14.02. Consequently, no public, independently reproducible full jailbreak chain is established for this firmware.
+## Metadata visibility
 
-GoldHEN's official public release list does not declare 14.02 support. Do not treat a third-party host's firmware claim as proof without independently reproducible hardware evidence.
+The connected store `jbhereps4-metadata` is public, and `/api/metadata` lists the minimized reports. The report excludes full User-Agent, IP address, cookies, credentials, and session identifiers. Vercel still receives ordinary request metadata. Do not submit personal information.
 
-## Metadata backend
+A separate private store `jbhereps4-meta-v2` exists but is not connected to this project and is not used by this deployment.
 
-The active connected store is \`jbhereps4-metadata\`, region GRU, and its access mode is **public**. The report endpoint lists minimized reports at \`/api/metadata\`. Do not submit personal data. The application report omits full User-Agent, IP address, cookies, credentials, and session identifiers; the hosting provider still receives ordinary connection metadata.
+## Explicit limits
 
-A separate private store named \`jbhereps4-meta-v2\` exists but is not connected to this Vercel project. It is not used by this deployment.
-
-## Validation
-
-Before sending a report, the browser calls the API's self-test path. The function writes a temporary JSON blob, reads it back, validates it, deletes it, and only then stores the real report. If any stage fails, the report remains local and the page displays the error.
+The site does not execute memory corruption, call kernel syscalls, read/write kernel memory, modify firmware, load ELF/BIN payloads, install GoldHEN, or bypass Sony protections. It cannot convert a browser-capability result into proof of exploitability.
 
 ## Sources
 
@@ -38,4 +40,4 @@ Before sending a report, the browser calls the API's self-test path. The functio
 - https://github.com/well0nez/afterglow-web
 - https://github.com/GoldHEN/GoldHEN/releases
 - https://github.com/GoldHEN/GoldHEN/issues/422
-- https://vercel.com/docs/vercel-blob/private-storage
+- https://scenegaming.com/en/news/ps4-14-02-hen-webkit-demostracion-saudidos
