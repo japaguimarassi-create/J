@@ -1,12 +1,31 @@
-# JBherePS4 v1.5.1
+# JBherePS4 v1.6.0
 
-PS4 14.02 diagnostics, experimental exploit-claim audit, and private report backend.
+PS4 14.02 safe browser diagnostics, experimental claim audit, temporary-session reporting, and private report storage.
 
 ## Current conclusion
 
-There is no independently verified, reproducible, complete jailbreak for PS4 14.02 in the public exploit chart. A public experimental repository now claims partial kernel access, but its own test notes say that launching a game causes a kernel panic and HEN/GoldHEN threads die during initialization. That is not a usable jailbreak.
+This project does not contain a verified jailbreak for PS4 14.02. The public experimental repository audited below claims partial kernel access, but its own test notes report a kernel panic when launching games and HEN/GoldHEN threads dying during initialization. That is not a usable or independently reproduced HEN.
 
-## New experimental claim audited on 2026-11-13
+## What v1.6.0 does
+
+- Performs a browser capability inventory without invoking exploits or privileged interfaces.
+- Uses small, deterministic tests for typed arrays, empty WebAssembly module validation, local storage, and browser API availability.
+- Labels firmware parsed from User-Agent as a non-authoritative hint.
+- Prepares a static cache where the browser supports it.
+- Saves a local JSON report and offers download/copy controls.
+- Tests private report storage before attempting an upload.
+- Preserves a local report when offline or when the backend is unavailable.
+- Keeps the session non-destructive and does not persist changes to the PS4 system.
+
+## What it does not do
+
+- It does not activate HEN or jailbreak the console.
+- It does not execute memory corruption, kernel syscalls, kernel read/write, or exploit chains.
+- It does not modify firmware, install payloads, load ELF/BIN files, or inject GoldHEN.
+- It does not establish whether a CVE exists merely from browser API support.
+- It does not treat browser User-Agent strings as proof of firmware version.
+
+## Experimental 14.02 claim audited on 2026-11-13
 
 Repository: https://github.com/Jfkkfjzkz/A
 
@@ -16,7 +35,7 @@ The repository's CHAIN.txt snapshot dated 2026-11-11 claims:
 - 15/15 patch stubs applied
 - Debug Settings patch applied
 
-The same file explicitly records the following failures:
+The same file records:
 - launching a game on the patched kernel causes a kernel panic
 - HEN/GoldHEN payload threads die during initialization
 - installer init #1 reportedly survives, while init #2 is untested
@@ -24,12 +43,12 @@ The same file explicitly records the following failures:
 
 The source does not independently validate the full chain:
 - README.md still documents the Afterglow exploit for firmware 14.00.
-- afterglow-g.js identifies its base as firmware 14.00 and its header says the code has never executed in that host.
+- afterglow-g.js identifies its base as firmware 14.00 and says the code has never executed in that host.
 - ps4_offsets.js creates the 14.02 table by copying PS4["14.00"], while its status text says WebKit is assumed identical to 13.52 and kernel offsets are from 14.00 plus shiftfit.
 
 Assessment: UNVERIFIED_PARTIAL_KERNEL_CHAIN_NOT_A_USABLE_JAILBREAK.
 
-Do not execute this experimental build on the user's console as if it were a completed jailbreak. The project does not copy its exploit code or binaries.
+Do not run that experimental build on the user's console as if it were a completed jailbreak. This project does not copy its exploit code or binaries.
 
 ## Previous Akatsuki variant
 
@@ -62,9 +81,11 @@ These observations describe browser compatibility only. They do not prove or dis
 - Four historic reports were migrated into the private store and the public copies were deleted.
 - The old public store is empty and no longer used by the current backend.
 
-## Scope
+The client report intentionally excludes cookies, credentials, full User-Agent, and account content. Hosting infrastructure still receives normal connection metadata.
 
-This project does not execute the experimental Afterglow chain, memory corruption, kernel syscalls, kernel memory read/write, firmware modification, ELF/BIN payloads, or GoldHEN injection. It records evidence and verifies the backend without changing the console.
+## Validation limits
+
+A successful browser test only establishes that a browser API was available and behaved as expected in that test. It is not evidence of code execution outside the browser sandbox, kernel access, or jailbreak capability.
 
 ## Sources
 
