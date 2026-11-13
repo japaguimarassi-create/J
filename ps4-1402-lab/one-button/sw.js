@@ -1,5 +1,5 @@
 "use strict";
-var CACHE_NAME="jbhereps4-host-v7";
+var CACHE_NAME="jbhereps4-host-v8";
 var ASSETS=["./","./index.html","./main.js","./probe.js","./sw.js","./cache.appcache","./manifest.webmanifest","./evidence.json"];
 self.addEventListener("install",function(event){event.waitUntil(caches.open(CACHE_NAME).then(function(cache){return cache.addAll(ASSETS);}).then(function(){return self.skipWaiting();}));});
 self.addEventListener("activate",function(event){event.waitUntil(caches.keys().then(function(names){return Promise.all(names.filter(function(n){return n.indexOf("jbhereps4-host-")===0&&n!==CACHE_NAME;}).map(function(n){return caches.delete(n);}));}).then(function(){return self.clients.claim();}));});
