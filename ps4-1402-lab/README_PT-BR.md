@@ -62,3 +62,10 @@ Diagnósticos e relatórios são executados localmente no navegador. O site não
 ## Matriz de capacidades (v1.3.0)
 
 O preflight percorre APIs comuns do navegador uma a uma. Os códigos são locais: **1** = teste da API passou, **0** = teste falhou, **N/A** = API indisponível ou fora do escopo. O verificador inclui SharedArrayBuffer/Atomics, quota de armazenamento e BroadcastChannel quando disponíveis. Não tenta syscalls, leitura/escrita do kernel, corrupção de memória ou escalada de privilégios; JavaScript comum não expõe essas interfaces.
+
+
+## Revisão técnica 14.00 → 14.02 (13 nov 2026)
+
+O painel de delta registra o estado das evidências públicas: AIO/Prolapse é marcado pela PS4 Developer Wiki como corrigido em 14.02; Afterglow é incerto (pode ter sido corrigido); WebKit e BD-J não têm validação pública confirmada para 14.02. A restrição de sockets não AF_UNIX em apps não privilegiados já existe desde 14.00. A nota oficial da Sony é genérica e não identifica módulos/CVEs.
+
+O navegador não pode chamar syscalls nativas nem acessar memória/kernel privilegiado. Uma análise adicional segura pode comparar metadados, manifests e hashes de pacotes oficiais 14.00/14.02, sem executar payloads nem modificar o console.
