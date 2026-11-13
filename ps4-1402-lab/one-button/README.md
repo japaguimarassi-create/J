@@ -12,7 +12,7 @@ The report contains only:
 - Online and secure-context booleans.
 - Public compatibility evidence summary and timestamps.
 
-The report excludes the full User-Agent, IP address, cookies, session identifiers, platform/language strings, and WebGL renderer strings. Vercel infrastructure may still retain ordinary request/security logs outside this application report.
+The JSON report excludes the full User-Agent, IP address, cookies, session identifiers, platform/language strings, and WebGL renderer strings. The hosting provider still necessarily receives network connection metadata such as the connecting IP, and may retain standard security/request logs. Vercel infrastructure may still retain ordinary request/security logs outside this application report.
 
 **Visibility:** the Blob store and GET endpoint are public. Anyone who knows the endpoint can read the minimized technical reports. Do not submit personal information.
 
