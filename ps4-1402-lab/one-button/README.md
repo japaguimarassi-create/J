@@ -1,4 +1,4 @@
-# JBherePS4 v1.4.1
+# JBherePS4 v1.4.2
 
 PS4 14.02 browser compatibility lab with source-backed exploit status and non-invasive tests.
 
