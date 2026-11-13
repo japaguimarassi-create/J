@@ -37,6 +37,8 @@ test("web app exposes real diagnostics and honest report fields", () => {
   assert.match(html, /kernelModified:false/);
   assert.match(html, /nenhum exploit foi executado/i);
   assert.match(html, /async function retry/);
+  assert.match(html, /value="60">60 tentativas \(máximo\)<\/option>/);
+  assert.match(html, /Math\.min\(250\*i,2000\)/);
 });
 
 test("offline worker is same-origin and GET-only", () => {
