@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "project": "JBherePS4",
+  "reviewedOn": "2026-11-13",
+  "targetFirmware": "14.02",
+  "firmware14_02": {
+    "publicChain": "NOT_VERIFIED",
+    "kernelExploit": "NOT_VERIFIED",
+    "userlandEntry": "NOT_VERIFIED",
+    "reproducibleHardwareTest": false,
+    "basis": [
+      {
+        "source": "https://github.com/well0nez/afterglow-web",
+        "finding": "O upstream descreve suporte até 14.00; 14.02 não está na lista de firmwares suportados."
+      },
+      {
+        "source": "https://www.psdevwiki.com/ps4/Vulnerabilities",
+        "finding": "A cadeia Afterglow está documentada para 14.00; a compatibilidade com 14.02 não está confirmada."
+      },
+      {
+        "source": "https://consolemods.org/wiki/PS4:Exploit_Chart",
+        "finding": "A tabela comunitária consultada não confirma uma cadeia pública de userland e kernel para 14.02."
+      }
+    ]
+  },
+  "payloadArchitecture": [
+    "browser-entry-and-userland-primitive",
+    "kernel-vulnerability-and-privilege-transition",
+    "firmware-specific-kernel-layout-and-patches",
+    "payload-loader",
+    "homebrew-enabler"
+  ],
+  "goldhen": {
+    "latestPublicBetaChecked": "2.4b18",
+    "latestStableChecked": "2.3",
+    "betaRelease": "https://github.com/GoldHEN/GoldHEN/releases/tag/2.4b18",
+    "stableRelease": "https://github.com/GoldHEN/GoldHEN/releases/tag/2.3",
+    "betaPublishedAt": "2024-10-28",
+    "betaSupportedFirmwareListed": ["5.05", "6.71", "6.72", "9.00", "9.60", "10.00", "10.01", "10.50", "10.70", "10.71", "11.00"],
+    "firmware14_02Listed": false,
+    "automaticLoadingAllowed": false
+  },
+  "safety": {
+    "exploitCodeIncluded": false,
+    "kernelWrites": false,
+    "firmwareWrites": false,
+    "syscallsInvoked": false,
+    "binaryPayloadsIncluded": false,
+    "antiDetection": false,
+    "automaticGoldhenInstall": false
+  }
+}
