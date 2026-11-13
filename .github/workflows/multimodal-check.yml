@@ -6,6 +6,7 @@ on:
       - motionforge-multimodal-learning
     paths:
       - "multimodal/**"
+      - "generation/**"
       - ".github/workflows/multimodal-check.yml"
   workflow_dispatch:
 
@@ -24,6 +25,11 @@ jobs:
         with:
           python-version: "3.11"
       - name: Compile Python modules
-        run: python -m compileall -q multimodal
+        run: python -m compileall -q multimodal generation
       - name: Run license and path tests
         run: python -m unittest discover -s multimodal -p "test_*.py" -v
+      - name: Run generator workflow tests
+        working-directory: generation
+        run: python -m unittest test_video_workflow -v
+      - name: Validate Colab notebook JSON
+        run: python -m json.tool multimodal/train_colab.ipynb > /dev/null
