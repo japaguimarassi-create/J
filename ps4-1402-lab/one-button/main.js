@@ -1,7 +1,7 @@
 "use strict";
 (function () {
   var button=document.getElementById("start"),state=document.getElementById("state"),detail=document.getElementById("detail"),bar=document.getElementById("bar"),reportPanel=document.getElementById("reportPanel"),reportField=document.getElementById("report");
-  var cacheName="jbhereps4-host-v7";
+  var cacheName="jbhereps4-host-v8";
   var assets=["./","./index.html","./main.js","./probe.js","./sw.js","./cache.appcache","./manifest.webmanifest","./evidence.json"];
   var busy=false;
   function show(title,message,tone,percent){state.textContent=title;state.className=tone||"";detail.textContent=message;bar.style.width=String(percent||0)+"%";}
@@ -20,7 +20,7 @@
   async function uploadReport(probe,evidence){
     var payload={schema:"jbhereps4-client-report/1",timestamp:probe.timestamp,firmwareHint:probe.firmwareHint,webkitHint:probe.webkitHint,deviceClass:probe.deviceClass,online:probe.online,secureContext:probe.secureContext,capabilities:probe.capabilities,safeChecks:probe.safeChecks,testSummary:probe.testSummary,evidenceSummary:{firmware14_02PublicChain:evidence.firmware14_02.publicChain,goldhen14_02Supported:!!evidence.goldhen.firmware14_02Supported}};
     var check=await postJSON(Object.assign({},payload,{selfTest:true}));
-    if(check.selfTest!=="passed"||check.write!==true||check.read!==true||check.delete!==true)throw new Error("Autoteste de armazenamento não confirmou escrita, leitura e remoção.");
+    if(check.selfTest!=="passed"||check.access!=="private"||check.write!==true||check.read!==true||check.delete!==true)throw new Error("Autoteste de armazenamento não confirmou escrita, leitura e remoção.");
     var result=await postJSON(payload);
     return result;
   }
@@ -33,16 +33,16 @@
     log(lines,"WebKit exposto: "+probe.webkitHint);
     log(lines,"APIs disponíveis: "+probe.testSummary.supportedApiCount+"/"+probe.testSummary.totalApiCount);log(lines,"Testes seguros aprovados: "+probe.testSummary.safeChecksPassed+"/"+probe.testSummary.safeChecksTotal);
     log(lines,"Nenhuma primitiva de exploit foi executada.");
-    var report={product:"JBherePS4",version:"1.4.2",timestamp:new Date().toISOString(),probe:probe,evidence:evidence,tests:{browserProbe:"completed",firmwareDetection:probe.firmwareHint==="not-exposed"?"not-exposed":"hint-only",exploitExecution:"not-run",kernelAccess:false,firmwareModification:false,backendStorage:"pending"},jailbreakStatus:"NO_PUBLIC_14_02_CHAIN_VERIFIED",goldhenStatus:"NOT_SUPPORTED_BY_VERIFIED_PUBLIC_RELEASE",conclusion:"O navegador não expõe acesso ao kernel. A pesquisa pública consultada não apresenta cadeia pública de userland + kernel para 14.02. O teste não tenta corrupção de memória nem instalação de payload.",storage:{status:"uploading"},log:lines};
+    var report={product:"JBherePS4",version:"1.5.0",timestamp:new Date().toISOString(),probe:probe,evidence:evidence,tests:{browserProbe:"completed",firmwareDetection:probe.firmwareHint==="not-exposed"?"not-exposed":"hint-only",exploitExecution:"not-run",kernelAccess:false,firmwareModification:false,backendStorage:"pending"},jailbreakStatus:"NO_PUBLIC_14_02_CHAIN_VERIFIED",goldhenStatus:"NOT_SUPPORTED_BY_VERIFIED_PUBLIC_RELEASE",conclusion:"O navegador não expõe acesso ao kernel. A pesquisa pública consultada não apresenta cadeia pública de userland + kernel para 14.02. O teste não tenta corrupção de memória nem instalação de payload.",storage:{status:"uploading"},log:lines};
     save("jbhereps4:lastReport",JSON.stringify(report,null,2));
     show("VALIDANDO BACKEND","Testando gravação, leitura e exclusão de um JSON temporário antes de enviar o relatório.","",82);
     try{
       var stored=await uploadReport(probe,evidence);
-      report.tests.backendStorage="write-read-delete-confirmed";
-      report.storage={status:"stored",id:stored.id,pathname:stored.pathname,url:stored.url};
-      log(lines,"Autoteste do backend: escrita/leitura/remoção confirmadas.");
-      log(lines,"Relatório recebido: "+stored.pathname);
-      show("RELATÓRIO RECEBIDO","Backend confirmou o JSON em metadata/reports/. ID: "+stored.id,"good",100);
+      report.tests.backendStorage="private-write-read-delete-confirmed";
+      report.storage={status:"stored",access:"private",id:stored.id,pathname:stored.pathname};
+      log(lines,"Autoteste do Blob privado: escrita/leitura/remoção confirmadas.");
+      log(lines,"Relatório privado recebido: "+stored.pathname);
+      show("RELATÓRIO PRIVADO RECEBIDO","Backend confirmou escrita e leitura privadas em metadata/reports/. ID: "+stored.id,"good",100);
     }catch(e){
       report.tests.backendStorage="failed";
       report.storage={status:"upload_failed",error:String(e.message||e).slice(0,180)};
