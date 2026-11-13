@@ -81,7 +81,6 @@ $("imageForm").addEventListener("submit",event=>{
   event.preventDefault();const form=event.currentTarget;const data=new FormData(form);
   const file=$("initImage").files[0];if(file)data.append("init_image",file);
   const button=form.querySelector("button[type=submit]");
-  send({elements:[],querySelector(){return null}}, "", $("imageStatus"), button, $("imageResult"),()=>{});
   button.disabled=true;
   fetch(base()+"/api/image",{method:"POST",headers:headers(),body:data}).then(async response=>{
     const payload=await response.json().catch(()=>({}));
