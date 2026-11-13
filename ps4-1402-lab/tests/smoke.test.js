@@ -46,6 +46,7 @@ test("web app exposes real diagnostics and honest report fields", () => {
   assert.match(html, /Kernel \/ syscall fora do navegador/);
   assert.match(html, /SharedArrayBuffer \/ Atomics/);
   assert.match(html, /O que mudou no 14\.02/);
+  assert.match(html, /firmware-delta\.js/);
   assert.match(html, /AIO \/ Prolapse/);
   assert.match(html, /Afterglow \/ kernel/);
   assert.match(html, /BD-J \/ Blu-ray Java/);
@@ -57,7 +58,7 @@ test("offline worker is same-origin and GET-only", () => {
   assert.match(sw, /request\.method!=="GET"/);
   assert.match(sw, /url\.origin!==self\.location\.origin/);
   assert.match(sw, /caches\.open/);
-  assert.match(sw, /ps4-1402-lab-v1\.4\.0/);
+  assert.match(sw, /ps4-1402-lab-v1\.4\.0/);\n  assert.match(sw, /firmware-delta\.json/);\n  assert.match(sw, /firmware-delta\.js/);
 });
 
 test("manifest and Vercel headers are valid JSON", () => {
@@ -69,7 +70,27 @@ test("manifest and Vercel headers are valid JSON", () => {
 });
 
 test("required static assets exist", () => {
-  for (const name of ["index.html", "manifest.webmanifest", "sw.js", "health.json", "evidence.json", "vercel.json"]) {
+  for (const name of ["index.html", "manifest.webmanifest", "sw.js", "health.json", "evidence.json", "firmware-delta.json", "firmware-delta.js", "vercel.json"]) {
     assert.ok(fs.statSync(path.join(root, name)).isFile(), name + " missing");
   }
+});
+
+test("firmware delta data separates official notes from community findings", () => {
+  const delta = json("firmware-delta.json");
+  assert.equal(delta.comparison.from, "14.00");
+  assert.equal(delta.comparison.to, "14.02");
+  assert.equal(delta.version, "1.4.0");
+  assert.ok(delta.officialTimeline.some((x) => x.firmware === "14.02"));
+  assert.ok(delta.findings.some((x) => x.id === "prolapse"));
+  assert.ok(delta.findings.some((x) => x.id === "afterglow"));
+  assert.ok(delta.unknowns.length >= 3);
+  assert.ok(delta.sources.every((x) => /^https:\/\//.test(x.url)));
+});
+
+test("browser scripts parse as JavaScript", () => {
+  const html = read("index.html");
+  const scripts = [...html.matchAll(/<script>([\\s\\S]*?)<\\/script>/g)];
+  assert.ok(scripts.length >= 1);
+  for (const match of scripts) new Function(match[1]);
+  new Function(read("firmware-delta.js"));
 });
