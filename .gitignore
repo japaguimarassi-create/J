@@ -9,4 +9,7 @@ data/distilled.jsonl
 data/brainstorm-audit.jsonl
 datasets/
 multimodal_cache/
+outputs/
+third_party/
+hf_cache/
 .DS_Store
