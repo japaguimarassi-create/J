@@ -101,9 +101,10 @@
       return { supported: false, passed: false, detail: "Cache Storage indisponível" };
     }
     var name = "jbhereps4-probe-" + Date.now();
-    var request = new Request(new URL("./__jbhereps4_probe_" + Date.now(), window.location.href).toString());
+    var request = null;
     var passed = false;
     try {
+      request = new Request(new URL("./__jbhereps4_probe_" + Date.now(), window.location.href).toString());
       var cache = await window.caches.open(name);
       await cache.put(request, new Response("jbhereps4-ok"));
       var found = await cache.match(request);
@@ -112,10 +113,12 @@
       passed = false;
     } finally {
       try {
-        var opened = await window.caches.open(name);
-        await opened.delete(request);
-        await window.caches.delete(name);
+        if (request) {
+          var opened = await window.caches.open(name);
+          await opened.delete(request);
+        }
       } catch (cleanupError) {}
+      try { await window.caches.delete(name); } catch (cleanupError) {}
     }
     return { supported: true, passed: passed, detail: passed ? "Escrita, leitura e remoção concluídas" : "Teste funcional falhou ou foi bloqueado" };
   }
@@ -127,7 +130,7 @@
       var bytes = new Uint8Array([97, 98, 99]);
       var digest = new Uint8Array(await window.crypto.subtle.digest("SHA-256", bytes));
       var hex = Array.prototype.map.call(digest, function (value) {
-        return value.toString(16).padStart(2, "0");
+        return ("0" + value.toString(16)).slice(-2);
       }).join("");
       return {
         supported: true,
@@ -140,10 +143,10 @@
   }
   async function run() {
     var ua = safe(function () { return String(navigator.userAgent || ""); }, "");
-    var ps4 = /PlayStation\\s*4|PS4/i.test(ua);
-    var fw = ua.match(/PlayStation\\s*4[^\\d]{0,8}([0-9]{1,2}\\.[0-9]{1,2})/i) ||
-      ua.match(/PS4[^0-9]{0,12}([0-9]{1,2}\\.[0-9]{1,2})/i);
-    var wk = ua.match(/AppleWebKit\\/([0-9.]+)/i);
+    var ps4 = /PlayStation\s*4|PS4/i.test(ua);
+    var fw = ua.match(/PlayStation\s*4[^\d]{0,8}([0-9]{1,2}\.[0-9]{1,2})/i) ||
+      ua.match(/PS4[^0-9]{0,12}([0-9]{1,2}\.[0-9]{1,2})/i);
+    var wk = ua.match(/AppleWebKit\/([0-9.]+)/i);
     var typedArray = testTypedArray();
     var wasmSupported = typeof WebAssembly === "object" && typeof WebAssembly.validate === "function";
     var wasmValidation = safe(function () {
@@ -187,9 +190,9 @@
       item("TypedArray · buffer 64 KiB", true, typedArray, "Gravação e leitura de posições determinísticas"),
       item("WebAssembly · validação vazia", wasmSupported, wasmValidation, "Somente validação de cabeçalho; sem módulo externo"),
       item("BigInt", typeof BigInt === "function", bigInt, "Aritmética mínima"),
-      item("WebGL", true, caps.webGL, "Contexto criado e liberado quando disponível"),
-      item("WebGL2", true, caps.webGL2, "Contexto opcional criado e liberado"),
-      item("LocalStorage", true, localStorage, "Gravação, leitura e remoção de chave temporária"),
+      item("WebGL", caps.webGL, caps.webGL, "Contexto criado e liberado quando disponível"),
+      item("WebGL2", caps.webGL2, caps.webGL2, "Contexto opcional criado e liberado"),
+      item("LocalStorage", !!window.localStorage, localStorage, "Gravação, leitura e remoção de chave temporária"),
       item("IndexedDB funcional", indexed.supported, indexed.passed, indexed.detail),
       item("Cache Storage funcional", cache.supported, cache.passed, cache.detail),
       item("WebCrypto SHA-256", digest.supported, digest.passed, digest.detail),
