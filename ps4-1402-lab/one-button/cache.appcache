@@ -1,0 +1,13 @@
+CACHE MANIFEST
+# JBherePS4 offline host v1.0.0
+
+CACHE:
+./
+./index.html
+./main.js
+./sw.js
+./manifest.webmanifest
+./evidence.json
+
+NETWORK:
+*
