@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "project": "PS4 14.02 Research Lab",
-  "reviewedOn": "2026-11-12",
+  "reviewedOn": "2026-11-13",
   "targetFirmware": "14.02",
   "status": "NO_PUBLIC_CHAIN_INDEPENDENTLY_VERIFIED",
   "findings": [
@@ -40,6 +40,42 @@
       "status": "unverified-claim",
       "finding": "B41M possui diretório 1402, mas seu README geral não lista 14.02 como suportado e o port Afterglow é declarado não testado.",
       "source": "https://github.com/B4411M/all/tree/main/1402"
+    },
+    {
+      "id": "prolapse-1402-diff",
+      "status": "community-technical-patch-report",
+      "finding": "PS4 Developer Wiki registra a vulnerabilidade AIO/Prolapse como corrigida no firmware 14.02; é a correção técnica mais concreta associada à diferença 14.00→14.02.",
+      "source": "https://www.psdevwiki.com/ps4/Vulnerabilities"
+    },
+    {
+      "id": "afterglow-1402-status",
+      "status": "uncertain",
+      "finding": "Afterglow foi implementado e testado até 14.00; a documentação diz que pode ter sido corrigido em 14.02, sem confirmação conclusiva.",
+      "source": "https://www.psdevwiki.com/ps4/Vulnerabilities"
+    },
+    {
+      "id": "webkit-1402-status",
+      "status": "not-tested",
+      "finding": "A cadeia WebKit documentada foi testada em 14.00; a fonte não confirma compatibilidade em 14.02.",
+      "source": "https://www.psdevwiki.com/ps4/Vulnerabilities"
+    },
+    {
+      "id": "bdj-1402-status",
+      "status": "not-validated",
+      "finding": "A documentação BD-JB é limitada a versões anteriores e a rota BD-JB-EX descrita exige acesso privilegiado/kernel prévio; não comprova uma cadeia inicial para 14.02.",
+      "source": "https://www.psdevwiki.com/ps4/Vulnerabilities"
+    },
+    {
+      "id": "socket-restriction",
+      "status": "documented-since-14.00",
+      "finding": "Criação de sockets não AF_UNIX é restringida em aplicações PS4 não privilegiadas desde 14.00; a documentação não registra remoção dessa restrição em 14.02.",
+      "source": "https://www.psdevwiki.com/ps4/Vulnerabilities"
+    },
+    {
+      "id": "sony-release-note",
+      "status": "official-generic-note",
+      "finding": "A nota pública da Sony para 14.02 é genérica: 'security fixes to the system software'; não identifica módulos ou CVEs.",
+      "source": "https://www.playstation.com/en-us/support/hardware/ps4/system-software/"
     }
   ],
   "sources": [
@@ -66,6 +102,10 @@
     {
       "label": "B41M 14.02",
       "url": "https://github.com/B4411M/all/tree/main/1402"
+    },
+    {
+      "label": "Sony PS4 System Software",
+      "url": "https://www.playstation.com/en-us/support/hardware/ps4/system-software/"
     }
   ]
 }
