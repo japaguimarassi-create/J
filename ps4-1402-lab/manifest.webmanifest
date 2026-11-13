@@ -1,0 +1,9 @@
+{
+  "name": "PS4 14.02 Research Lab",
+  "short_name": "PS4 Lab",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#07111f",
+  "theme_color": "#07111f",
+  "description": "Diagnóstico web offline para pesquisa de compatibilidade PS4."
+}
