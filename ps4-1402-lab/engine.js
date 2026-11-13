@@ -103,20 +103,10 @@ const checks=[
 ["Arquivos","WebAssembly",()=>typeof WebAssembly==="object"&&WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,0,0]))],
 ["Arquivos","Structured clone",()=>typeof structuredClone==="function"&&structuredClone({v:14}).v===14],
 ["Arquivos","Performance API",()=>!!performance.now],
-["Firmware","Versão informada válida",()=>/^\d{1,2}\.\d{2}$/.test($("fw").value.trim())],
-["Firmware","Alvo 14.02 selecionado",()=> $("fw").value.trim()==="14.02"],
-["Firmware","Nenhum downgrade solicitado",()=>true],
-["Firmware","Nenhum pacote executado",()=>true],
-["Firmware","Nenhum arquivo de sistema lido",()=>true],
-["Firmware","Nenhum acesso kernel executado",()=>true],
-["Firmware","Nenhum payload carregado",()=>true],
-["Firmware","Nenhum syscall invocado",()=>true],
-["Firmware","Nenhuma alteração persistente",()=>true],
-["Firmware","Escopo read-only preservado",()=>true]
 ];
 const groups=["Ambiente","APIs Web","Armazenamento","Compatibilidade","Auditoria"];
-function phaseList(){return checks.map((c,i)=>({id:i+1,group:c[0],name:c[1],run:c[2]}))}
-async function runOne(p){try{const v=await Promise.race([Promise.resolve().then(p.run),new Promise((_,rej)=>setTimeout(()=>rej(Error("timeout")),5000))]);return {id:p.id,group:p.group,name:p.name,status:v===true?"pass":v===false?"fail":"na",detail:v===true?"Teste local positivo":v===false?"Teste local negativo":"API não disponível ou sem evidência"}}catch(e){return{id:p.id,group:p.group,name:p.name,status:"fail",detail:String(e.message||e)}}}
+function phaseList(){const base=checks.slice(0,99).map((c,i)=>({id:i+1,group:c[0],name:c[1],run:c[2]}));base.push({id:100,group:"Decisão",name:"Gate final de compatibilidade",run:()=>true});return base;}
+async function runOne(p){if(p.id===100){const g=gate([]);return{id:100,group:p.group,name:p.name,status:"na",detail:"HOLD — "+g.reason};}try{const v=await Promise.race([Promise.resolve().then(p.run),new Promise((_,rej)=>setTimeout(()=>rej(Error("timeout")),5000))]);return {id:p.id,group:p.group,name:p.name,status:v===true?"pass":v===false?"fail":"na",detail:v===true?"Teste local positivo":v===false?"Teste local negativo":"API não disponível ou sem evidência"}}catch(e){return{id:p.id,group:p.group,name:p.name,status:"fail",detail:String(e.message||e)}}}
 function row(r){const el=document.createElement("div");el.className="item";const l=document.createElement("div"),b=document.createElement("b"),s=document.createElement("small");b.textContent=String(r.id).padStart(3,"0")+" · "+r.name;s.textContent=r.group+" — "+r.detail;l.append(b,s);const st=document.createElement("span");st.className="status "+(r.status==="pass"?"good":r.status==="na"?"warn":"bad");st.textContent=r.status==="pass"?"1 · PASS":r.status==="na"?"N/A":"0 · FAIL";el.append(l,st);$("results").prepend(el)}
 function gate(results){const exact=$("fw").value.trim()==="14.02";const req={entryPoint:false,userland:false,kernel:false,payload:false};const complete=Object.values(req).every(Boolean);return{decision:exact&&complete?"GO":"HOLD",requirements:req,reason:!exact?"Firmware diferente do alvo 14.02.": "Não existe cadeia pública completa, compatível e reproduzível anexada às evidências. As 100 fases medem APIs do navegador, não validam exploits."}}
 async function execute(){if($("start").disabled)return;stop=false;$("start").disabled=true;$("stop").disabled=false;$("results").replaceChildren();logLines=[];$("log").textContent="";const results=[],phases=phaseList(),started=new Date().toISOString();log("START 100 verificações seguras; sem exploração.");for(let i=0;i<phases.length;i++){if(stop)break;const r=await runOne(phases[i]);results.push(r);row(r);const n=results.length;$("progress").style.width=(n/100*100)+"%";$("progressText").textContent="Executando "+r.id+"/100 · "+r.name;$("phaseCount").textContent=n+" / 100";$("passed").textContent=results.filter(x=>x.status==="pass").length;$("failed").textContent=results.filter(x=>x.status==="fail").length;$("na").textContent=results.filter(x=>x.status==="na").length;$("pending").textContent=100-n;log(String(r.id).padStart(3,"0")+" "+r.status.toUpperCase()+" "+r.name);await delay(18)}
