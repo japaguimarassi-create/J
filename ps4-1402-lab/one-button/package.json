@@ -1,6 +1,6 @@
 {
   "name": "jbhereps4",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "private": true,
   "type": "module",
   "description": "PS4 14.02 diagnostics, experimental chain audit and private reports",
