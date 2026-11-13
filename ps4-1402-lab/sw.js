@@ -1,5 +1,5 @@
 "use strict";
-const CACHE="ps4-1402-lab-v1.2.0";
+const CACHE="ps4-1402-lab-v1.3.0";
 const FILES=["./","./index.html","./manifest.webmanifest","./health.json","./evidence.json"];
 self.addEventListener("install",event=>event.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting())));
 self.addEventListener("activate",event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith("ps4-1402-lab-")&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
