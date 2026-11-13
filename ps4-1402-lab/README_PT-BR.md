@@ -22,7 +22,7 @@ Não inclui UAF, heap spray, ROP, syscalls, leitura/escrita de memória privileg
 - Root Directory: `ps4-1402-lab`
 - Framework Preset: Other
 - Build Command: vazio
-- Output Directory: `. ` (se o painel não aceitar o espaço, use `.`)
+- Output Directory: `.`
 - Install Command: vazio
 - Sem variáveis de ambiente e sem banco de dados.
 
