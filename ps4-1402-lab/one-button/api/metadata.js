@@ -18,6 +18,9 @@ const CAPABILITY_KEYS = [
   "fetch",
   "webGL",
   "webGL2",
+  "webAssemblyValidation",
+  "cryptoGetRandomValues",
+  "typedArray",
   "performanceObserver",
   "textEncoder"
 ];
@@ -63,8 +66,17 @@ function normalize(body) {
     capabilities: caps,
     testSummary: {
       supportedApiCount: Number.isInteger(body.testSummary && body.testSummary.supportedApiCount) ? Math.max(0, Math.min(30, body.testSummary.supportedApiCount)) : null,
-      totalApiCount: Number.isInteger(body.testSummary && body.testSummary.totalApiCount) ? Math.max(0, Math.min(30, body.testSummary.totalApiCount)) : null
+      totalApiCount: Number.isInteger(body.testSummary && body.testSummary.totalApiCount) ? Math.max(0, Math.min(30, body.testSummary.totalApiCount)) : null,
+      safeChecksPassed: Number.isInteger(body.testSummary && body.testSummary.safeChecksPassed) ? Math.max(0, Math.min(30, body.testSummary.safeChecksPassed)) : null,
+      safeChecksTotal: Number.isInteger(body.testSummary && body.testSummary.safeChecksTotal) ? Math.max(0, Math.min(30, body.testSummary.safeChecksTotal)) : null
     },
+    safeChecks: Array.isArray(body.safeChecks) ? body.safeChecks.slice(0, 20).map(function (entry) {
+      return {
+        name: typeof (entry && entry.name) === "string" ? entry.name.slice(0, 64) : "check",
+        status: entry && entry.status === "PASS" ? "PASS" : "UNAVAILABLE",
+        detail: typeof (entry && entry.detail) === "string" ? entry.detail.slice(0, 80) : ""
+      };
+    }) : [],
     evidenceSummary: {
       firmware14_02PublicChain: typeof evidence.firmware14_02PublicChain === "string" ? evidence.firmware14_02PublicChain.slice(0, 40) : "UNKNOWN",
       goldhen14_02Supported: evidence.goldhen14_02Supported === true
