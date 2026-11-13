@@ -42,7 +42,7 @@ const checks=[
 ["Rede","AbortController",()=>typeof AbortController==="function"],
 ["Rede","ReadableStream",()=>typeof ReadableStream==="function"],
 ["Rede","URL origin",()=>!!location.origin],
-["Rede","Connection hint",()=>!!navigator.connection||true],
+["Rede","Connection hint",()=>!!navigator.connection],
 ["Rede","Beacon API",()=>typeof navigator.sendBeacon==="function"],
 ["Rede","WebSocket API",()=>typeof WebSocket==="function"],
 ["Concorrência","Promise",()=>typeof Promise==="function"],
