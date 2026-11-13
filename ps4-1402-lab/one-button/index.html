@@ -34,14 +34,14 @@ a{color:var(--blue)}.privacy{font-size:10px;color:var(--muted);margin:12px 0 0}.
 <p class="sub">Laboratório 14.02 · testes de navegador · sem escrita no console</p>
 <div class="orb" aria-hidden="true"><span>14.02</span></div>
 <button id="start" type="button">EXECUTAR TESTE</button>
-<p class="privacy">Executa verificações não invasivas do navegador, cache offline e backend. Não executa exploits, não acessa memória do kernel e não instala payloads.</p>
-<p class="privacy">O relatório reduzido é enviado ao backend para análise. O armazenamento atualmente conectado é público: não envie dados pessoais. O relatório não inclui cookies, IP, User-Agent completo ou credenciais; a infraestrutura ainda recebe metadados normais de conexão.</p>
-<p class="privacy"><a href="./api/metadata" target="_blank" rel="noopener">VER RELATÓRIOS TÉCNICOS</a></p>
+<p class="privacy">Executa testes de compatibilidade do navegador e valida o armazenamento privado. Não executa exploit, não acessa memória do kernel nem instala payloads.</p>
+<p class="privacy">O relatório técnico reduzido é enviado para armazenamento PRIVADO, com leitura autenticada. Não inclui cookies, IP, User-Agent completo, credenciais nem dados da conta. A infraestrutura recebe os metadados normais da conexão.</p>
+<p class="privacy">RELATÓRIOS EM metadata/reports/ · ACESSO PRIVADO E AUTENTICADO</p>
 <div id="state" role="status" aria-live="polite">PRONTO</div>
-<p id="detail">Um toque prepara o cache, executa os testes e envia o relatório nesta mesma sessão. É necessária conexão para enviar ao backend; sem rede, o JSON fica salvo localmente.</p>
+<p id="detail">Um toque prepara o cache, executa os testes e envia o relatório nesta sessão. É necessária conexão para o envio; sem rede, o JSON permanece salvo localmente.</p>
 <details id="reportPanel" hidden><summary>VER RELATÓRIO JSON</summary><textarea id="report" readonly spellcheck="false" aria-label="Relatório de diagnóstico"></textarea></details>
 <div id="progress"><i id="bar"></i></div>
-<footer>JBHEREPS4 v1.4.2 · 14.02 · DIAGNÓSTICO NÃO INVASIVO · SEM ALTERAÇÃO DE FIRMWARE</footer>
+<footer>JBHEREPS4 v1.5.0 · 14.02 · DIAGNÓSTICO · BACKEND PRIVADO · SEM ALTERAÇÃO DE FIRMWARE</footer>
 </main>
 <script src="./probe.js" defer></script>
 <script src="./main.js" defer></script>
