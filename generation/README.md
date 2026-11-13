@@ -17,6 +17,10 @@ These are integrations with pretrained foundation models, not claims that Motion
 
 The Moto G04S can open the editor, prepare prompts, manage files and connect to a remote host. It cannot realistically run these large generator weights directly.
 
+## Run image generation from Android with Colab
+
+Open the [MotionForge SDXL generation and training notebook](https://colab.research.google.com/github/japaguimarassi-create/J/blob/motionforge-multimodal-learning/generation/generate_colab.ipynb). It mounts Drive, checks for an available GPU, runs SDXL text-to-image/image-to-image and optionally prepares and trains a LoRA adapter. The notebook covers image generation; video and 3D require their separate runtimes described below.
+
 ## Install image generation
 
 Use Python 3.10 or newer in a CUDA-enabled environment:
