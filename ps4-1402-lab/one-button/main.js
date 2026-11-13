@@ -1,7 +1,7 @@
 "use strict";
 (function () {
   var button=document.getElementById("start"),state=document.getElementById("state"),detail=document.getElementById("detail"),bar=document.getElementById("bar"),reportPanel=document.getElementById("reportPanel"),reportField=document.getElementById("report");
-  var cacheName="jbhereps4-host-v8";
+  var cacheName="jbhereps4-host-v9";
   var assets=["./","./index.html","./main.js","./probe.js","./sw.js","./cache.appcache","./manifest.webmanifest","./evidence.json"];
   var busy=false;
   function show(title,message,tone,percent){state.textContent=title;state.className=tone||"";detail.textContent=message;bar.style.width=String(percent||0)+"%";}
@@ -33,7 +33,7 @@
     log(lines,"WebKit exposto: "+probe.webkitHint);
     log(lines,"APIs disponíveis: "+probe.testSummary.supportedApiCount+"/"+probe.testSummary.totalApiCount);log(lines,"Testes seguros aprovados: "+probe.testSummary.safeChecksPassed+"/"+probe.testSummary.safeChecksTotal);
     log(lines,"Nenhuma primitiva de exploit foi executada.");
-    var report={product:"JBherePS4",version:"1.5.0",timestamp:new Date().toISOString(),probe:probe,evidence:evidence,tests:{browserProbe:"completed",firmwareDetection:probe.firmwareHint==="not-exposed"?"not-exposed":"hint-only",exploitExecution:"not-run",kernelAccess:false,firmwareModification:false,backendStorage:"pending"},jailbreakStatus:"NO_PUBLIC_14_02_CHAIN_VERIFIED",goldhenStatus:"NOT_SUPPORTED_BY_VERIFIED_PUBLIC_RELEASE",conclusion:"O navegador não expõe acesso ao kernel. A pesquisa pública consultada não apresenta cadeia pública de userland + kernel para 14.02. O teste não tenta corrupção de memória nem instalação de payload.",storage:{status:"uploading"},log:lines};
+    var report={product:"JBherePS4",version:"1.5.1",timestamp:new Date().toISOString(),probe:probe,evidence:evidence,tests:{browserProbe:"completed",firmwareDetection:probe.firmwareHint==="not-exposed"?"not-exposed":"hint-only",exploitExecution:"not-run",kernelAccess:false,firmwareModification:false,backendStorage:"pending"},jailbreakStatus:"EXPERIMENTAL_PARTIAL_KERNEL_CLAIM_NO_USABLE_HEN_VERIFIED",goldhenStatus:"NOT_SUPPORTED_BY_VERIFIED_PUBLIC_RELEASE",conclusion:"Há um relato público experimental de acesso parcial ao kernel em 14.02, mas o mesmo registro informa kernel panic ao iniciar jogos e falha de inicialização de HEN/GoldHEN. O código consultado herda offsets de 14.00 com shiftfit e não demonstra validação independente. Não há jailbreak completo e reproduzível verificado neste laboratório. O teste não executa essa cadeia.",storage:{status:"uploading"},log:lines};
     save("jbhereps4:lastReport",JSON.stringify(report,null,2));
     show("VALIDANDO BACKEND","Testando gravação, leitura e exclusão de um JSON temporário antes de enviar o relatório.","",82);
     try{
