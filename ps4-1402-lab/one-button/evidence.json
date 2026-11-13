@@ -95,7 +95,7 @@
   },
   "lab": {
     "name": "JBherePS4 Safe Research Harness",
-    "version": "1.4.1",
+    "version": "1.4.2",
     "tests": [
       "browser API capability inventory",
       "PlayStation 4 browser and firmware hint if User-Agent exposes it",
@@ -105,7 +105,8 @@
       "BigInt, WebGL/WebGL2, IndexedDB, Cache Storage, Service Worker and WebCrypto availability",
       "temporary LocalStorage write/read/delete",
       "backend JSON write/read/delete self-test",
-      "minimized report upload with sanitized test matrix"
+      "minimized report upload with sanitized test matrix",
+      "single-click cache preparation followed immediately by diagnostics"
     ],
     "doesNot": [
       "execute memory corruption",
