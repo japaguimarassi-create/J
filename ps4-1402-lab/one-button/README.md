@@ -1,43 +1,60 @@
-# JBherePS4 v1.4.2
+# JBherePS4 v1.5.0
 
-PS4 14.02 browser compatibility lab with source-backed exploit status and non-invasive tests.
+PS4 14.02 browser diagnostics and private report backend.
 
-## Test suite
+## Current conclusion
 
-- Detects a PS4 browser and firmware hint only when the User-Agent exposes it.
-- Records an AppleWebKit version hint when exposed.
-- Runs a deterministic TypedArray check on a 64 KiB buffer.
-- Validates an empty WebAssembly module without loading external code.
-- Checks BigInt, Atomics, SharedArrayBuffer, WebGL/WebGL2, IndexedDB, Cache Storage, Service Worker, LocalStorage and WebCrypto.
-- Tests a temporary LocalStorage value by writing, reading and deleting it.
-- Tests the Blob backend with temporary JSON write/read/delete before uploading the report.
-- Stores a minimized report under `metadata/reports/`.
+The public ConsoleMods FAQ consulted on 2026-11-13 explicitly states that firmware 4.05 through 14.00 has a jailbreak and that there is no jailbreak for 14.02. This repository does not claim otherwise.
 
-These are compatibility checks, not vulnerability tests. A supported browser API does not prove a CVE, userland exploit or kernel exploit.
+A complete PS4 jailbreak requires a userland entry point and a compatible kernel exploit. Browser capability checks are not vulnerability proof. This project does not attempt a kernel exploit, memory corruption, syscall invocation, or payload injection.
 
-## PS4 14.02 evidence (reviewed 2026-11-13)
+## Audit of the 14.02 candidate
 
-- The public exploit chart lists no public userland exploit or public kernel exploit for 14.02.
-- Prolapse is documented as patched since 14.02.
-- Afterglow is publicly released for 12.00, 12.02, 12.50, 12.52, 13.00, 13.02, 13.04, 13.50, 13.52 and 14.00. Its status on 14.02 is unconfirmed and may be patched.
-- A private 14.02 HEN demonstration was reported on 2026-11-05, but no public source code or independently reproducible procedure was reported.
-- The official GoldHEN public release list does not include 14.02.
+Repository: https://github.com/Jfkkfjzkz/ps4-akatsuki-jailbreak
 
-## Metadata visibility
+The public candidate claims 14.02 support, but the inspected source contains material caveats:
 
-The connected store `jbhereps4-metadata` is public, and `/api/metadata` lists the minimized reports. The report excludes full User-Agent, IP address, cookies, credentials, and session identifiers. Vercel still receives ordinary request metadata. Do not submit personal information.
+- The ps4_offsets.js file defines 14.02 by copying the 14.00 object and overriding only a status string.
+- That status string says WebKit is assumed identical to 13.52 and kernel offsets come from 14.00 plus shiftfit.
+- The afterglow-g.js file identifies its exploit base as firmware 14.00.
+- The index.html file contains a password condition that is always true (if true OR password matches) and a referrer check that always returns true. These are interface-gate defects, not proof of exploit failure.
+- The README lists a kernel_1402.bin, but that alone does not prove offsets, payload compatibility, or a physical 14.02 test.
 
-A separate private store `jbhereps4-meta-v2` exists but is not connected to this project and is not used by this deployment.
+Assessment: an unverified 14.02 port, not a reproducible jailbreak. Do not treat it as proven or execute it on the console based on the README claim.
 
-## Explicit limits
+## Report received from the PS4 browser
 
-The site does not execute memory corruption, call kernel syscalls, read/write kernel memory, modify firmware, load ELF/BIN payloads, install GoldHEN, or bypass Sony protections. It cannot convert a browser-capability result into proof of exploitability.
+The reports received on 2026-11-13 indicated:
+
+- Firmware hint: 14.02
+- WebKit hint: 605.1.15
+- Browser class: ps4-browser
+- 11 of 18 browser APIs available
+- 10 of 16 safe checks passed
+- Service Worker, WebAssembly, IndexedDB, WebGL and WebGL2 unavailable in the observed browser profile
+- Cache Storage, Application Cache, BigInt, Atomics, LocalStorage, WebCrypto, Fetch and typed arrays available
+
+These are browser compatibility observations. They do not establish whether a particular vulnerability exists.
+
+## Backend and privacy
+
+- New store: jbhereps4-reports-private-02
+- Access: private
+- Region: gru1
+- Folder: metadata/reports/
+- Uploads are normalized server-side and verified by reading the private object back.
+- The self-test creates a temporary private JSON object, reads it back, and deletes it.
+- Report listing requires METADATA_READ_TOKEN; unauthenticated GET requests are rejected.
+- The client report omits the full User-Agent, cookies, IP address, credentials, account data and session identifiers. Vercel receives ordinary request metadata.
+
+The old public store jbhereps4-metadata has four historical reports. The new deployment no longer writes to it. Those four old objects remain in the legacy store pending a separate cleanup decision; do not confuse them with new private reports.
 
 ## Sources
 
+- https://consolemods.org/wiki/PS4:FAQ
 - https://consolemods.org/wiki/PS4:Exploit_Chart
 - https://www.psdevwiki.com/ps4/Vulnerabilities
 - https://github.com/well0nez/afterglow-web
 - https://github.com/GoldHEN/GoldHEN/releases
 - https://github.com/GoldHEN/GoldHEN/issues/422
-- https://scenegaming.com/en/news/ps4-14-02-hen-webkit-demostracion-saudidos
+- https://github.com/Jfkkfjzkz/ps4-akatsuki-jailbreak
