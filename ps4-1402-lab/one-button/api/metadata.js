@@ -72,11 +72,12 @@ function normalize(body) {
       supportedApiCount: Number.isInteger(summary.supportedApiCount) ? Math.max(0, Math.min(30, summary.supportedApiCount)) : null,
       totalApiCount: Number.isInteger(summary.totalApiCount) ? Math.max(0, Math.min(30, summary.totalApiCount)) : null,
       safeChecksPassed: Number.isInteger(summary.safeChecksPassed) ? Math.max(0, Math.min(30, summary.safeChecksPassed)) : null,
+      safeChecksFailed: Number.isInteger(summary.safeChecksFailed) ? Math.max(0, Math.min(30, summary.safeChecksFailed)) : null,
       safeChecksTotal: Number.isInteger(summary.safeChecksTotal) ? Math.max(0, Math.min(30, summary.safeChecksTotal)) : null
     },
     safeChecks: Array.isArray(body.safeChecks) ? body.safeChecks.slice(0, 20).map((entry) => ({
       name: typeof (entry && entry.name) === "string" ? entry.name.slice(0, 64) : "check",
-      status: entry && entry.status === "PASS" ? "PASS" : "UNAVAILABLE",
+      status: entry && entry.status === "PASS" ? "PASS" : (entry && entry.status === "FAIL" ? "FAIL" : "UNAVAILABLE"),
       detail: typeof (entry && entry.detail) === "string" ? entry.detail.slice(0, 80) : ""
     })) : [],
     evidenceSummary: {
@@ -119,8 +120,14 @@ export default async function handler(req, res) {
   try {
     const requestUrl = new URL(req.url, "https://" + String(req.headers.host || "localhost"));
     const origin = req.headers.origin;
-    if (origin && req.headers.host && new URL(origin).host !== req.headers.host) {
-      return send(res, 403, { ok: false, error: "Origem não autorizada." });
+    if (origin && req.headers.host) {
+      let originHost = "";
+      try { originHost = new URL(origin).host; } catch (error) {
+        return send(res, 403, { ok: false, error: "Origem inválida." });
+      }
+      if (originHost !== req.headers.host) {
+        return send(res, 403, { ok: false, error: "Origem não autorizada." });
+      }
     }
 
     if (req.method === "GET") {
