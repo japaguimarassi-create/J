@@ -79,12 +79,14 @@ def select_download(media: dict[str, Any]) -> str:
     return ""
 
 
-def export(query: str, limit: int, rows_per_page: int, output: Path, api_key: str) -> dict[str, int]:
+def export(query: str, media_type: str, limit: int, rows_per_page: int, output: Path, api_key: str) -> dict[str, int]:
     if not api_key:
         raise SystemExit("Set SMITHSONIAN_API_KEY in the environment. Never put the key in Git.")
     if limit < 1 or limit > 1_000_000 or rows_per_page < 1 or rows_per_page > 100:
         raise ValueError("limit must be 1-1000000 and rows-per-page 1-100.")
-    search_query = "online_media_type:Images"
+    if media_type not in {"image", "3d"}:
+        raise ValueError("media_type must be image or 3d")
+    search_query = "online_media_type:Images" if media_type == "image" else "online_media_type:3D"
     if query.strip():
         search_query += " AND (" + query.strip() + ")"
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -105,7 +107,7 @@ def export(query: str, limit: int, rows_per_page: int, output: Path, api_key: st
             "api_key": api_key,
             "start": start,
             "rows": min(rows_per_page, limit - exported),
-            "sort": "id",
+            "sort": "relevancy",
         })
         response = payload.get("response") or {}
         objects = response.get("rows") or []
@@ -118,7 +120,7 @@ def export(query: str, limit: int, rows_per_page: int, output: Path, api_key: st
             record_id = str(descriptive.get("record_ID") or record.get("id") or "")
             title = first_text((content.get("freetext") or {}).get("title")) or record_id
             description = first_text((content.get("freetext") or {}).get("notes"))
-            source_page = str(descriptive.get("guid") or "https://www.si.edu/openaccess")
+            source_page = str(descriptive.get("record_link") or descriptive.get("guid") or "https://www.si.edu/openaccess")
             for media in media_records(record):
                 usage = media.get("usage") or {}
                 access = str(usage.get("access", "")).strip().upper()
@@ -133,6 +135,8 @@ def export(query: str, limit: int, rows_per_page: int, output: Path, api_key: st
                     continue
                 label = str(media.get("type", "")).casefold()
                 media_kind = "3d" if any(ext in label for ext in ("3d", "model")) else "image"
+                if media_kind != media_type:
+                    continue
                 attribution = first_text((content.get("freetext") or {}).get("creditLine"))
                 batch.append({
                     "asset_id": asset_id,
@@ -169,18 +173,19 @@ def export(query: str, limit: int, rows_per_page: int, output: Path, api_key: st
         if len(objects) < rows_per_page or (total and start >= total):
             break
         time.sleep(0.15)
-    return {"exported_cc0_media": exported, "api_rows_scanned": start, "manifest": str(output.resolve())}
+    return {"media_type": media_type, "exported_cc0_media": exported, "api_rows_scanned": start, "manifest": str(output.resolve())}
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Export Smithsonian Open Access records with per-media CC0 verification.")
     parser.add_argument("--query", default="")
+    parser.add_argument("--media-type", choices=["image", "3d"], default="image")
     parser.add_argument("--limit", type=int, default=1000)
     parser.add_argument("--rows-per-page", type=int, default=100)
     parser.add_argument("--out", type=Path, default=Path("datasets/smithsonian_manifest.jsonl"))
     parser.add_argument("--api-key", default=os.environ.get("SMITHSONIAN_API_KEY", ""))
     args = parser.parse_args()
-    result = export(args.query, args.limit, args.rows_per_page, args.out, args.api_key)
+    result = export(args.query, args.media_type, args.limit, args.rows_per_page, args.out, args.api_key)
     print(json.dumps(result, ensure_ascii=False))
 
 
