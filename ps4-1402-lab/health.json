@@ -1,9 +1,9 @@
 {
   "project": "PS4-14.02-ResearchKit-Web",
-  "version": "1.4.0",
+  "version": "2.0.0",
   "status": "ok",
-  "mode": "browser-preflight-and-firmware-delta-evidence",
+  "mode": "100-safe-browser-checks-and-final-compatibility-gate",
   "exploitExecution": false,
-  "firmware": "14.02",
-  "evidenceReviewed": "2026-11-13"
+  "kernelAccess": false,
+  "firmware": "14.02"
 }
