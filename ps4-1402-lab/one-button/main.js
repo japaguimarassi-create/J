@@ -18,7 +18,7 @@
   async function readEvidence(){var r=await fetch("./evidence.json",{cache:"no-store"});if(!r.ok)throw new Error("Evidências HTTP "+r.status);return r.json();}
   async function postJSON(payload){var r=await fetch("./api/metadata",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(payload),cache:"no-store"});var data;try{data=await r.json();}catch(e){throw new Error("Backend retornou JSON inválido.");}if(!r.ok||!data.ok)throw new Error(data.error||("HTTP "+r.status));return data;}
   async function uploadReport(probe,evidence){
-    var payload={schema:"jbhereps4-client-report/1",timestamp:probe.timestamp,firmwareHint:probe.firmwareHint,webkitHint:probe.webkitHint,deviceClass:probe.deviceClass,online:probe.online,secureContext:probe.secureContext,capabilities:probe.capabilities,evidenceSummary:{firmware14_02PublicChain:evidence.firmware14_02.publicChain,goldhen14_02Supported:!!evidence.goldhen.firmware14_02Supported}};
+    var payload={schema:"jbhereps4-client-report/1",timestamp:probe.timestamp,firmwareHint:probe.firmwareHint,webkitHint:probe.webkitHint,deviceClass:probe.deviceClass,online:probe.online,secureContext:probe.secureContext,capabilities:probe.capabilities,safeChecks:probe.safeChecks,testSummary:probe.testSummary,evidenceSummary:{firmware14_02PublicChain:evidence.firmware14_02.publicChain,goldhen14_02Supported:!!evidence.goldhen.firmware14_02Supported}};
     var check=await postJSON(Object.assign({},payload,{selfTest:true}));
     if(check.selfTest!=="passed"||check.write!==true||check.read!==true||check.delete!==true)throw new Error("Autoteste de armazenamento não confirmou escrita, leitura e remoção.");
     var result=await postJSON(payload);
@@ -31,7 +31,7 @@
     log(lines,"Classe do navegador: "+probe.deviceClass);
     log(lines,"Firmware exposto: "+probe.firmwareHint);
     log(lines,"WebKit exposto: "+probe.webkitHint);
-    log(lines,"APIs disponíveis: "+probe.testSummary.supportedApiCount+"/"+probe.testSummary.totalApiCount);
+    log(lines,"APIs disponíveis: "+probe.testSummary.supportedApiCount+"/"+probe.testSummary.totalApiCount);log(lines,"Testes seguros aprovados: "+probe.testSummary.safeChecksPassed+"/"+probe.testSummary.safeChecksTotal);
     log(lines,"Nenhuma primitiva de exploit foi executada.");
     var report={product:"JBherePS4",version:"1.4.0",timestamp:new Date().toISOString(),probe:probe,evidence:evidence,tests:{browserProbe:"completed",firmwareDetection:probe.firmwareHint==="not-exposed"?"not-exposed":"hint-only",exploitExecution:"not-run",kernelAccess:false,firmwareModification:false,backendStorage:"pending"},jailbreakStatus:"NO_PUBLIC_14_02_CHAIN_VERIFIED",goldhenStatus:"NOT_SUPPORTED_BY_VERIFIED_PUBLIC_RELEASE",conclusion:"O navegador não expõe acesso ao kernel. A pesquisa pública consultada não apresenta cadeia pública de userland + kernel para 14.02. O teste não tenta corrupção de memória nem instalação de payload.",storage:{status:"uploading"},log:lines};
     save("jbhereps4:lastReport",JSON.stringify(report,null,2));
