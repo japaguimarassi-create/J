@@ -44,10 +44,10 @@ These are browser compatibility observations. They do not establish whether a pa
 - Folder: metadata/reports/
 - Uploads are normalized server-side and verified by reading the private object back.
 - The self-test creates a temporary private JSON object, reads it back, and deletes it.
-- Report listing requires METADATA_READ_TOKEN; unauthenticated GET requests are rejected.
+- Report listing and the server-side private Blob self-test require METADATA_READ_TOKEN; unauthenticated GET requests are rejected.
 - The client report omits the full User-Agent, cookies, IP address, credentials, account data and session identifiers. Vercel receives ordinary request metadata.
 
-The old public store jbhereps4-metadata has four historical reports. The new deployment no longer writes to it. Those four old objects remain in the legacy store pending a separate cleanup decision; do not confuse them with new private reports.
+The old public store jbhereps4-metadata was emptied after the four historical reports were migrated and verified in the private store. Its object count and size are now zero. The new deployment no longer references the legacy token.
 
 ## Sources
 
