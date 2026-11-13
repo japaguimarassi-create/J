@@ -4,45 +4,54 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#070b12">
-<meta name="description" content="JBherePS4 — laboratório de diagnóstico não invasivo para PS4 14.02.">
+<meta name="description" content="JBherePS4 14.02 — diagnóstico temporário, não destrutivo e com relatório exportável.">
 <link rel="manifest" href="./manifest.webmanifest">
 <title>JBherePS4 · 14.02 Lab</title>
 <style>
-:root{color-scheme:dark;--bg:#070b12;--text:#f0f5fc;--muted:#91a2b8;--blue:#66baff;--green:#5bd8a5;--amber:#f2c36d;--red:#ff7888}
+:root{color-scheme:dark;--bg:#070b12;--panel:#0c1724;--line:#233b55;--text:#eef5ff;--muted:#9aabc0;--blue:#70c2ff;--green:#5bd8a5;--amber:#f2c36d;--red:#ff7888}
 *{box-sizing:border-box}html,body{min-height:100%;margin:0}
-body{display:grid;place-items:center;background:radial-gradient(ellipse at 50% 25%,#14243a 0,#070b12 58%);font:15px/1.5 system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(--text);padding:22px}
-main{width:min(100%,480px);text-align:center}.mark{font-size:11px;letter-spacing:.24em;color:var(--blue);font-weight:800}
-h1{font-size:clamp(34px,10vw,48px);line-height:1;margin:15px 0 8px;letter-spacing:-.05em}
-.sub{color:var(--muted);font-size:13px;margin:0 0 30px}
-#reportPanel{margin-top:18px;text-align:left}#reportPanel summary{color:var(--blue);font-size:12px;font-weight:800;letter-spacing:.08em;cursor:pointer}#report{width:100%;height:210px;margin-top:10px;padding:10px;border:1px solid #243b55;border-radius:9px;background:#050a11;color:#c8d9eb;font:10px/1.45 ui-monospace,monospace;resize:vertical}
-.orb{width:160px;height:160px;border:1px solid #2b4968;border-radius:50%;margin:0 auto 25px;display:grid;place-items:center;box-shadow:0 0 0 12px #0d1725,0 0 65px #1f6ba044;background:radial-gradient(circle,#193653 0,#0c1724 62%,#0a111b 100%)}
-.orb span{font-size:34px;font-weight:900;letter-spacing:-.08em;color:#9bd2ff;text-shadow:0 0 24px #4aa9ff66}
-button{width:100%;border:1px solid #6dc2ff;background:linear-gradient(180deg,#2087cf,#12639c);color:#fff;font-size:16px;font-weight:850;letter-spacing:.08em;padding:17px 20px;border-radius:13px;box-shadow:0 8px 30px #0873bc33;cursor:pointer;touch-action:manipulation}
+body{display:grid;place-items:center;background:radial-gradient(ellipse at 50% 18%,#14243a 0,#070b12 62%);font:15px/1.5 system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(--text);padding:18px}
+main{width:min(100%,520px);text-align:center}.mark{font-size:10px;letter-spacing:.2em;color:var(--blue);font-weight:850}
+h1{font-size:clamp(34px,10vw,48px);line-height:1;margin:14px 0 7px;letter-spacing:-.055em}
+.sub{color:var(--muted);font-size:12px;margin:0 0 23px}
+.orb{width:132px;height:132px;border:1px solid #2b4968;border-radius:50%;margin:0 auto 21px;display:grid;place-items:center;box-shadow:0 0 0 10px #0d1725,0 0 55px #1f6ba044;background:radial-gradient(circle,#193653 0,#0c1724 65%,#0a111b 100%)}
+.orb span{font-size:30px;font-weight:900;letter-spacing:-.08em;color:#9bd2ff;text-shadow:0 0 24px #4aa9ff66}
+button{width:100%;border:1px solid #6dc2ff;background:linear-gradient(180deg,#2087cf,#12639c);color:#fff;font-size:15px;font-weight:850;letter-spacing:.06em;padding:15px 16px;border-radius:12px;box-shadow:0 8px 28px #0873bc33;cursor:pointer;touch-action:manipulation}
 button:disabled{opacity:.55;cursor:wait}
-#state{min-height:25px;margin:19px 0 4px;font-weight:800;color:var(--blue)}
-#detail{min-height:58px;margin:0;color:var(--muted);font-size:12px}
-#progress{height:3px;background:#142236;border-radius:9px;overflow:hidden;margin:18px 0 0}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}
+.actions button{font-size:12px;padding:12px 8px;background:#101e2d;border:1px solid var(--line);box-shadow:none}
+#state{min-height:24px;margin:18px 0 4px;font-weight:850;font-size:13px;color:var(--blue)}
+#detail{min-height:45px;margin:0;color:var(--muted);font-size:12px}
+#progress{height:3px;background:#142236;border-radius:9px;overflow:hidden;margin:15px 0 17px}
 #progress i{display:block;width:0;height:100%;background:var(--green);transition:width .25s}
-footer{margin-top:30px;color:#596b82;font-size:10px;letter-spacing:.08em}
-a{color:var(--blue)}.privacy{font-size:10px;color:var(--muted);margin:12px 0 0}.good{color:var(--green)!important}.warn{color:var(--amber)!important}.bad{color:var(--red)!important}
+.info{padding:12px 13px;margin:12px 0;text-align:left;background:#0b1521;border:1px solid #1b3047;border-radius:11px;color:var(--muted);font-size:11px}
+.info strong{color:var(--text)}.info .warn{color:var(--amber)}
+#reportPanel{margin-top:17px;text-align:left}#reportPanel summary{color:var(--blue);font-size:11px;font-weight:850;letter-spacing:.08em;cursor:pointer}
+#report{width:100%;height:220px;margin-top:9px;padding:10px;border:1px solid var(--line);border-radius:9px;background:#050a11;color:#c8d9eb;font:10px/1.45 ui-monospace,monospace;resize:vertical}
+footer{margin-top:23px;color:#596b82;font-size:9px;letter-spacing:.08em}
+.good{color:var(--green)!important}.warn{color:var(--amber)!important}.bad{color:var(--red)!important}
+[hidden]{display:none!important}
 </style>
 </head>
 <body>
 <main>
 <div class="mark">PS4 SECURITY RESEARCH · SAFE MODE</div>
 <h1>JBherePS4</h1>
-<p class="sub">Laboratório 14.02 · auditoria de cadeia experimental · sem alteração no console</p>
+<p class="sub">14.02 · sessão temporária de diagnóstico · v1.6.0</p>
 <div class="orb" aria-hidden="true"><span>14.02</span></div>
-<button id="start" type="button">EXECUTAR TESTE</button>
-<p class="privacy">Executa testes de compatibilidade do navegador e valida o armazenamento privado. Não executa exploits, não acessa memória do kernel nem instala payloads.</p>
-<p class="privacy"><strong>ESTADO REAL DO 14.02:</strong> há um relato experimental de acesso parcial ao kernel, mas o próprio registro informa kernel panic ao iniciar jogos e falha na inicialização de HEN/GoldHEN. Não é um jailbreak utilizável ou validado independentemente. O laboratório não executa essa cadeia.</p>
-<p class="privacy">O relatório técnico reduzido é enviado para armazenamento PRIVADO, com leitura autenticada. Não inclui cookies, IP, User-Agent completo, credenciais nem dados da conta. A infraestrutura recebe os metadados normais da conexão.</p>
-<p class="privacy">RELATÓRIOS EM metadata/reports/ · ACESSO PRIVADO E AUTENTICADO</p>
+<button id="start" type="button">INICIAR DIAGNÓSTICO</button>
+<div class="actions">
+<button id="downloadReport" type="button" hidden>BAIXAR RELATÓRIO</button>
+<button id="copyReport" type="button" hidden>COPIAR JSON</button>
+</div>
 <div id="state" role="status" aria-live="polite">PRONTO</div>
-<p id="detail">Um toque prepara o cache, executa os testes e envia o relatório nesta sessão. É necessária conexão para o envio; sem rede, o JSON permanece salvo localmente.</p>
-<details id="reportPanel" hidden><summary>VER RELATÓRIO JSON</summary><textarea id="report" readonly spellcheck="false" aria-label="Relatório de diagnóstico"></textarea></details>
+<p id="detail">Uma execução por sessão. Os testes usam somente APIs públicas do navegador e não modificam o sistema do console.</p>
 <div id="progress"><i id="bar"></i></div>
-<footer>JBHEREPS4 v1.5.1 · 14.02 · AUDITORIA EXPERIMENTAL · BACKEND PRIVADO</footer>
+<div class="info"><strong>O que esta versão faz:</strong> verifica APIs do navegador, testa operações locais pequenas, prepara cache quando suportado, registra evidências e tenta salvar uma cópia privada do relatório. O arquivo JSON também pode ser baixado para o celular ou para o armazenamento do console, conforme o navegador permitir.</div>
+<div class="info"><strong class="warn">Limite técnico:</strong> isso não é um HEN nem um jailbreak. Não há cadeia completa de 14.02 verificada neste projeto. A alegação pública de acesso parcial ao kernel relata kernel panic ao iniciar jogos e falha de inicialização do HEN/GoldHEN; por isso, esta página não executa essa cadeia.</div>
+<div class="info">O relatório não coleta cookies, credenciais, conteúdo da conta ou User-Agent completo. O firmware inferido pelo User-Agent é apenas uma indicação, não uma leitura confiável das configurações do PS4.</div>
+<details id="reportPanel" hidden><summary>VER RELATÓRIO JSON</summary><textarea id="report" readonly spellcheck="false" aria-label="Relatório de diagnóstico"></textarea></details>
+<footer>JBHEREPS4 v1.6.0 · DIAGNÓSTICO NÃO DESTRUTIVO · BACKEND PRIVADO</footer>
 </main>
 <script src="./probe.js" defer></script>
 <script src="./main.js" defer></script>
