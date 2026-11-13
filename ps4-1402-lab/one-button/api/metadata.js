@@ -85,6 +85,17 @@ export default async function handler(req, res) {
       return send(res, 405, { ok: false, error: "Método não permitido." });
     }
     if (isRateLimited(req)) return send(res, 429, { ok: false, error: "Limite de envios atingido; tente mais tarde." });
+    if (req.method === "POST" && req.body && req.body.cleanupKnownTests === true) {
+      if (!origin || origin !== "https://" + req.headers.host) {
+        return send(res, 403, { ok: false, error: "Origem não autorizada." });
+      }
+      const testPaths = [
+        "metadata/reports/3f47b122-1a2b-4ea1-817a-37b3444c7ef4.json",
+        "metadata/reports/0095ee0f-87c0-43b1-88af-ba9430d4bb56.json"
+      ];
+      await del(testPaths);
+      return send(res, 200, { ok: true, removedTestReports: testPaths.length });
+    }
     const length = Number(req.headers["content-length"] || 0);
     if (length > MAX_BODY_BYTES) return send(res, 413, { ok: false, error: "Relatório excede o limite." });
     let body = req.body;
