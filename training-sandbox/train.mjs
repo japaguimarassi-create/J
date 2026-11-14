@@ -82,15 +82,25 @@ const classes = {
   }
 };
 
+const semanticTerms = {
+  forest:{pt:"floresta bosque selva árvores vegetação natureza plantas",en:"forest woodland jungle trees vegetation nature plants",es:"bosque selva árboles vegetación naturaleza plantas",zh:"森林 树林 丛林 树木 植物 自然",hi:"जंगल वन पेड़ पौधे प्रकृति वनस्पति",ar:"غابة غابات أشجار نباتات طبيعة"},
+  city:{pt:"cidade metrópole prédios edifícios ruas urbano",en:"city metropolis buildings skyscrapers streets urban",es:"ciudad metrópolis edificios rascacielos calles urbano",zh:"城市 都市 建筑 大楼 街道",hi:"शहर महानगर इमारतें भवन सड़कें",ar:"مدينة مدن مباني أبراج شوارع"},
+  character:{pt:"personagem humano pessoa corpo cabeça braços pernas",en:"character human person body head arms legs",es:"personaje humano persona cuerpo cabeza brazos piernas",zh:"角色 人物 人类 身体 头部 手臂 腿",hi:"पात्र मानव व्यक्ति शरीर सिर हाथ पैर",ar:"شخصية إنسان شخص جسم رأس أذرع أرجل"},
+  vehicle:{pt:"veículo carro automóvel rodas motor transporte",en:"vehicle car automobile wheels engine transport",es:"vehículo coche automóvil ruedas motor transporte",zh:"车辆 汽车 车轮 发动机 交通",hi:"वाहन कार पहिए इंजन परिवहन",ar:"مركبة سيارة عجلات محرك نقل"},
+  interior:{pt:"sala quarto cozinha interior mesa cadeira janela ambiente",en:"room bedroom kitchen interior table chair window space",es:"habitación dormitorio cocina interior mesa silla ventana",zh:"房间 卧室 厨房 室内 桌子 椅子 窗户",hi:"कमरा शयनकक्ष रसोई अंदरूनी मेज कुर्सी खिड़की",ar:"غرفة نوم مطبخ داخلي طاولة كرسي نافذة"},
+  abstract:{pt:"abstrato arte escultura formas geométricas composição",en:"abstract art sculpture geometric shapes composition",es:"abstracto arte escultura formas geométricas composición",zh:"抽象 艺术 雕塑 几何 形状 组合",hi:"अमूर्त कला मूर्तिकला ज्यामितीय आकार रचना",ar:"تجريدي فن منحوتة أشكال هندسية تكوين"}
+};
+
 const examples = [];
 for (const [label, languages] of Object.entries(classes)) {
   for (const [language, prompts] of Object.entries(languages)) {
     prompts.forEach((prompt, promptIndex) => {
+      const concepts = semanticTerms[label][language];
       const variants = [
-        prompt,
-        "3D " + prompt,
-        prompt + " 3D low-poly geometry",
-        "high detail 3D scene: " + prompt
+        prompt + " " + concepts,
+        "3D " + prompt + " " + concepts,
+        prompt + " 3D low-poly geometry " + concepts,
+        "high detail 3D scene: " + prompt + " " + concepts
       ];
       for (const text of variants) {
         examples.push({
