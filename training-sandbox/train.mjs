@@ -297,6 +297,7 @@ for (const spec of modelSpecs) {
   const uvLines = obj.split("\n").filter(line => line.startsWith("vt ")).length;
   if (vertexLines !== spec.vertices.length || uvLines !== spec.vertices.length) throw new Error("Mesh export validation failed: " + spec.name);
 }
+console.log(JSON.stringify({ trainingAccuracy: accuracy, validationAccuracy, finalLoss, samples: examples.length }, null, 2));
 if (!Number.isFinite(validationAccuracy) || validationAccuracy < 0.7) {
   throw new Error("Sandbox validation failed: " + validationAccuracy);
 }
