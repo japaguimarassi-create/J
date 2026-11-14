@@ -1,0 +1,73 @@
+name: 3D AI Studio — verify and Android APK
+
+on:
+  push:
+    branches:
+      - "3d-ai-studio/**"
+    paths:
+      - "3d-ai-studio/**"
+      - ".github/workflows/3d-ai-studio-android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Typecheck, tests and web build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 3d-ai-studio
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Verify project
+        run: npm run verify
+
+  android:
+    name: Build Android debug APK
+    needs: verify
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: 3d-ai-studio
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install Android packages
+        run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build web app
+        run: npm run build
+      - name: Create Android platform
+        run: npx cap add android
+      - name: Sync Capacitor
+        run: npx cap sync android
+      - name: Assemble APK
+        run: chmod +x android/gradlew && cd android && ./gradlew assembleDebug --no-daemon --stacktrace
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: 3d-ai-studio-debug-apk
+          path: 3d-ai-studio/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
