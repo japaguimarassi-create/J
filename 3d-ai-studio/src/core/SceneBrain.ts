@@ -8,6 +8,7 @@ interface SceneCheckpoint {
     inputHidden: number[][];
     hiddenBias: number[];
     hiddenOutput: number[][];
+    inputOutput: number[][];
     outputBias: number[];
   };
   training: { validationAccuracy: number; samples: number; epochs: number };
@@ -55,7 +56,7 @@ export class SceneBrain {
     const norm = Math.sqrt(input.reduce((sum, value) => sum + value * value, 0)) || 1;
     for (let i = 0; i < input.length; i++) input[i] /= norm;
 
-    const { inputHidden, hiddenBias, hiddenOutput, outputBias } = this.checkpoint.weights;
+    const { inputHidden, hiddenBias, hiddenOutput, inputOutput, outputBias } = this.checkpoint.weights;
     const hidden = new Float64Array(this.checkpoint.architecture.hiddenSize);
     for (let row = 0; row < hidden.length; row++) {
       let value = hiddenBias[row];
@@ -65,6 +66,7 @@ export class SceneBrain {
     const logits = outputBias.map((bias, row) => {
       let value = bias;
       for (let col = 0; col < hidden.length; col++) value += hiddenOutput[row][col] * hidden[col];
+      for (let col = 0; col < input.length; col++) value += inputOutput[row][col] * input[col];
       return value;
     });
     const max = Math.max(...logits);
