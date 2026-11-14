@@ -181,6 +181,7 @@ function predict(text) {
   const logits = b2.map((bias, row) => {
     let value = bias;
     for (let col = 0; col < hiddenSize; col++) value += w2[row][col] * h[col];
+    for (let col = 0; col < inputSize; col++) value += wSkip[row][col] * x[col];
     return value;
   });
   const probs = softmax(logits);
