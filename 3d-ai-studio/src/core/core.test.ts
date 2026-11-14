@@ -42,5 +42,10 @@ describe("procedural neural engine", () => {
     const plan = planScene("uma cidade futurista");
     expect(plan.objects.length).toBeGreaterThan(1);
     expect(plan.objects.every((object) => object.id && object.position.length === 3)).toBe(true);
+    const forest = planScene("make something", "forest");
+    const vehicle = planScene("make something", "vehicle");
+    expect(forest.category).toBe("forest");
+    expect(forest.objects.some((object) => object.kind === "cone")).toBe(true);
+    expect(vehicle.objects.some((object) => object.kind === "cylinder")).toBe(true);
   });
 });
