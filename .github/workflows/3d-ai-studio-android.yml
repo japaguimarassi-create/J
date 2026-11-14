@@ -32,7 +32,7 @@ jobs:
           name: 3d-ai-training-sandbox
           path: training-sandbox/generated/
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 90
 
   verify:
     name: Typecheck, tests and web build
