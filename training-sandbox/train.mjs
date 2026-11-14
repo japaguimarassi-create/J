@@ -289,7 +289,7 @@ write(path.join(generated,"training-report.json"), {
 });
 for (const spec of modelSpecs) {
   const obj = fs.readFileSync(path.join(modelDir, spec.name + ".obj"), "utf8");
-  const vertexLines = obj.split("\\n").filter(line => line.startsWith("v ")).length;
+  const vertexLines = obj.split("\n").filter(line => line.startsWith("v ")).length;
   const uvLines = obj.split("\\n").filter(line => line.startsWith("vt ")).length;
   if (vertexLines !== spec.vertices.length || uvLines !== spec.vertices.length) throw new Error("Mesh export validation failed: " + spec.name);
 }
