@@ -205,18 +205,35 @@ const modelSpecs = [
   { name: "house", title: "House", vertices: [[-1,0,-1],[1,0,-1],[1,1.2,-1],[-1,1.2,-1],[-1,0,1],[1,0,1],[1,1.2,1],[-1,1.2,1],[0,2,-1],[0,2,1]], faces: [[1,2,3,4],[5,8,7,6],[1,5,6,2],[4,3,7,8],[4,8,10,9],[3,7,10,9],[1,4,9],[2,3,9]] },
   { name: "car", title: "Car blockout", vertices: [[-1,-.3,-2],[1,-.3,-2],[1,.3,-2],[-1,.3,-2],[-.7,-.3,1.5],[.7,-.3,1.5],[.7,.3,1.5],[-.7,.3,1.5],[-.5,.35,-.8],[.5,.35,-.8],[.4,.85,.7],[-.4,.85,.7]], faces: [[1,2,3,4],[5,8,7,6],[1,5,6,2],[4,3,7,8],[9,10,11,12]] },
   { name: "crystal", title: "Crystal", vertices: [[0,1.8,0],[-.8,0,-.5],[.8,0,-.5],[.8,0,.5],[-.8,0,.5],[0,-1,0]], faces: [[1,2,3],[1,3,4],[1,4,5],[1,5,2],[6,3,2],[6,4,3],[6,5,4],[6,2,5]] },
-  { name: "ring", title: "Ring", vertices: Array.from({length:16},(_,i)=>[Math.cos(i*Math.PI/8)*1.2,Math.sin(i*Math.PI/8)*1.2,0]), faces: Array.from({length:16},(_,i)=>[i+1,((i+1)%16)+1]) }
+  { name: "ring", title: "Ring", vertices: Array.from({length:32},(_,i)=>{const a=Math.floor(i/2)*Math.PI/8;const r=i%2?0.82:1.18;return [Math.cos(a)*r,Math.sin(a)*r,0];}), faces: Array.from({length:16},(_,i)=>[i*2+1,i*2+2,((i*2+3)%32)+1,((i*2+2)%32)+1]) }
 ];
 const modelManifest = [];
 for (const spec of modelSpecs) {
   const lines = ["# " + spec.title, "o " + spec.name, "mtllib studio.mtl", "usemtl base"];
   for (const vertex of spec.vertices) lines.push("v " + vertex.join(" "));
-  for (const face of spec.faces) lines.push("f " + face.join(" "));
+  for (const vertex of spec.vertices) {
+    const length = Math.hypot(vertex[0], vertex[1], vertex[2]) || 1;
+    lines.push("vt " + ((vertex[0] / length + 1) / 2).toFixed(5) + " " + ((vertex[1] / length + 1) / 2).toFixed(5));
+  }
+  for (const face of spec.faces) {
+    if (face.length < 3) {
+      lines.push("l " + face.join(" "));
+      continue;
+    }
+    const a = spec.vertices[face[0] - 1], b = spec.vertices[face[1] - 1], c = spec.vertices[face[2] - 1];
+    const u = [b[0]-a[0], b[1]-a[1], b[2]-a[2]];
+    const v = [c[0]-a[0], c[1]-a[1], c[2]-a[2]];
+    const n = [u[1]*v[2]-u[2]*v[1], u[2]*v[0]-u[0]*v[2], u[0]*v[1]-u[1]*v[0]];
+    const norm = Math.hypot(...n) || 1;
+    lines.push("vn " + n.map(value => (value/norm).toFixed(5)).join(" "));
+    const normalId = lines.filter(line => line.startsWith("vn ")).length;
+    lines.push("f " + face.map(index => index + "/" + index + "/" + normalId).join(" "));
+  }
   write(path.join(modelDir, spec.name + ".obj"), lines.join("\n") + "\n");
   modelManifest.push({
     id: spec.name, title: spec.title, vertices: spec.vertices.length,
     faces: spec.faces.length, topology: spec.faces.some(face=>face.length===2) ? "edges" : "polygon mesh",
-    normals: "computed from face winding", uv: "generated planar UV recipe",
+    normals: "generated per-face cross product", uv: "planar UV coordinates written to OBJ",
     material: "studio.mtl", recipe: "mesh.vertices = " + JSON.stringify(spec.vertices) + "; mesh.faces = " + JSON.stringify(spec.faces)
   });
 }
@@ -258,7 +275,7 @@ write(path.join(generated,"training-report.json"), {
   task:"multilingual prompt-to-scene-category",
   languages:["Portuguese","English","Spanish","Mandarin Chinese","Hindi","Arabic"],
   examples:examples.length,
-  vocabularySize,
+  vocabularySize: vocabulary.length,
   epochs,
   finalLoss,
   trainingAccuracy:accuracy,
