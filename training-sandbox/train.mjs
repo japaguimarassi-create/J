@@ -125,6 +125,7 @@ const outputSize = labels.length;
 const w1 = matrix(hiddenSize, inputSize, Math.sqrt(2 / inputSize));
 const b1 = Array(hiddenSize).fill(0);
 const w2 = matrix(outputSize, hiddenSize, Math.sqrt(2 / hiddenSize));
+const wSkip = matrix(outputSize, inputSize, 0.01);
 const b2 = Array(outputSize).fill(0);
 const learningRate = 0.08;
 const validation = examples.filter((_, index) => index % 4 === 0);
@@ -144,6 +145,7 @@ for (let epoch = 0; epoch < epochs; epoch++) {
     const logits = b2.map((bias, row) => {
       let value = bias;
       for (let col = 0; col < hiddenSize; col++) value += w2[row][col] * h[col];
+      for (let col = 0; col < inputSize; col++) value += wSkip[row][col] * x[col];
       return value;
     });
     const probs = softmax(logits);
@@ -157,6 +159,7 @@ for (let epoch = 0; epoch < epochs; epoch++) {
         gradHidden[col] += gradOut[row] * w2[row][col];
         w2[row][col] -= learningRate * gradOut[row] * h[col];
       }
+      for (let col = 0; col < inputSize; col++) wSkip[row][col] -= learningRate * gradOut[row] * x[col];
       b2[row] -= learningRate * gradOut[row];
     }
     for (let row = 0; row < hiddenSize; row++) {
@@ -192,7 +195,7 @@ const checkpoint = {
   trainedFromScratch: true,
   architecture: { type: "bag-of-subword-features-mlp", inputSize, hiddenSize, outputSize, labels },
   vocabulary,
-  weights: { inputHidden: w1, hiddenBias: b1, hiddenOutput: w2, outputBias: b2 },
+  weights: { inputHidden: w1, hiddenBias: b1, hiddenOutput: w2, inputOutput: wSkip, outputBias: b2 },
   training: { epochs, samples: examples.length, finalLoss, trainingAccuracy: accuracy, validationAccuracy, seed: 20261114 }
 };
 write(path.join(generated, "scene-brain.json"), checkpoint);
@@ -293,7 +296,7 @@ for (const spec of modelSpecs) {
   const uvLines = obj.split("\n").filter(line => line.startsWith("vt ")).length;
   if (vertexLines !== spec.vertices.length || uvLines !== spec.vertices.length) throw new Error("Mesh export validation failed: " + spec.name);
 }
-if (!Number.isFinite(validationAccuracy) || validationAccuracy < 0.55) {
+if (!Number.isFinite(validationAccuracy) || validationAccuracy < 0.7) {
   throw new Error("Sandbox validation failed: " + validationAccuracy);
 }
 console.log(JSON.stringify({samples:examples.length,vocabulary:inputSize,epochs,finalLoss,trainingAccuracy:accuracy,validationAccuracy,models:modelManifest.length,animations:6},null,2));
