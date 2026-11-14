@@ -60,7 +60,28 @@ jobs:
           test -n "$SDKMANAGER"
           echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
-          yes | "$SDKMANAGER" --licenses >/dev/null
+          "$SDKMANAGER" --licenses >/dev/null <<'LICENSES'
+          y
+          y
+          y
+          y
+          y
+          y
+          y
+          y
+          y
+          y
+          y
+          y
+          y
+          y
+          y
+          y
+          y
+          y
+          y
+          y
+          LICENSES
           "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
