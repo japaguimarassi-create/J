@@ -19,6 +19,8 @@ export class StudioViewport {
   private readonly meshes = new Map<string, THREE.Mesh>();
   private animationFrame = 0;
   private playing = false;
+  private animationPreset: "idle" | "orbit" | "walk" | "run" | "jump" | "combo" = "idle";
+  private animationTime = 0;
   private selectedId: string | null = null;
   private readonly resizeObserver: ResizeObserver;
   private readonly onPointerDown = (event: PointerEvent) => this.handlePointer(event);
@@ -65,6 +67,8 @@ export class StudioViewport {
     if (kind === "sphere") return new THREE.SphereGeometry(0.78, 32, 24);
     if (kind === "capsule") return new THREE.CapsuleGeometry(0.48, 1.35, 5, 12);
     if (kind === "torus") return new THREE.TorusGeometry(0.72, 0.18, 12, 48);
+    if (kind === "cylinder") return new THREE.CylinderGeometry(0.5, 0.5, 1.4, 20);
+    if (kind === "cone") return new THREE.ConeGeometry(0.72, 1.5, 24);
     return new THREE.BoxGeometry(1.35, 1.35, 1.35);
   }
 
@@ -83,6 +87,8 @@ export class StudioViewport {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.position.x = this.meshes.size * 0.18;
+    mesh.userData.basePosition = mesh.position.toArray();
+    mesh.userData.baseRotation = mesh.rotation.toArray();
     this.assetRoot.add(mesh);
     this.meshes.set(id, mesh);
     this.select(id);
@@ -108,6 +114,8 @@ export class StudioViewport {
       mesh.userData.id = item.id;
       mesh.position.set(...item.position);
       mesh.scale.set(...item.scale);
+      mesh.userData.basePosition = mesh.position.toArray();
+      mesh.userData.baseRotation = mesh.rotation.toArray();
       this.assetRoot.add(mesh);
       this.meshes.set(item.id, mesh);
     }
@@ -152,13 +160,26 @@ export class StudioViewport {
     this.playing = value;
   }
 
+  setAnimationPreset(preset: "idle" | "orbit" | "walk" | "run" | "jump" | "combo") {
+    this.animationPreset = preset;
+    this.animationTime = 0;
+    for (const mesh of this.meshes.values()) {
+      const position = mesh.userData.basePosition as [number, number, number] | undefined;
+      const rotation = mesh.userData.baseRotation as [number, number, number, number] | undefined;
+      if (position) mesh.position.set(...position);
+      if (rotation) mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
+    }
+  }
+
   snapshot(): SceneSnapshot {
     const objects: PlannedObject[] = Array.from(this.meshes.entries()).map(([id, mesh]) => ({
       id,
       name: mesh.name,
       kind: mesh.geometry.type.includes("Sphere") ? "sphere" :
         mesh.geometry.type.includes("Capsule") ? "capsule" :
-        mesh.geometry.type.includes("Torus") ? "torus" : "box",
+        mesh.geometry.type.includes("Torus") ? "torus" :
+        mesh.geometry.type.includes("Cylinder") ? "cylinder" :
+        mesh.geometry.type.includes("Cone") ? "cone" : "box",
       color: "#" + (mesh.material as THREE.MeshStandardMaterial).color.getHexString(),
       position: [mesh.position.x, mesh.position.y, mesh.position.z],
       scale: [mesh.scale.x, mesh.scale.y, mesh.scale.z]
@@ -179,7 +200,38 @@ export class StudioViewport {
   private animate = () => {
     this.animationFrame = requestAnimationFrame(this.animate);
     if (this.playing) {
-      for (const mesh of this.meshes.values()) mesh.rotation.y += 0.004;
+      this.animationTime += 1 / 60;
+      let index = 0;
+      for (const mesh of this.meshes.values()) {
+        const basePosition = mesh.userData.basePosition as [number, number, number] | undefined;
+        const baseRotation = mesh.userData.baseRotation as [number, number, number, number] | undefined;
+        if (!basePosition || !baseRotation) continue;
+        const speed = this.animationPreset === "run" ? 13 : this.animationPreset === "walk" ? 6 : this.animationPreset === "combo" ? 9 : 2.2;
+        const phase = this.animationTime * speed + index * 0.72;
+        mesh.position.set(...basePosition);
+        mesh.rotation.set(baseRotation[0], baseRotation[1], baseRotation[2]);
+        if (this.animationPreset === "orbit") {
+          mesh.rotation.y += this.animationTime * 0.35;
+        } else if (this.animationPreset === "walk") {
+          mesh.position.y += Math.abs(Math.sin(phase * 2)) * 0.08;
+          mesh.rotation.x += Math.sin(phase) * 0.28;
+        } else if (this.animationPreset === "run") {
+          mesh.position.y += Math.abs(Math.sin(phase * 2)) * 0.16;
+          mesh.rotation.x += Math.sin(phase) * 0.52;
+        } else if (this.animationPreset === "jump") {
+          mesh.position.y += Math.max(0, Math.sin((this.animationTime % 1.2) / 1.2 * Math.PI)) * 0.95;
+          mesh.rotation.x += Math.sin(phase) * 0.08;
+        } else if (this.animationPreset === "combo") {
+          mesh.position.y += Math.abs(Math.sin(phase * 1.7)) * 0.22;
+          mesh.rotation.y += Math.sin(phase) * 0.62;
+          mesh.rotation.x += Math.cos(phase * 1.3) * 0.34;
+          mesh.position.x += Math.sin(phase * 0.55) * 0.12;
+        } else {
+          mesh.position.y += Math.abs(Math.sin(phase)) * 0.035;
+          mesh.rotation.y += Math.sin(phase) * 0.06;
+        }
+        index++;
+      }
     }
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
