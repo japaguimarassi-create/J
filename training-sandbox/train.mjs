@@ -127,11 +127,13 @@ const b1 = Array(hiddenSize).fill(0);
 const w2 = matrix(outputSize, hiddenSize, Math.sqrt(2 / hiddenSize));
 const b2 = Array(outputSize).fill(0);
 const learningRate = 0.035;
+const validation = examples.filter((_, index) => index % 4 === 0);
+const trainingExamples = examples.filter((_, index) => index % 4 !== 0);
 let finalLoss = 0;
 const epochs = Number(process.env.TRAIN_EPOCHS || 180);
 for (let epoch = 0; epoch < epochs; epoch++) {
   let epochLoss = 0;
-  for (const sample of examples) {
+  for (const sample of trainingExamples) {
     const x = vectorize(sample.text);
     const h = new Float64Array(hiddenSize);
     for (let row = 0; row < hiddenSize; row++) {
@@ -163,7 +165,7 @@ for (let epoch = 0; epoch < epochs; epoch++) {
       b1[row] -= learningRate * gradHidden[row];
     }
   }
-  finalLoss = epochLoss / examples.length;
+  finalLoss = epochLoss / trainingExamples.length;
 }
 function predict(text) {
   const x = vectorize(text);
@@ -182,9 +184,8 @@ function predict(text) {
   const best = probs.indexOf(Math.max(...probs));
   return { label: labels[best], confidence: probs[best], probabilities: Object.fromEntries(labels.map((label, index) => [label, probs[index]])) };
 }
-const correct = examples.filter(sample => predict(sample.text).label === sample.label).length;
-const accuracy = correct / examples.length;
-const validation = examples.filter((_, index) => index % 4 === 0);
+const correct = trainingExamples.filter(sample => predict(sample.text).label === sample.label).length;
+const accuracy = correct / trainingExamples.length;
 const validationAccuracy = validation.filter(sample => predict(sample.text).label === sample.label).length / validation.length;
 const checkpoint = {
   format: "3d-ai-studio-scene-brain-v1",
@@ -237,7 +238,7 @@ for (const spec of modelSpecs) {
     material: "studio.mtl", recipe: "mesh.vertices = " + JSON.stringify(spec.vertices) + "; mesh.faces = " + JSON.stringify(spec.faces)
   });
 }
-write(path.join(modelDir, "studio.mtl"), "newmtl base\nKa 0.12 0.14 0.2\nKd 0.42 0.55 0.9\nKs 0.4 0.4 0.4\nNs 48\n");
+write(path.join(modelDir, "studio.mtl"), "newmtl base\nKa 0.12 0.14 0.2\nKd 0.42 0.55 0.9\nKs 0.4 0.4 0.4\nNs 48\nmap_Kd ../textures/checker.ppm\n");
 function ppm(name, colorA, colorB) {
   const width = 16, height = 16, pixels = [];
   for (let y=0;y<height;y++) for(let x=0;x<width;x++) {
@@ -286,6 +287,12 @@ write(path.join(generated,"training-report.json"), {
   advancedAnimationClips:2,
   note:"Small baseline classifier, not a general-purpose LLM or a full 3D generator."
 });
+for (const spec of modelSpecs) {
+  const obj = fs.readFileSync(path.join(modelDir, spec.name + ".obj"), "utf8");
+  const vertexLines = obj.split("\\n").filter(line => line.startsWith("v ")).length;
+  const uvLines = obj.split("\\n").filter(line => line.startsWith("vt ")).length;
+  if (vertexLines !== spec.vertices.length || uvLines !== spec.vertices.length) throw new Error("Mesh export validation failed: " + spec.name);
+}
 if (!Number.isFinite(validationAccuracy) || validationAccuracy < 0.7) {
   throw new Error("Sandbox validation failed: " + validationAccuracy);
 }
