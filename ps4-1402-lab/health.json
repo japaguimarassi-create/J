@@ -1,9 +1,0 @@
-{
-  "project": "PS4-14.02-ResearchKit-Web",
-  "version": "2.0.0",
-  "status": "ok",
-  "mode": "100-safe-browser-checks-and-final-compatibility-gate",
-  "exploitExecution": false,
-  "kernelAccess": false,
-  "firmware": "14.02"
-}

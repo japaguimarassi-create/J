@@ -1,9 +1,0 @@
-{
-  "name": "JBherePS4",
-  "short_name": "JBherePS4",
-  "start_url": "./",
-  "display": "standalone",
-  "background_color": "#070b12",
-  "theme_color": "#070b12",
-  "description": "JBherePS4 14.02 — testes temporários de APIs do navegador, sem exploração ou alteração do console."
-}

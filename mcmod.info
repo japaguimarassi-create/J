@@ -1,0 +1,12 @@
+[
+  {
+    "modid": "intx",
+    "name": "IntX - Expanded Numeric Engine",
+    "description": "Arbitrary-precision player stats, exact NBT persistence, synchronized values, and optional Long DataWatcher support.",
+    "version": "${version}",
+    "mcversion": "${mcversion}",
+    "url": "https://github.com/japaguimarassi-create/J/tree/intx-1.7.10",
+    "authorList": ["japaguimarassi-create"],
+    "dependencies": []
+  }
+]
