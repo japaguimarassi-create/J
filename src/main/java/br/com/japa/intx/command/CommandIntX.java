@@ -112,7 +112,7 @@ public final class CommandIntX extends CommandBase {
     }
 
     private static EntityPlayerMP findPlayer(String name) {
-        return MinecraftServer.getServer().getConfigurationManager().getPlayerByUsername(name);
+        return MinecraftServer.getServer().getConfigurationManager().func_152612_a(name);
     }
 
     private static String shortened(BigInteger value) {
