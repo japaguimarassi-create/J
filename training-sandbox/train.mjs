@@ -85,9 +85,24 @@ const classes = {
 const examples = [];
 for (const [label, languages] of Object.entries(classes)) {
   for (const [language, prompts] of Object.entries(languages)) {
-    for (const prompt of prompts) {
-      examples.push({ text: prompt, label, language, tokens: tokenize(prompt) });
-    }
+    prompts.forEach((prompt, promptIndex) => {
+      const variants = [
+        prompt,
+        "3D " + prompt,
+        prompt + " 3D low-poly geometry",
+        "high detail 3D scene: " + prompt
+      ];
+      for (const text of variants) {
+        examples.push({
+          text,
+          label,
+          language,
+          group: label + ":" + language + ":" + promptIndex,
+          split: promptIndex === 2 ? "validation" : "train",
+          tokens: tokenize(text)
+        });
+      }
+    });
   }
 }
 for (let i = examples.length - 1; i > 0; i--) {
@@ -128,10 +143,10 @@ const w2 = matrix(outputSize, hiddenSize, Math.sqrt(2 / hiddenSize));
 const wSkip = matrix(outputSize, inputSize, 0.01);
 const b2 = Array(outputSize).fill(0);
 const learningRate = 0.08;
-const validation = examples.filter((_, index) => index % 4 === 0);
-const trainingExamples = examples.filter((_, index) => index % 4 !== 0);
+const validation = examples.filter(sample => sample.split === "validation");
+const trainingExamples = examples.filter(sample => sample.split === "train");
 let finalLoss = 0;
-const epochs = Number(process.env.TRAIN_EPOCHS || 600);
+const epochs = Number(process.env.TRAIN_EPOCHS || 240);
 for (let epoch = 0; epoch < epochs; epoch++) {
   let epochLoss = 0;
   for (const sample of trainingExamples) {
