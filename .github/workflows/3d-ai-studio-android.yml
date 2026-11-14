@@ -50,10 +50,18 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-      - name: Install Android packages
-        run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          test -d "$SDK_ROOT/cmdline-tools"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -n "$SDKMANAGER"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          "$SDKMANAGER" "platform-tools" "platforms;android-36" "build-tools;36.0.0"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Build web app
