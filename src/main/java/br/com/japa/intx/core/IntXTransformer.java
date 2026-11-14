@@ -71,7 +71,8 @@ public final class IntXTransformer implements IClassTransformer, Opcodes {
 
     private static FieldNode findDataTypesField(ClassNode node) {
         FieldNode found = null;
-        for (FieldNode field : node.fields) {
+        for (Object raw : node.fields) {
+            FieldNode field = (FieldNode) raw;
             if ((field.access & ACC_STATIC) != 0 && "Ljava/util/HashMap;".equals(field.desc)) {
                 if (found != null) throw new IllegalStateException("Ambiguous static HashMap in DataWatcher");
                 found = field;
@@ -81,7 +82,8 @@ public final class IntXTransformer implements IClassTransformer, Opcodes {
     }
 
     private static MethodNode findInitializer(ClassNode node) {
-        for (MethodNode method : node.methods) {
+        for (Object raw : node.methods) {
+            MethodNode method = (MethodNode) raw;
             if ("<clinit>".equals(method.name) && "()V".equals(method.desc)) return method;
         }
         return null;
@@ -89,7 +91,8 @@ public final class IntXTransformer implements IClassTransformer, Opcodes {
 
     private static MethodNode findWriter(ClassNode node) {
         MethodNode found = null;
-        for (MethodNode method : node.methods) {
+        for (Object raw : node.methods) {
+            MethodNode method = (MethodNode) raw;
             if ((method.access & ACC_STATIC) == 0 || findSwitch(method) == null) continue;
             Type[] args = Type.getArgumentTypes(method.desc);
             if (args.length == 2 && Type.getReturnType(method.desc).getSort() == Type.VOID) {
@@ -102,7 +105,8 @@ public final class IntXTransformer implements IClassTransformer, Opcodes {
 
     private static MethodNode findDecoder(ClassNode node) {
         MethodNode found = null;
-        for (MethodNode method : node.methods) {
+        for (Object raw : node.methods) {
+            MethodNode method = (MethodNode) raw;
             if ((method.access & ACC_STATIC) == 0 || findSwitch(method) == null) continue;
             Type[] args = Type.getArgumentTypes(method.desc);
             Type result = Type.getReturnType(method.desc);
@@ -125,9 +129,7 @@ public final class IntXTransformer implements IClassTransformer, Opcodes {
         return null;
     }
 
-    private static void registerTypeSeven(
-        ClassNode node, FieldNode field, MethodNode initializer
-    ) {
+    private static void registerTypeSeven(ClassNode node, FieldNode field, MethodNode initializer) {
         AbstractInsnNode lastReturn = null;
         for (AbstractInsnNode instruction : initializer.instructions.toArray()) {
             if (instruction.getOpcode() == RETURN) lastReturn = instruction;
@@ -186,17 +188,11 @@ public final class IntXTransformer implements IClassTransformer, Opcodes {
     }
 
     private static final class SafeClassWriter extends ClassWriter {
-        SafeClassWriter(ClassReader reader, int flags) {
-            super(reader, flags);
-        }
-
+        SafeClassWriter(ClassReader reader, int flags) { super(reader, flags); }
         @Override
         protected String getCommonSuperClass(String first, String second) {
-            try {
-                return super.getCommonSuperClass(first, second);
-            } catch (Throwable ignored) {
-                return "java/lang/Object";
-            }
+            try { return super.getCommonSuperClass(first, second); }
+            catch (Throwable ignored) { return "java/lang/Object"; }
         }
     }
 }

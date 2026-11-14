@@ -5,6 +5,7 @@ import br.com.japa.intx.config.IntXConfig;
 import br.com.japa.intx.event.IntXEvents;
 import br.com.japa.intx.network.IntXNetwork;
 import br.com.japa.intx.proxy.CommonProxy;
+import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
@@ -32,7 +33,9 @@ public final class IntXMod {
     public void preInit(FMLPreInitializationEvent event) {
         IntXConfig.load(event.getSuggestedConfigurationFile());
         IntXNetwork.init();
-        MinecraftForge.EVENT_BUS.register(new IntXEvents());
+        IntXEvents handlers = new IntXEvents();
+        MinecraftForge.EVENT_BUS.register(handlers);
+        FMLCommonHandler.instance().bus().register(handlers);
         proxy.init();
         LOGGER.info("IntX {} initialized for Minecraft 1.7.10", VERSION);
     }
