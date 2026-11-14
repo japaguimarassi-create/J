@@ -1,15 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { LANGUAGE_PROFILES, detectLanguage, inspectLanguage, type LanguageCode } from "./core/LanguageRouter";
-import { UnicodeTokenizer } from "./core/UnicodeTokenizer";
-import { formatParameterCount, ProceduralNeuralNetwork } from "./core/ProceduralNetwork";
-import { planScene } from "./core/ScenePlanner";
+import { useEffect, useRef, useState } from "react";
+import { planScene, type PrimitiveKind, type ScenePlan } from "./core/ScenePlanner";
+import { SceneBrain, type ScenePrediction } from "./core/SceneBrain";
 import type { SceneSnapshot } from "./engine/StudioViewport";
 import { StudioViewport } from "./engine/StudioViewport";
 
-type Panel = "studio" | "generate" | "language" | "neural";
-const tokenizer = new UnicodeTokenizer();
+type Page = "scene" | "ai" | "animation";
+type AnimationPreset = "idle" | "orbit" | "walk" | "run" | "jump" | "combo";
 
-function downloadBlob(blob: Blob, filename: string) {
+function download(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -21,39 +19,33 @@ function downloadBlob(blob: Blob, filename: string) {
 function App() {
   const hostRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<StudioViewport | null>(null);
-  const networkRef = useRef(new ProceduralNeuralNetwork());
-  const [panel, setPanel] = useState<Panel>("studio");
+  const brainRef = useRef<SceneBrain | null>(null);
+  const [page, setPage] = useState<Page>("scene");
   const [ready, setReady] = useState(false);
-  const [webglError, setWebglError] = useState("");
+  const [modelReady, setModelReady] = useState(false);
+  const [modelError, setModelError] = useState("");
+  const [modelMetrics, setModelMetrics] = useState({ samples: 0, epochs: 0, validationAccuracy: 0, categories: 0, vocabulary: 0 });
+  const [prediction, setPrediction] = useState<ScenePrediction | null>(null);
+  const [prompt, setPrompt] = useState("Crie uma floresta com árvores altas, pedras e um caminho");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [objectCount, setObjectCount] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [prompt, setPrompt] = useState("Crie uma pequena cena de luta com dois personagens e um anel de energia");
-  const [language, setLanguage] = useState<LanguageCode>("pt");
-  const [languageText, setLanguageText] = useState("Olá! Vamos criar uma cena 3D com inteligência artificial.");
-  const [trainingText, setTrainingText] = useState("O personagem entra na arena, observa o adversário e prepara o próximo movimento.");
-  const [trainingMessage, setTrainingMessage] = useState("O núcleo ainda não foi adaptado a nenhum texto.");
-  const [trainingBusy, setTrainingBusy] = useState(false);
-  const [notice, setNotice] = useState("Projeto local pronto para edição.");
+  const [animation, setAnimation] = useState<AnimationPreset>("idle");
   const [color, setColor] = useState("#6f8cff");
-  const [projectName, setProjectName] = useState("Minha primeira cena");
-
-  const stats = useMemo(() => networkRef.current.getStats(), [trainingMessage]);
-  const languageInfo = useMemo(() => inspectLanguage(languageText, language), [languageText, language]);
-  const tokenInfo = useMemo(() => tokenizer.describe(languageText, language), [languageText, language]);
-  const detected = detectLanguage(languageText);
+  const [projectName, setProjectName] = useState("Minha cena");
+  const [notice, setNotice] = useState("Motor 3D inicializando…");
 
   useEffect(() => {
     if (!hostRef.current) return;
     try {
-      const viewport = new StudioViewport(hostRef.current, (id) => setSelectedId(id));
+      const viewport = new StudioViewport(hostRef.current, id => setSelectedId(id));
       viewportRef.current = viewport;
-      viewport.addPrimitive("box", "Objeto principal", "#6f8cff");
-      viewport.addPrimitive("sphere", "Objeto secundário", "#3dd6c6");
+      viewport.addPrimitive("box", "Objeto inicial", "#6f8cff");
       setObjectCount(viewport.objectCount);
       setReady(true);
+      setNotice("Motor 3D pronto.");
     } catch (error) {
-      setWebglError(error instanceof Error ? error.message : "Não foi possível iniciar o renderizador 3D.");
+      setNotice(error instanceof Error ? error.message : "Falha ao iniciar o motor 3D.");
     }
     return () => {
       viewportRef.current?.dispose();
@@ -61,29 +53,52 @@ function App() {
     };
   }, []);
 
-  const updateCount = () => setObjectCount(viewportRef.current?.objectCount ?? 0);
+  useEffect(() => {
+    let active = true;
+    SceneBrain.load().then(brain => {
+      if (!active) return;
+      brainRef.current = brain;
+      setModelMetrics(brain.metrics);
+      setModelReady(true);
+      setNotice("Modelo neural treinado carregado.");
+    }).catch(error => {
+      if (!active) return;
+      setModelError(error instanceof Error ? error.message : "Modelo treinado indisponível.");
+    });
+    return () => { active = false; };
+  }, []);
 
-  const addObject = (kind: "box" | "sphere" | "capsule" | "torus") => {
+  const refreshCount = () => setObjectCount(viewportRef.current?.objectCount ?? 0);
+
+  const addObject = (kind: PrimitiveKind) => {
     viewportRef.current?.addPrimitive(kind);
-    updateCount();
-    setNotice("Objeto adicionado à cena.");
+    refreshCount();
+    setNotice("Objeto adicionado.");
   };
 
-  const generateScene = () => {
-    const plan = planScene(prompt);
+  const applyAnimation = (preset: AnimationPreset) => {
+    setAnimation(preset);
+    viewportRef.current?.setAnimationPreset(preset);
+    viewportRef.current?.setPlaying(true);
+    setPlaying(true);
+  };
+
+  const generate = () => {
+    const learned = brainRef.current?.predict(prompt) ?? null;
+    setPrediction(learned);
+    const plan: ScenePlan = planScene(prompt, learned?.category);
     viewportRef.current?.replaceScene(plan.objects);
+    const preset: AnimationPreset = plan.animation === "action" ? "combo" : plan.animation;
+    viewportRef.current?.setAnimationPreset(preset);
     viewportRef.current?.setPlaying(false);
+    setAnimation(preset);
     setPlaying(false);
-    setProjectName(plan.title || "Cena gerada");
-    updateCount();
-    setPanel("studio");
-    setNotice(plan.explanation);
-  };
-
-  const togglePlayback = () => {
-    const next = !playing;
-    setPlaying(next);
-    viewportRef.current?.setPlaying(next);
+    setProjectName(plan.title);
+    refreshCount();
+    setPage("scene");
+    setNotice(learned
+      ? "IA classificou a cena como " + learned.category + " (" + Math.round(learned.confidence * 100) + "%) e construiu " + plan.objects.length + " objetos."
+      : "Modelo neural indisponível; cena criada pelo planejador de regras.");
   };
 
   const move = (axis: "x" | "y" | "z", amount: number) => {
@@ -91,260 +106,126 @@ function App() {
     setNotice("Transformação aplicada.");
   };
 
-  const saveProject = () => {
-    const snapshot = viewportRef.current?.snapshot();
-    if (!snapshot) return;
-    const payload = {
-      app: "3D AI Studio",
-      version: 1,
-      name: projectName,
-      savedAt: new Date().toISOString(),
-      scene: snapshot
-    };
-    const serialized = JSON.stringify(payload, null, 2);
-    localStorage.setItem("three-d-ai-studio-project", serialized);
-    downloadBlob(new Blob([serialized], { type: "application/json" }), "3d-ai-studio-project.json");
-    setNotice("Projeto salvo no dispositivo e exportado como JSON.");
+  const save = () => {
+    const scene = viewportRef.current?.snapshot();
+    if (!scene) return;
+    const content = JSON.stringify({ app: "3D AI Studio", version: 2, name: projectName, savedAt: new Date().toISOString(), scene }, null, 2);
+    localStorage.setItem("three-d-ai-studio-project", content);
+    download(new Blob([content], { type: "application/json" }), "3d-ai-studio-project.json");
+    setNotice("Projeto salvo e exportado.");
   };
 
-  const loadProject = (file?: File) => {
+  const load = (file?: File) => {
     if (!file) return;
-    file.text().then((content) => {
-      const parsed = JSON.parse(content) as { name?: string; scene?: SceneSnapshot };
-      if (parsed.scene?.version !== 1 || !Array.isArray(parsed.scene.objects)) throw new Error("Formato de projeto inválido.");
-      viewportRef.current?.replaceScene(parsed.scene.objects);
-      setProjectName(parsed.name ?? "Projeto importado");
-      updateCount();
+    file.text().then(content => {
+      const data = JSON.parse(content) as { name?: string; scene?: SceneSnapshot };
+      if (data.scene?.version !== 1 || !Array.isArray(data.scene.objects)) throw new Error("Arquivo de projeto inválido.");
+      viewportRef.current?.replaceScene(data.scene.objects);
+      setProjectName(data.name ?? "Projeto importado");
+      refreshCount();
       setNotice("Projeto importado.");
-    }).catch((error: unknown) => setNotice(error instanceof Error ? error.message : "Falha ao importar o projeto."));
+    }).catch(error => setNotice(error instanceof Error ? error.message : "Falha ao importar."));
   };
 
-  const exportGLB = async () => {
+  const exportGlb = async () => {
     try {
       const result = await viewportRef.current?.exportGLB();
-      if (result) {
-        downloadBlob(new Blob([result], { type: "model/gltf-binary" }), "3d-ai-studio-scene.glb");
-        setNotice("Arquivo GLB exportado.");
-      }
+      if (result) download(new Blob([result], { type: "model/gltf-binary" }), "3d-ai-studio.glb");
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Falha ao exportar GLB.");
     }
   };
 
-  const exportImage = () => {
-    const canvas = hostRef.current?.querySelector("canvas");
-    if (!canvas) return;
-    canvas.toBlob((blob) => {
-      if (blob) downloadBlob(blob, "3d-ai-studio-preview.png");
-    }, "image/png");
-    setNotice("Prévia PNG exportada.");
+  const togglePlayback = () => {
+    const next = !playing;
+    viewportRef.current?.setPlaying(next);
+    setPlaying(next);
   };
-
-  const trainNetwork = () => {
-    setTrainingBusy(true);
-    window.setTimeout(() => {
-      try {
-        const result = networkRef.current.trainText(trainingText, 2, 0.06);
-        const prediction = networkRef.current.predictNextByte(trainingText);
-        setTrainingMessage(
-          result.steps + " etapas concluídas · perda " + result.loss.toFixed(3) +
-          " · próximo byte estimado: " + JSON.stringify(prediction.character)
-        );
-      } catch (error) {
-        setTrainingMessage(error instanceof Error ? error.message : "Falha no treinamento.");
-      } finally {
-        setTrainingBusy(false);
-      }
-    }, 20);
-  };
-
-  const rebuildNetwork = () => {
-    networkRef.current = networkRef.current.reset(Math.floor(Math.random() * 2_000_000_000));
-    setTrainingMessage("Núcleo reconstruído com nova semente. O estado de treinamento anterior foi descartado.");
-  };
-
-  const selectedLabel = selectedId ? "Objeto selecionado" : "Nenhum objeto selecionado";
 
   return (
     <main className="app-shell">
       <header className="topbar">
-        <div className="brand-lockup">
-          <div className="brand-mark">3D</div>
-          <div><div className="brand-name">AI STUDIO</div><div className="brand-caption">CREATE · ANIMATE · DIRECT</div></div>
-        </div>
-        <div className="topbar-center"><span className="status-dot" /> LOCAL ENGINE <span className="topbar-separator">/</span> ALPHA 0.1</div>
-        <div className="topbar-actions">
-          <button className="button button-quiet button-small" onClick={saveProject}>Salvar</button>
-          <button className="button button-primary button-small" onClick={exportGLB}>Exportar GLB</button>
+        <div className="brand"><span className="brand-mark">3D</span><span><b>AI STUDIO</b><small>CREATE · LEARN · ANIMATE</small></span></div>
+        <div className="top-actions">
+          <span className={"engine-state " + (ready ? "online" : "")}>{ready ? "ENGINE READY" : "STARTING"}</span>
+          <button className="button ghost" onClick={save}>Salvar</button>
+          <button className="button primary" onClick={exportGlb}>Exportar GLB</button>
         </div>
       </header>
 
-      <div className="workspace">
-        <nav className="sidebar" aria-label="Ferramentas do estúdio">
-          <div className="sidebar-label">WORKSPACE</div>
-          {([
-            ["studio", "◈", "Estúdio"],
-            ["generate", "✦", "Gerar cena"],
-            ["language", "文", "Idiomas"],
-            ["neural", "⌘", "Neural Core"]
-          ] as const).map(([id, icon, label]) => (
-            <button key={id} className={"nav-item " + (panel === id ? "active" : "")} onClick={() => setPanel(id)}>
-              <span className="nav-icon">{icon}</span><span>{label}</span>
-            </button>
-          ))}
-          <div className="sidebar-spacer" />
-          <div className="sidebar-foot"><span className="live-pip" /><span>Offline ready</span></div>
-        </nav>
+      <nav className="main-nav" aria-label="Navegação principal">
+        <button className={page === "scene" ? "active" : ""} onClick={() => setPage("scene")}><span>◈</span>Cena</button>
+        <button className={page === "ai" ? "active" : ""} onClick={() => setPage("ai")}><span>✦</span>IA Criadora</button>
+        <button className={page === "animation" ? "active" : ""} onClick={() => setPage("animation")}><span>▶</span>Animação</button>
+      </nav>
 
-        <section className="main-panel">
-          <div className="page-heading">
-            <div>
-              <div className="eyebrow">3D WORKSPACE / PROJECT 001</div>
-              <h1>{panel === "studio" ? "Studio workspace" : panel === "generate" ? "Scene generator" : panel === "language" ? "Multilingual tokenizer" : "Procedural neural core"}</h1>
-              <p>{panel === "studio" ? "Construa e ajuste objetos em uma viewport 3D real." : panel === "generate" ? "Transforme uma descrição em uma cena procedural editável." : panel === "language" ? "Codificação Unicode e seleção de escrita por idioma." : "Rede expansível com pesos gerados por semente e adaptação local."}</p>
-            </div>
-            <div className="project-pill"><span className="project-pill-dot" /> {projectName}</div>
-          </div>
-
-          {panel === "studio" && (
-            <div className="studio-layout">
-              <div className="viewport-column">
-                <div className="viewport-toolbar">
-                  <div className="viewport-mode"><span className="mode-indicator" /> PERSPECTIVE <span className="toolbar-divider" /> REAL-TIME VIEWPORT</div>
-                  <div className="toolbar-actions">
-                    <button className="icon-button" title="Exportar imagem PNG" onClick={exportImage}>▧</button>
-                    <button className={"icon-button " + (playing ? "selected" : "")} title="Reproduzir animação" onClick={togglePlayback}>{playing ? "Ⅱ" : "▶"}</button>
-                  </div>
+      <section className="content">
+        {page === "scene" && (
+          <>
+            <div className="section-heading"><div><p className="eyebrow">PROJETO ATUAL</p><h1>{projectName}</h1><p className="subheading">Monte sua cena e edite os objetos diretamente na viewport.</p></div><span className="count-pill">{objectCount} objetos</span></div>
+            <div className="editor">
+              <section className="viewport-card">
+                <div className="viewport-head"><span><i className="live-dot" /> VISUALIZAÇÃO 3D</span><div><button className="icon-button" onClick={togglePlayback}>{playing ? "Ⅱ" : "▶"}</button><button className="icon-button" onClick={exportGlb}>⇩</button></div></div>
+                <div className="viewport-stage" ref={hostRef}>{!ready && <div className="loading">Iniciando renderizador 3D…</div>}</div>
+                <div className="object-actions">
+                  <button onClick={() => addObject("box")}>＋ Cubo</button>
+                  <button onClick={() => addObject("sphere")}>＋ Esfera</button>
+                  <button onClick={() => addObject("capsule")}>＋ Personagem</button>
+                  <button onClick={() => addObject("cylinder")}>＋ Cilindro</button>
+                  <button onClick={() => addObject("cone")}>＋ Cone</button>
+                  <button onClick={() => addObject("torus")}>＋ Anel</button>
                 </div>
-                <div className="viewport-stage" ref={hostRef}>
-                  {!ready && !webglError && <div className="viewport-overlay">Inicializando motor 3D…</div>}
-                  {webglError && <div className="viewport-overlay error">{webglError}<br />Verifique o suporte WebGL do dispositivo.</div>}
-                </div>
-                <div className="viewport-footer"><span>{objectCount} OBJECTS</span><span>WEBGL RENDERER</span><span>{playing ? "PLAYING" : "PAUSED"}</span></div>
-                <div className="object-toolbar">
-                  <span className="toolbar-title">ADD OBJECT</span>
-                  <button onClick={() => addObject("box")}>＋ Cube</button>
-                  <button onClick={() => addObject("sphere")}>＋ Sphere</button>
-                  <button onClick={() => addObject("capsule")}>＋ Character</button>
-                  <button onClick={() => addObject("torus")}>＋ Ring</button>
-                </div>
-              </div>
+              </section>
               <aside className="inspector">
-                <div className="inspector-header"><span>INSPECTOR</span><span className="inspector-dots">•••</span></div>
-                <div className="inspector-section">
-                  <div className="section-label">SELECTION</div>
-                  <div className="selection-card"><span className="selection-glyph">◇</span><div><strong>{selectedLabel}</strong><small>{selectedId ? selectedId.slice(0, 18) : "Toque em um objeto na viewport"}</small></div></div>
-                </div>
-                <div className="inspector-section">
-                  <div className="section-label">TRANSFORM</div>
-                  {(["x", "y", "z"] as const).map((axis) => (
-                    <div className="transform-row" key={axis}>
-                      <span className={"axis axis-" + axis}>{axis.toUpperCase()}</span>
-                      <button disabled={!selectedId} onClick={() => move(axis, -0.25)}>−</button>
-                      <button disabled={!selectedId} onClick={() => move(axis, 0.25)}>＋</button>
-                    </div>
-                  ))}
-                </div>
-                <div className="inspector-section">
-                  <div className="section-label">MATERIAL</div>
-                  <div className="color-row"><span>Base color</span><input type="color" value={color} onChange={(event) => { setColor(event.target.value); viewportRef.current?.setSelectedColor(event.target.value); }} /></div>
-                  <div className="swatches">
-                    {["#6f8cff", "#3dd6c6", "#a98cff", "#ffb86b", "#f079a8"].map((value) => <button key={value} style={{ background: value }} aria-label={"Cor " + value} onClick={() => { setColor(value); viewportRef.current?.setSelectedColor(value); }} />)}
-                  </div>
-                </div>
-                <div className="inspector-section">
-                  <div className="section-label">PREVIEW LOOP</div>
-                  <div className="timeline-track"><span className="timeline-fill" /><span className="timeline-marker" /></div>
-                  <div className="timeline-meta"><span>LIVE</span><span>LOOP</span></div>
-                  <button className="button button-outline full-width" onClick={togglePlayback}>{playing ? "Pausar" : "Reproduzir"} cena</button>
-                </div>
-                <div className="inspector-bottom"><span className="live-pip" /> {ready ? "Engine ready" : "Starting engine"}</div>
+                <div className="panel-title">PROPRIEDADES</div>
+                <div className="selected-object"><span className="object-icon">◇</span><span><b>{selectedId ? "Objeto selecionado" : "Nenhum objeto"}</b><small>{selectedId ?? "Toque em um objeto 3D"}</small></span></div>
+                <div className="property-group"><label>POSIÇÃO</label>{(["x","y","z"] as const).map(axis => <div className="axis-row" key={axis}><b className={"axis-" + axis}>{axis.toUpperCase()}</b><button disabled={!selectedId} onClick={() => move(axis,-0.25)}>−</button><button disabled={!selectedId} onClick={() => move(axis,0.25)}>＋</button></div>)}</div>
+                <div className="property-group"><label>MATERIAL</label><div className="color-picker"><span>Cor base</span><input type="color" value={color} onChange={event => { setColor(event.target.value); viewportRef.current?.setSelectedColor(event.target.value); }} /></div><div className="swatches">{["#6f8cff","#3dd6c6","#a98cff","#ffb86b","#f079a8"].map(value => <button key={value} style={{background:value}} onClick={() => {setColor(value);viewportRef.current?.setSelectedColor(value);}} />)}</div></div>
+                <div className="property-group"><label>ANIMAÇÃO RÁPIDA</label><button className="wide-button" onClick={() => applyAnimation("idle")}>Reproduzir movimento suave</button></div>
+                <div className="inspector-foot"><i className="live-dot" /> {ready ? "Renderizador ativo" : "Carregando motor"}</div>
               </aside>
             </div>
-          )}
+          </>
+        )}
 
-          {panel === "generate" && (
-            <div className="content-card generator-card">
-              <div className="card-kicker">TEXT TO SCENE <span>LOCAL PROCEDURAL PLANNER</span></div>
-              <h2>Descreva o mundo que deseja criar.</h2>
-              <p>O planejador identifica categorias de cena e monta geometrias editáveis. Nesta versão, a geração é local e baseada em regras; não usa um modelo generativo pré-treinado.</p>
-              <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} rows={5} placeholder="Ex.: uma cidade futurista com três edifícios..." />
-              <div className="prompt-suggestions">
-                {["Uma floresta com árvores", "Uma cidade futurista", "Uma luta com dois personagens"].map((value) => <button key={value} onClick={() => setPrompt(value)}>{value}</button>)}
-              </div>
-              <button className="button button-primary button-large" onClick={generateScene}>✦ Construir cena 3D</button>
-              <div className="feature-grid">
-                <div><strong>01</strong><span>Interpretar prompt</span></div>
-                <div><strong>02</strong><span>Montar geometrias</span></div>
-                <div><strong>03</strong><span>Editar na viewport</span></div>
-              </div>
+        {page === "ai" && (
+          <div className="ai-page">
+            <div className="section-heading"><div><p className="eyebrow">MODELO TREINADO NA SANDBOX</p><h1>O que vamos criar?</h1><p className="subheading">A rede neural classifica a intenção em seis categorias e o construtor gera uma cena 3D editável.</p></div><span className={"model-pill " + (modelReady ? "online" : "")}>{modelReady ? "MODELO CARREGADO" : "MODELO PENDENTE"}</span></div>
+            <div className="ai-card">
+              <textarea value={prompt} onChange={event => setPrompt(event.target.value)} placeholder="Descreva uma cena, personagem, veículo ou ambiente…" rows={5} />
+              <div className="prompt-examples">{["Uma floresta com árvores e pedras","Um carro esportivo futurista","Dois personagens em uma arena","Uma sala moderna com mesa e cadeiras"].map(value => <button key={value} onClick={() => setPrompt(value)}>{value}</button>)}</div>
+              <button className="button primary generate-button" disabled={!ready} onClick={generate}>✦ Gerar cena 3D</button>
+              {modelError && <p className="model-error">{modelError} A cena ainda pode ser criada pelo modo de regras.</p>}
             </div>
-          )}
-
-          {panel === "language" && (
-            <div className="content-card language-card">
-              <div className="card-kicker">UNICODE PROCESSING <span>BYTE TOKENIZER V1</span></div>
-              <h2>Seis idiomas. Uma camada Unicode.</h2>
-              <p>Selecione o idioma manualmente ou compare com a detecção heurística. A codificação UTF-8 mantém caracteres e sinais combinantes intactos.</p>
-              <div className="language-controls">
-                <label>Idioma de processamento
-                  <select value={language} onChange={(event) => setLanguage(event.target.value as LanguageCode)}>
-                    {Object.values(LANGUAGE_PROFILES).map((item) => <option key={item.code} value={item.code}>{item.nativeLabel} · {item.label}</option>)}
-                  </select>
-                </label>
-                <div className="detected-chip">Detectado: <strong>{LANGUAGE_PROFILES[detected].nativeLabel}</strong></div>
-              </div>
-              <textarea dir={languageInfo.direction} value={languageText} onChange={(event) => setLanguageText(event.target.value)} rows={4} placeholder="Digite texto para codificar..." />
-              <div className="language-metrics">
-                <div><strong>{tokenInfo.glyphs.length}</strong><span>graphemes</span></div>
-                <div><strong>{tokenInfo.utf8Bytes}</strong><span>UTF-8 bytes</span></div>
-                <div><strong>{tokenInfo.tokenCount}</strong><span>tokens</span></div>
-                <div><strong>{languageInfo.direction.toUpperCase()}</strong><span>direction</span></div>
-              </div>
-              <div className="glyph-table">
-                <div className="glyph-table-head"><span>GLYPH</span><span>UNICODE / GLYPH ID</span><span>SCRIPT</span><span>TOKENS</span></div>
-                {tokenInfo.glyphs.slice(0, 16).map((glyph, index) => (
-                  <div className="glyph-row" key={glyph.code + index}><strong>{glyph.text}</strong><code>{glyph.code}</code><span>{glyph.script}</span><span>{glyph.tokenIds.length}</span></div>
-                ))}
-              </div>
-              <div className="notice-line">Round-trip check: <strong>{tokenInfo.roundTrip === languageText.normalize("NFC") ? "PASS" : "NORMALIZED"}</strong> · UTF-8 byte fallback ativo</div>
+            <div className="model-stats">
+              <div><b>{modelMetrics.samples || "—"}</b><span>exemplos de treino</span></div>
+              <div><b>{modelMetrics.epochs || "—"}</b><span>épocas</span></div>
+              <div><b>{Math.round(modelMetrics.validationAccuracy * 100) || 0}%</b><span>validação sandbox</span></div>
+              <div><b>{modelMetrics.categories || "—"}</b><span>categorias aprendidas</span></div>
             </div>
-          )}
+            {prediction && <div className="prediction-card"><span>ÚLTIMA PREDIÇÃO</span><b>{prediction.category}</b><strong>{Math.round(prediction.confidence * 100)}% confiança</strong><small>Classificação do modelo; a geometria é construída pelo gerador procedural.</small></div>}
+            <p className="honesty-note">O modelo foi treinado do zero em exemplos sintéticos multilíngues. Ele aprende classificação de intenção; não é um LLM nem gera malhas complexas livremente.</p>
+          </div>
+        )}
 
-          {panel === "neural" && (
-            <div className="content-card neural-card">
-              <div className="card-kicker">PROCEDURAL MODEL <span>SEEDED WEIGHT FIELD</span></div>
-              <h2>Atlas procedural core</h2>
-              <p>Uma arquitetura de grande capacidade estrutural gera pesos de forma determinística e calcula apenas uma faixa ativa reduzida no dispositivo.</p>
-              <div className="neural-hero">
-                <div className="neural-orb"><span>AI</span></div>
-                <div><div className="eyebrow">VIRTUAL PARAMETER SPACE</div><div className="neural-number">{formatParameterCount(stats.virtualParameterCount)}</div><span className="muted">parâmetros definidos pela arquitetura</span></div>
-              </div>
-              <div className="neural-metrics">
-                <div><strong>{stats.depth}</strong><span>layers</span></div>
-                <div><strong>{stats.hiddenSize}</strong><span>hidden size</span></div>
-                <div><strong>{stats.activeWidth}</strong><span>active width</span></div>
-                <div><strong>{formatParameterCount(stats.trainableParameterCount)}</strong><span>trainable head</span></div>
-              </div>
-              <div className="training-block">
-                <div className="section-label">LOCAL ADAPTATION DATA</div>
-                <textarea value={trainingText} onChange={(event) => setTrainingText(event.target.value)} rows={4} placeholder="Insira texto de treinamento..." />
-                <div className="training-actions">
-                  <button className="button button-primary" disabled={trainingBusy} onClick={trainNetwork}>{trainingBusy ? "Treinando…" : "Treinar readout local"}</button>
-                  <button className="button button-outline" onClick={rebuildNetwork}>Reconstruir semente</button>
-                </div>
-                <div className="training-result">{trainingMessage}</div>
-              </div>
-              <div className="warning-note">Transparência: os pesos procedurais começam sem conhecimento pré-treinado. O treino desta versão atualiza apenas a camada de saída com o texto fornecido. A contagem virtual não representa memória alocada nem um modelo de centenas de milhões de pesos materializados.</div>
+        {page === "animation" && (
+          <div className="animation-page">
+            <div className="section-heading"><div><p className="eyebrow">MOTION LAB</p><h1>Animações</h1><p className="subheading">Escolha movimentos simples ou sequências avançadas para a cena atual.</p></div><span className="count-pill">{playing ? "Reproduzindo" : "Pausado"}</span></div>
+            <div className="animation-grid">
+              <button className={animation === "idle" ? "chosen" : ""} onClick={() => applyAnimation("idle")}><b>01</b><strong>Idle</strong><span>Respiração e movimento sutil</span></button>
+              <button className={animation === "orbit" ? "chosen" : ""} onClick={() => applyAnimation("orbit")}><b>02</b><strong>Orbit</strong><span>Rotação contínua dos objetos</span></button>
+              <button className={animation === "walk" ? "chosen" : ""} onClick={() => applyAnimation("walk")}><b>03</b><strong>Walk</strong><span>Oscilação de caminhada</span></button>
+              <button className={animation === "run" ? "chosen" : ""} onClick={() => applyAnimation("run")}><b>04</b><strong>Run</strong><span>Passos rápidos e impacto</span></button>
+              <button className={animation === "jump" ? "chosen" : ""} onClick={() => applyAnimation("jump")}><b>05</b><strong>Jump</strong><span>Salto com arco vertical</span></button>
+              <button className={animation === "combo" ? "chosen" : ""} onClick={() => applyAnimation("combo")}><b>06</b><strong>Combo avançado</strong><span>Sequência combinada de rotação e deslocamento</span></button>
             </div>
-          )}
+            <div className="animation-controls"><button className="button primary" onClick={togglePlayback}>{playing ? "Ⅱ Pausar" : "▶ Reproduzir"}</button><span>Prévia procedural em tempo real · {objectCount} objetos</span></div>
+            <p className="honesty-note">Esses são movimentos procedurais de prévia. Rigging humano, captura de movimento e curvas keyframe por osso serão etapas posteriores.</p>
+          </div>
+        )}
+      </section>
 
-          <div className="statusbar"><span>{notice}</span><span>{objectCount} objects · autosave local disponível</span></div>
-        </section>
-      </div>
-
-      <input className="hidden-input" type="file" accept="application/json,.json" id="project-import" onChange={(event) => loadProject(event.target.files?.[0])} />
-      <label htmlFor="project-import" className="floating-import">Importar projeto</label>
+      <footer className="statusbar"><span>{notice}</span><label className="import-button">Importar projeto<input type="file" accept="application/json,.json" onChange={event => load(event.target.files?.[0])} /></label></footer>
     </main>
   );
 }
