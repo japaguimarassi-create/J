@@ -23,6 +23,8 @@ jobs:
           gradle-version: '6.9.1'
       - name: Extract project source
         run: tar -xJf dual-long-hypercore/DualLongHyperCore-0.1.0-source.tar.xz -C "$RUNNER_TEMP"
+      - name: Apply canonical build configuration
+        run: cp dual-long-hypercore/build.gradle "$RUNNER_TEMP/DualLongHyperCore/build.gradle"
       - name: Run tests and build mod
         run: cd "$RUNNER_TEMP/DualLongHyperCore" && gradle clean test build --no-daemon
       - name: Upload build outputs
