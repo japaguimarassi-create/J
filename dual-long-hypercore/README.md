@@ -26,7 +26,7 @@ This release does **not** replace JRMCore's native `int` stats or widen DBC comb
 
 ## Build
 
-Use a Java 8 JDK and Gradle 6.9.1. Extract the source archive, then copy the canonical build file from this repository over the archive's build file:
+Use a Java 8 JDK and Gradle 6.9.1. Download the source archive and the canonical `build.gradle` from this directory, then run:
 
 ```bash
 tar -xJf DualLongHyperCore-0.1.0-source.tar.xz
@@ -35,7 +35,7 @@ cd DualLongHyperCore
 gradle clean test build --no-daemon
 ```
 
-The canonical build file is [`build.gradle`](build.gradle). It configures the SpongePowered Maven repository for legacy Scala dependencies, downloads Forge's 1.7.10 userdev JAR directly and verifies its published SHA-1 before making it available to ForgeGradle 1.2.11. The GitHub Actions workflow applies this exact build file automatically.
+The canonical build file downloads the Forge 1.7.10 userdev JAR and three historical Scala runtime JARs required by ForgeGradle 1.2.11. It verifies pinned SHA-1 hashes and stores the artifacts in a local flat-directory cache before compilation. The CI workflow applies this same build file automatically.
 
 The resulting mod JAR is in `build/libs/`.
 
