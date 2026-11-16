@@ -29,6 +29,9 @@ repositories {
     maven { url = "https://mirrors.qlu.edu.cn/bmclapi/maven" }
     mavenCentral()
     maven { url = "https://maven.minecraftforge.net/" }
+    flatDir {
+        dirs new File(gradle.gradleUserHomeDir, "caches/minecraft/net/minecraftforge/forge/1.7.10-10.13.4.1614-1.7.10")
+    }
 }
 
 dependencies {
@@ -124,3 +127,75 @@ task seedForgeUserdev {
 }
 
 tasks.getByName('extractUserDev').dependsOn(seedForgeUserdev)
+
+// ForgeGradle 1.2 uses historical org.scala-lang coordinates that are not
+// consistently mirrored. Seed exact, SHA-1-pinned JARs into a flatDir cache.
+def legacyScalaArtifacts = [
+    [name: 'scala-parser-combinators_2.11-1.0.1.jar', sha1: 'f05d7345bf5a58924f2837c6c1f4d73a938e1ff0', urls: [
+        'https://repo.maven.apache.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.11/1.0.1/scala-parser-combinators_2.11-1.0.1.jar',
+        'https://maven.mohistmc.com/libraries/org/scala-lang/scala-parser-combinators_2.11/1.0.1/scala-parser-combinators_2.11-1.0.1.jar'
+    ]],
+    [name: 'scala-swing_2.11-1.0.1.jar', sha1: 'b1cdd92bd47b1e1837139c1c53020e86bb9112ae', urls: [
+        'https://repo.maven.apache.org/maven2/org/scala-lang/modules/scala-swing_2.11/1.0.1/scala-swing_2.11-1.0.1.jar',
+        'https://maven.mohistmc.com/libraries/org/scala-lang/scala-swing_2.11/1.0.1/scala-swing_2.11-1.0.1.jar'
+    ]],
+    [name: 'scala-xml_2.11-1.0.2.jar', sha1: '7a80ec00aec122fba7cd4e0d4cdd87ff7e4cb6d0', urls: [
+        'https://repo.maven.apache.org/maven2/org/scala-lang/modules/scala-xml_2.11/1.0.2/scala-xml_2.11-1.0.2.jar',
+        'https://maven.mohistmc.com/libraries/org/scala-lang/scala-xml_2.11/1.0.2/scala-xml_2.11-1.0.2.jar'
+    ]]
+]
+
+task seedLegacyScalaLibraries {
+    outputs.upToDateWhen { false }
+    doLast {
+        forgeUserdevDirectory.mkdirs()
+        legacyScalaArtifacts.each { artifact ->
+            File destination = new File(forgeUserdevDirectory, artifact.name)
+            if (destination.isFile() && sha1Of(destination) == artifact.sha1) {
+                logger.lifecycle("Verified cached ${artifact.name}")
+            } else {
+                File temporary = new File(forgeUserdevDirectory, artifact.name + '.part')
+                if (temporary.exists()) temporary.delete()
+                Exception lastError = null
+                boolean downloaded = false
+                artifact.urls.each { artifactUrl ->
+                    if (!downloaded) {
+                        try {
+                            logger.lifecycle("Fetching legacy Scala dependency: ${artifactUrl}")
+                            def connection = new URL(artifactUrl).openConnection()
+                            connection.setConnectTimeout(20000)
+                            connection.setReadTimeout(90000)
+                            connection.setRequestProperty('User-Agent', 'DualLongHyperCore-build/0.1.0')
+                            connection.getInputStream().withCloseable { input ->
+                                temporary.withOutputStream { output ->
+                                    byte[] buffer = new byte[16384]
+                                    int count
+                                    while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count)
+                                }
+                            }
+                            String actualSha1 = sha1Of(temporary)
+                            if (actualSha1 != artifact.sha1) {
+                                throw new GradleException("SHA-1 mismatch for ${artifact.name} from ${artifactUrl}: ${actualSha1}")
+                            }
+                            if (destination.exists()) destination.delete()
+                            if (!temporary.renameTo(destination)) {
+                                throw new GradleException("Could not cache verified ${artifact.name}")
+                            }
+                            downloaded = true
+                        } catch (Exception exception) {
+                            lastError = exception
+                            if (temporary.exists()) temporary.delete()
+                            logger.warn("Scala artifact source failed: ${artifactUrl}: ${exception.message}")
+                        }
+                    }
+                }
+                if (!downloaded) {
+                    throw new GradleException("Could not download a verified ${artifact.name} from any configured source.", lastError)
+                }
+            }
+        }
+    }
+}
+
+tasks.getByName('compileJava').dependsOn(seedLegacyScalaLibraries)
+tasks.getByName('compileTestJava').dependsOn(seedLegacyScalaLibraries)
