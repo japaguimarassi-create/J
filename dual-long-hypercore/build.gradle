@@ -1,0 +1,126 @@
+buildscript {
+    repositories {
+        maven { url = "https://mirrors.qlu.edu.cn/bmclapi/maven" }
+        mavenCentral()
+        maven { url = "https://maven.minecraftforge.net/" }
+        maven { url = "https://jitpack.io" }
+    }
+    dependencies {
+        classpath('com.github.GTNewHorizons:ForgeGradle:1.2.11') { changing = true }
+    }
+}
+
+apply plugin: 'forge'
+
+version = '0.1.0'
+group = 'com.dualhypercore'
+archivesBaseName = 'DualLongHyperCore'
+
+minecraft {
+    version = '1.7.10-10.13.4.1614-1.7.10'
+    runDir = 'run'
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    maven { url = "https://repo.spongepowered.org/maven/" }
+    maven { url = "https://mirrors.qlu.edu.cn/bmclapi/maven" }
+    mavenCentral()
+    maven { url = "https://maven.minecraftforge.net/" }
+}
+
+dependencies {
+    testCompile 'junit:junit:4.13.2'
+}
+
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('mcmod.info') {
+        expand 'version': project.version
+    }
+}
+
+jar {
+    manifest {
+        attributes(
+            'FMLCorePlugin': 'com.dualhypercore.core.HyperCoreLoadingPlugin',
+            'FMLCorePluginContainsFMLMod': 'true',
+            'Implementation-Title': 'DualLong HyperCore',
+            'Implementation-Version': project.version
+        )
+    }
+}
+
+compileJava.options.encoding = 'UTF-8'
+compileTestJava.options.encoding = 'UTF-8'
+
+// ForgeGradle 1.2.11 still looks for the 1.7.10 userdev classifier in its local cache.
+// Seed that exact cache entry from Forge's published direct-download URL and verify its SHA-1.
+def forgeUserdevVersion = '1.7.10-10.13.4.1614-1.7.10'
+def forgeUserdevSha1 = '5670a6438e76598e1d6e4e190982d80a0d626a7c'
+def forgeUserdevDirectory = new File(gradle.gradleUserHomeDir, "caches/minecraft/net/minecraftforge/forge/${forgeUserdevVersion}")
+def forgeUserdevFile = new File(forgeUserdevDirectory, "forge-${forgeUserdevVersion}-userdev.jar")
+
+def sha1Of = { File file ->
+    def digest = java.security.MessageDigest.getInstance('SHA-1').digest(file.bytes)
+    digest.collect { String.format('%02x', it & 0xff) }.join()
+}
+
+task seedForgeUserdev {
+    outputs.upToDateWhen { false }
+    doLast {
+        if (forgeUserdevFile.isFile() && sha1Of(forgeUserdevFile) == forgeUserdevSha1) {
+            logger.lifecycle('Verified cached Forge 1.7.10 userdev artifact.')
+        } else {
+            forgeUserdevDirectory.mkdirs()
+            def temporaryFile = new File(forgeUserdevDirectory, forgeUserdevFile.name + '.part')
+            if (temporaryFile.exists()) temporaryFile.delete()
+            def urls = [
+                "https://maven.minecraftforge.net/net/minecraftforge/forge/${forgeUserdevVersion}/forge-${forgeUserdevVersion}-userdev.jar",
+                "https://mirrors.qlu.edu.cn/bmclapi/maven/net/minecraftforge/forge/${forgeUserdevVersion}/forge-${forgeUserdevVersion}-userdev.jar",
+                "https://mirrors.nju.edu.cn/bmclapi/releases/net/minecraftforge/forge/${forgeUserdevVersion}/forge-${forgeUserdevVersion}-userdev.jar"
+            ]
+            Exception lastError = null
+            boolean downloaded = false
+            for (String artifactUrl : urls) {
+                try {
+                    logger.lifecycle("Fetching Forge userdev: ${artifactUrl}")
+                    def connection = new URL(artifactUrl).openConnection()
+                    connection.setConnectTimeout(20000)
+                    connection.setReadTimeout(90000)
+                    connection.setRequestProperty('User-Agent', 'DualLongHyperCore-build/0.1.0')
+                    connection.getInputStream().withCloseable { input ->
+                        temporaryFile.withOutputStream { output ->
+                            byte[] buffer = new byte[16384]
+                            int count
+                            while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count)
+                        }
+                    }
+                    String actualSha1 = sha1Of(temporaryFile)
+                    if (actualSha1 != forgeUserdevSha1) {
+                        throw new GradleException("Forge userdev SHA-1 mismatch from ${artifactUrl}: ${actualSha1}")
+                    }
+                    if (forgeUserdevFile.exists()) forgeUserdevFile.delete()
+                    if (!temporaryFile.renameTo(forgeUserdevFile)) {
+                        throw new GradleException('Could not move verified Forge userdev artifact into the Gradle cache.')
+                    }
+                    downloaded = true
+                    break
+                } catch (Exception exception) {
+                    lastError = exception
+                    if (temporaryFile.exists()) temporaryFile.delete()
+                    logger.warn("Forge userdev source failed: ${artifactUrl}: ${exception.message}")
+                }
+            }
+            if (!downloaded) {
+                throw new GradleException('Could not download a verified Forge 1.7.10 userdev artifact from any configured source.', lastError)
+            }
+        }
+        def legacyAlias = new File(forgeUserdevDirectory, 'forge-userdev.jar')
+        if (!legacyAlias.exists()) java.nio.file.Files.copy(forgeUserdevFile.toPath(), legacyAlias.toPath())
+    }
+}
+
+tasks.getByName('extractUserDev').dependsOn(seedForgeUserdev)
