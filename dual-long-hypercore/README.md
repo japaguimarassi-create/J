@@ -18,7 +18,7 @@ A compatibility-first numerical extension foundation for Minecraft Forge 1.7.10,
 - Player sidecar storage: nine extended numeric fields are persisted through Forge `IExtendedEntityProperties` into NBT as two longs each.
 - Mod detection for JRMCore, DBC, JBRA, DBC Expansion, NPCDBC, CreatureBoost and Ninjin Entities.
 - A coremod loading plugin with an identity transformer that records when relevant JRMCore/DBC classes load. It deliberately does not change their bytecode.
-- `/dlhc status`, `/dlhc get <stat>` and `/dlhc set <stat> <value>` for operator-level inspection of the sidecar data.
+- `/dlhc status`, `/dlhc get <stat>` and `/dlhc set <stat> <value>` for operator-level inspection of the sidecar values.
 
 ## Important limitation
 
@@ -26,13 +26,13 @@ This release does **not** replace JRMCore's native `int` stats or widen DBC comb
 
 ## Build
 
-Use a Java 8 JDK and Gradle 6.9.1 with the GTNH-maintained ForgeGradle 1.2.11 fork. The build declares the QLU BMCLAPI Maven mirror as a fallback for legacy Forge userdev artifacts, followed by the official Forge Maven:
+Use a Java 8 JDK and Gradle 6.9.1 with the GTNH-maintained ForgeGradle 1.2.11 fork. ForgeGradle 1.2's legacy repository resolution can fail to find the 1.7.10 userdev POM, so the build first seeds ForgeGradle's expected local cache with the published userdev JAR. It verifies the official SHA-1 before extraction and falls back to two Maven mirrors. No unverified artifact is accepted:
 
 ```bash
 gradle clean test build --no-daemon
 ```
 
-The resulting JAR is in `build/libs/`. GitHub Actions runs the same tests and build for this branch.
+The resulting JAR is in `build/libs/`.
 
 ## Commands
 
