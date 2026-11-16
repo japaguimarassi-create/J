@@ -26,13 +26,18 @@ This release does **not** replace JRMCore's native `int` stats or widen DBC comb
 
 ## Build
 
-Use a Java 8 JDK and Gradle 6.9.1 with the GTNH-maintained ForgeGradle 1.2.11 fork. ForgeGradle 1.2's legacy repository resolution can fail to find the 1.7.10 userdev POM, so the build first seeds ForgeGradle's expected local cache with the published userdev JAR. It verifies the official SHA-1 before extraction and falls back to two Maven mirrors. No unverified artifact is accepted:
+Use a Java 8 JDK and Gradle 6.9.1. Extract the source archive, then copy the canonical build file from this repository over the archive's build file:
 
 ```bash
+tar -xJf DualLongHyperCore-0.1.0-source.tar.xz
+cp build.gradle DualLongHyperCore/build.gradle
+cd DualLongHyperCore
 gradle clean test build --no-daemon
 ```
 
-The resulting JAR is in `build/libs/`.
+The canonical build file is [`build.gradle`](build.gradle). It configures the SpongePowered Maven repository for legacy Scala dependencies, downloads Forge's 1.7.10 userdev JAR directly and verifies its published SHA-1 before making it available to ForgeGradle 1.2.11. The GitHub Actions workflow applies this exact build file automatically.
+
+The resulting mod JAR is in `build/libs/`.
 
 ## Commands
 
@@ -48,4 +53,4 @@ The config file is `config/duallonghypercore.cfg`. The initial performance modul
 
 ## Audit references
 
-See [`docs/AUDIT.md`](docs/AUDIT.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), and [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
+See [`AUDIT-REPORT.md`](AUDIT-REPORT.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), and [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md).
