@@ -10,7 +10,7 @@
       "status": "pass",
       "score": 9.2,
       "evidence": [
-        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892"
+        "https://github.com/japaguimarassi-create/J/actions/runs/44364778024"
       ]
     },
     {
@@ -19,7 +19,7 @@
       "status": "pass",
       "score": 9.1,
       "evidence": [
-        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892"
+        "https://github.com/japaguimarassi-create/J/actions/runs/44364778024"
       ]
     },
     {
@@ -28,8 +28,8 @@
       "status": "pass",
       "score": 8.6,
       "evidence": [
-        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892",
-        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892/artifacts/14455732557"
+        "https://github.com/japaguimarassi-create/J/actions/runs/44364778024",
+        "https://github.com/japaguimarassi-create/J/actions/runs/44364778024/artifacts/14456358220"
       ]
     },
     {
@@ -38,8 +38,8 @@
       "status": "pass",
       "score": 8.8,
       "evidence": [
-        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892",
-        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892/artifacts/14455732557"
+        "https://github.com/japaguimarassi-create/J/actions/runs/44364778024",
+        "https://github.com/japaguimarassi-create/J/actions/runs/44364778024/artifacts/14456358220"
       ]
     },
     {
@@ -57,7 +57,7 @@
       "status": "pass",
       "score": 8.7,
       "evidence": [
-        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892"
+        "https://github.com/japaguimarassi-create/J/actions/runs/44364778024"
       ]
     },
     {
@@ -66,7 +66,7 @@
       "status": "blocked",
       "score": null,
       "evidence": [
-        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892",
+        "https://github.com/japaguimarassi-create/J/actions/runs/44364778024",
         "https://github.com/japaguimarassi-create/J/blob/klod-development/klod/docs/DEMO_TRAINING.md"
       ]
     },
@@ -76,7 +76,7 @@
       "status": "pass",
       "score": 8.7,
       "evidence": [
-        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892"
+        "https://github.com/japaguimarassi-create/J/actions/runs/44364778024"
       ]
     },
     {
@@ -85,7 +85,7 @@
       "status": "pass",
       "score": 8.8,
       "evidence": [
-        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892"
+        "https://github.com/japaguimarassi-create/J/actions/runs/44364778024"
       ]
     },
     {
@@ -94,7 +94,7 @@
       "status": "pass",
       "score": 8.8,
       "evidence": [
-        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892"
+        "https://github.com/japaguimarassi-create/J/actions/runs/44364778024"
       ]
     },
     {
@@ -103,7 +103,7 @@
       "status": "pass",
       "score": 8.8,
       "evidence": [
-        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892"
+        "https://github.com/japaguimarassi-create/J/actions/runs/44364778024"
       ]
     },
     {
