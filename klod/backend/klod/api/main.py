@@ -67,6 +67,14 @@ class RegisterRequest(EmailPayload):
     display_name: str = Field(min_length=1, max_length=160)
     password: str = Field(min_length=10, max_length=128)
 
+    @field_validator("display_name")
+    @classmethod
+    def normalise_display_name(cls, value: str) -> str:
+        name = " ".join(value.split())
+        if not name:
+            raise ValueError("Informe seu nome.")
+        return name
+
     @field_validator("password")
     @classmethod
     def validate_password_bytes(cls, value: str) -> str:
@@ -127,12 +135,17 @@ def set_auth_cookies(response: Response, session: dict) -> None:
     response.set_cookie(csrf_name, session["csrf_token"], max_age=max_age, httponly=False, secure=secure, samesite=same_site, path="/")
 
 
-def email_action_url(token: str, action: str) -> str:
+def ensure_email_delivery_configured() -> None:
     app_url = os.getenv("KLOD_APP_URL", "").strip().rstrip("/")
     if not app_url.startswith("https://") and not app_url.startswith("http://localhost"):
         raise HTTPException(status_code=503, detail="KLOD_APP_URL deve apontar para o endereço HTTPS do aplicativo.")
     if not email_service.is_configured():
         raise HTTPException(status_code=503, detail="O envio de e-mails ainda não foi configurado no servidor.")
+
+
+def email_action_url(token: str, action: str) -> str:
+    ensure_email_delivery_configured()
+    app_url = os.getenv("KLOD_APP_URL", "").strip().rstrip("/")
     return f"{app_url}/?{action}={token}"
 
 
@@ -265,6 +278,7 @@ def google_login(payload: GoogleLoginRequest, response: Response) -> dict:
 
 @app.post("/v1/auth/register")
 def register(payload: RegisterRequest) -> dict[str, str]:
+    ensure_email_delivery_configured()
     store = auth_store()
     try:
         user = store.create_email_account(
@@ -292,8 +306,9 @@ def email_login(payload: LoginRequest, request: Request, response: Response) -> 
     store = auth_store()
     remote = request.client.host if request.client else "unknown"
     attempt_key = payload.email + ":" + remote
+    ip_attempt_key = "ip:" + remote
     try:
-        if store.is_login_rate_limited(attempt_key):
+        if store.is_login_rate_limited(attempt_key) or store.is_login_rate_limited(ip_attempt_key):
             raise HTTPException(status_code=429, detail="Muitas tentativas. Aguarde 15 minutos e tente novamente.")
         user = store.get_auth_user(payload.email)
         valid_password = False
@@ -304,10 +319,12 @@ def email_login(payload: LoginRequest, request: Request, response: Response) -> 
                 valid_password = False
         if not valid_password:
             store.record_login_failure(attempt_key)
+            store.record_login_failure(ip_attempt_key)
             raise HTTPException(status_code=401, detail="E-mail ou senha incorretos.")
         if not user["email_verified"]:
             raise HTTPException(status_code=403, detail="Confirme seu e-mail antes de entrar. Confira também a pasta de spam.")
         store.clear_login_failures(attempt_key)
+        store.clear_login_failures(ip_attempt_key)
         session = store.create_session_for_user(user["id"])
         if session is None:
             raise HTTPException(status_code=401, detail="Não foi possível iniciar a sessão. Entre novamente.")
@@ -343,6 +360,7 @@ def verify_email(payload: EmailTokenRequest, response: Response) -> dict:
 
 @app.post("/v1/auth/resend-verification")
 def resend_verification(payload: EmailPayload) -> dict[str, str]:
+    ensure_email_delivery_configured()
     store = auth_store()
     try:
         user = store.get_auth_user(payload.email)
@@ -358,8 +376,7 @@ def resend_verification(payload: EmailPayload) -> dict[str, str]:
 
 @app.post("/v1/auth/forgot-password")
 def forgot_password(payload: EmailPayload) -> dict[str, str]:
-    if not email_service.is_configured() or not os.getenv("KLOD_APP_URL", "").strip():
-        raise HTTPException(status_code=503, detail="O serviço de e-mail ainda não está configurado.")
+    ensure_email_delivery_configured()
     store = auth_store()
     try:
         user = store.get_auth_user(payload.email)
