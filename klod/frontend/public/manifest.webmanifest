@@ -1,0 +1,12 @@
+{
+  "name": "Klod",
+  "short_name": "Klod",
+  "description": "Klod — inteligência em construção.",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#101419",
+  "theme_color": "#101419",
+  "icons": [{"src": "/icons/klod.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}]
+}
