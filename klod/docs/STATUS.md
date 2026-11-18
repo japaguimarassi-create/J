@@ -1,60 +1,73 @@
-# Development ledger — 2026-11-18
+# KLOD — development and release ledger
+Date: 2026-11-18
 
-## Current repository state
+## Current state
 
-- Klod remains isolated in `klod/` on `klod-development`; existing projects on other branches are untouched.
-- Latest implementation commit: `fd7382a4165f5713a5ea4bdebed8f14db148b885`.
-- GitHub Actions run `44241830519` completed with conclusion `success`.
-  - Frontend: dependency installation and mobile-first production build passed.
-  - Backend: dependency installation and full pytest suite passed.
-  - Workflow URL: https://github.com/japaguimarassi-create/J/actions/runs/44241830519
-- That workflow published zero artifacts. It did not build an Android package.
-- CI verifies buildability and automated backend tests. It is not a visual/device acceptance test.
-- The main React class names and stylesheet selectors have been aligned in commit `fd7382a`. The rendered appearance still requires screenshot/device verification.
+Klod remains isolated under `klod/` on branch `klod-development`; other repository projects are preserved. The implementation is an experimental platform, not a production-trained general assistant.
 
-## Implemented foundation
+The architecture remains **one Klod AI, one agent and one neural runtime**. Coder is an integrated capability of that same agent. There are no simulated specialist agents.
 
-- One user-facing `KlodAgent` and one neural runtime. Coder is an integrated capability, not another agent.
-- Byte-level BPE tokenizer format v3 with reserved special-token IDs, append-only expansion, exact UTF-8 reconstruction, merge-frequency metadata and v2 compatibility.
-- Unicode segmentation/coverage reports and tests for Portuguese, English, CJK, Arabic, Hebrew, Indic scripts, combining marks, mathematical symbols, emoji, punctuation, controls and whitespace.
-- Decoder-only Transformer with RoPE, causal multi-head attention, tied embeddings, RMSNorm, residual blocks, GELU feed-forward network and next-token loss.
-- Safe neural expansion for vocabulary, context length, depth and feed-forward width. Model width/head-count changes remain rejected pending a separately validated migration.
-- AdamW training, gradient clipping, warmup/cosine scheduler, chronological train/validation split, atomic checkpoints, exact resume and checkpoint lineage.
-- FastAPI chat/auth/admin routes; server-side Google ID token verification; PostgreSQL identity/session schema; hashed opaque sessions, HttpOnly cookies and CSRF checks on chat/logout.
-- Transactional first-admin assignment under a PostgreSQL singleton-row lock.
-- React + TypeScript + Vite mobile-first client, PWA manifest/service worker and Capacitor 8 configuration.
-- GitHub Actions CI for backend tests and frontend production build.
+Latest release-evidence ledger: `docs/release-evidence.json`.
+Latest fully green functional CI evidence: https://github.com/japaguimarassi-create/J/actions/runs/44363756892
+Browser screenshots and Playwright report artifact: https://github.com/japaguimarassi-create/J/actions/runs/44363756892/artifacts/14455732557
 
-## Twelve release confirmations
+## Implemented and tested
 
-These confirmations are deliberately not scored from source inspection alone. A numeric score requires reproducible runtime evidence and, for visual criteria, screenshots from the target viewport/device.
+- UTF-8 byte-level BPE tokenizer with append-only expansion, exact round-trip reconstruction, merge metadata and Unicode coverage tests.
+- Decoder-only Transformer with RoPE, causal multi-head attention, RMSNorm, residual blocks, GELU feed-forward layers and tied embeddings.
+- AdamW training, train/validation split, gradient clipping, warmup/cosine scheduler, atomic checkpoints, exact resume and safe model expansion.
+- One `KlodAgent` with a project-scoped, per-user Coder workspace. Read/list/write use path confinement, byte limits, exact-path approval and atomic writes. Host shell execution is deliberately absent.
+- FastAPI authentication, chat, persistent conversations, projects, file workspace and admin endpoints.
+- PostgreSQL migrations for identity/sessions, conversations/messages and projects.
+- First-admin transaction and per-session CSRF validation; HttpOnly session cookies.
+- React/TypeScript mobile-first UI with conversation history, project creation, file editor/Coder and admin dashboard.
+- PWA setup and Capacitor 8 configuration.
+- CI now runs backend tests against PostgreSQL 16, frontend production build, and Playwright browser acceptance tests for mobile, desktop and authenticated workflows.
+- The PostgreSQL integration test covers identity/session lifecycle, first-admin role, HttpOnly cookie, CSRF, logout, non-admin rejection, chat persistence, project ownership, file read/write and admin counts.
+- The browser suite completed **9/9** tests: mobile layout/overflow/style, mobile menu, prompt suggestion, desktop layout, conversation restore, project+Coder save, admin view, chat send and conversation restoration after reload.
+- Latest green functional run reported **36 backend tests passed** and **9 browser tests passed**. The browser artifact contains a rendered mobile screenshot and Playwright report.
 
-| # | Confirmation | Current evidence | Status |
-|---:|---|---|---|
-| 1 | Frontend production build | CI run 44241830519, frontend job success | PASS |
-| 2 | Backend automated tests | CI run 44241830519, backend job success | PASS |
-| 3 | Mobile layout on a real Android viewport | No device/browser capture attached to this run | NOT VERIFIED |
-| 4 | Visual styling on the rendered React screen | JSX/CSS class contract was corrected; no rendered screenshot/device validation | NOT VERIFIED |
-| 5 | Google sign-in end-to-end | UI/backend code exists; production OAuth credentials and live login test absent | NOT VERIFIED |
-| 6 | Session restore and secure logout end-to-end | Backend tests exist; live configured PostgreSQL/browser session test absent | NOT VERIFIED |
-| 7 | Real neural chat generation | Runtime requires a compatible trained checkpoint; no production checkpoint is shipped | BLOCKED |
-| 8 | Conversation persistence across reloads | Current frontend message state is in-memory only | NOT IMPLEMENTED |
-| 9 | Integrated coder UI and API workflow | Workspace class exists but is not exposed in the frontend/API | NOT IMPLEMENTED |
-| 10 | Projects workflow | Navigation item is disabled; project persistence/UI absent | NOT IMPLEMENTED |
-| 11 | Admin dashboard UI | Admin API exists; dashboard UI is absent | NOT IMPLEMENTED |
-| 12 | Android package build, signing and device installation | Capacitor config exists; native `android/` project/build workflow/artifact/device test absent | NOT IMPLEMENTED |
+## Twelve acceptance confirmations
 
-No 8/10-or-higher scores are claimed. The twelve-confirmation gate is therefore **not passed**. APK generation remains blocked until every confirmation has its own evidence, every score is at least 8/10, and the mean is at least 8.5/10.
+Scores are recorded only where there is reproducible evidence. The viewport checks use Chromium's Pixel 7 mobile emulation at 390×844; they do not claim a physical Moto G04S test.
 
-## Known implementation limits
+| # | Confirmation | Score | Status | Evidence / limitation |
+|---:|---|---:|---|---|
+| 1 | Frontend production build | 9.2/10 | PASS | CI 44363756892 |
+| 2 | Backend tests with PostgreSQL 16 | 9.1/10 | PASS | CI 44363756892; 36 tests passed |
+| 3 | Mobile layout at emulated Pixel 7 viewport | 8.6/10 | PASS | CI 44363756892; mobile screenshot and no horizontal overflow |
+| 4 | Rendered visual styling and CSS checks | 8.8/10 | PASS | CI 44363756892; screenshot plus computed style assertions |
+| 5 | Live Google OAuth with real client credentials and externally issued token | — | BLOCKED | Automated verifier/session tests use a controlled verifier; no production OAuth client ID or live external login has been configured |
+| 6 | PostgreSQL session, HttpOnly cookie, CSRF and logout | 8.7/10 | PASS | CI 44363756892; TestClient against real PostgreSQL |
+| 7 | Production-quality neural checkpoint and real product inference | — | BLOCKED | A 2-step CPU training/inference smoke test exists, but the generated text was incoherent; no production checkpoint or capability benchmark exists |
+| 8 | Persistent conversations and restore after reload | 8.7/10 | PASS | CI 44363756892; PostgreSQL chat persistence plus browser reload workflow |
+| 9 | Integrated Coder workspace, isolation, read and write | 8.8/10 | PASS | CI 44363756892; unit, PostgreSQL API and browser workflow tests |
+| 10 | Project creation and listing | 8.8/10 | PASS | CI 44363756892; PostgreSQL API and browser workflow tests |
+| 11 | Admin panel and server-side permissions | 8.8/10 | PASS | CI 44363756892; admin browser view, admin API and non-admin 403 test |
+| 12 | APK build, install and launch on Android emulator/device | — | PENDING | No APK artifact has been generated; candidate workflow is intentionally gated behind confirmations 1–11 |
 
-- Projects and Development navigation controls are disabled.
-- Coder workspace read/write capability is backend code only; no interactive coder UI or safe command-execution sandbox is available.
-- Frontend messages are not persisted.
-- Google OAuth credentials and PostgreSQL deployment are not configured or tested end to end.
-- No production-trained multilingual model/checkpoint or capability benchmark suite is available. Previous 60-step CPU demo training (86,720 parameters, 320-token vocabulary, validation loss 4.4094242) proved the optimization path only; generated text was incoherent.
-- Distributed rate limiting, monitoring, backups, incident recovery and public deployment remain incomplete.
+**Current count: 9 PASS, 2 BLOCKED, 1 PENDING.** The release requirement is not met. Scores are not assigned to blocked or pending items, and no mean is claimed.
 
-## Release rule
+## Training and model-quality qualification
 
-Do not create, sign, or distribute an APK until all twelve confirmations above have independent runtime evidence, every score is >=8/10 and the average is >=8.5/10. Do not replace missing evidence with source inspection or a green compile.
+The existing CPU smoke tests train a small checkpoint and run neural inference. Historical demo evidence used 86,720 parameters, vocabulary size 320, 60 optimizer updates and validation loss 4.4094242; generated text was incoherent. Current unit tests also train a tiny model and verify checkpoint loading/inference. These prove the training mechanics, not useful language capability. A licensed, sufficiently large corpus, continued training, evaluations for language/reasoning/math/coding and model-quality thresholds are still required.
+
+## Android release protection
+
+The GitHub Actions workflow contains an opt-in Android candidate job. It is skipped on ordinary pushes. Manual execution requires backend, frontend and browser jobs to pass and runs:
+
+`python klod/scripts/release_gate.py --through 11`
+
+Only then does it generate a Capacitor Android project, build a debug APK, install/launch it in an Android emulator and upload APK/screenshot evidence. The evidence ledger must still include all twelve confirmations, each >=8/10 and average >=8.5/10, before final release. A debug candidate is not a production-signed APK.
+
+The release checker uses fixed thresholds, rejects non-finite/out-of-range scores and requires evidence links to this repository's GitHub records. Its test suite checks valid records, missing evidence, invalid scores, external links and the average threshold.
+
+## Remaining blockers
+
+1. Configure a real Google OAuth web client, exact allowed origins and production secrets; test an actual externally issued ID token through the deployed browser/API.
+2. Train and validate a genuinely useful Klod checkpoint on authorized data, package a compatible checkpoint and run product-level chat inference.
+3. Provision a production PostgreSQL instance, HTTPS deployment, monitoring, distributed rate limits, backups and recovery.
+4. Execute the guarded Android candidate workflow after gates 1–11 pass, inspect emulator evidence, and separately validate installation on the target phone.
+5. Add a production signing configuration only after the candidate passes acceptance.
+
+The coder intentionally remains a guarded file workspace/editor. Shell execution, Git operations and a fully isolated command runner are not represented as completed functionality.
