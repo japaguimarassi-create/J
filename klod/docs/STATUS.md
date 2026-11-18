@@ -3,13 +3,14 @@
 ## Current repository state
 
 - Klod remains isolated in `klod/` on `klod-development`; existing projects on other branches are untouched.
-- Latest implementation commit validated by CI: `accbfa465ed1e224f15b597d7cd350e2bf8049ff`.
-- GitHub Actions run `44241061284` completed with conclusion `success`.
+- Latest implementation commit: `fd7382a4165f5713a5ea4bdebed8f14db148b885`.
+- GitHub Actions run `44241830519` completed with conclusion `success`.
   - Frontend: dependency installation and mobile-first production build passed.
   - Backend: dependency installation and full pytest suite passed.
-  - Workflow URL: https://github.com/japaguimarassi-create/J/actions/runs/44241061284
+  - Workflow URL: https://github.com/japaguimarassi-create/J/actions/runs/44241830519
 - That workflow published zero artifacts. It did not build an Android package.
-- The CI run validates buildability and automated backend tests only; it is not a visual/device acceptance test.
+- CI verifies buildability and automated backend tests. It is not a visual/device acceptance test.
+- The main React class names and stylesheet selectors have been aligned in commit `fd7382a`. The rendered appearance still requires screenshot/device verification.
 
 ## Implemented foundation
 
@@ -30,10 +31,10 @@ These confirmations are deliberately not scored from source inspection alone. A 
 
 | # | Confirmation | Current evidence | Status |
 |---:|---|---|---|
-| 1 | Frontend production build | CI run 44241061284, frontend job success | PASS |
-| 2 | Backend automated tests | CI run 44241061284, backend job success | PASS |
+| 1 | Frontend production build | CI run 44241830519, frontend job success | PASS |
+| 2 | Backend automated tests | CI run 44241830519, backend job success | PASS |
 | 3 | Mobile layout on a real Android viewport | No device/browser capture attached to this run | NOT VERIFIED |
-| 4 | Visual styling is applied to the rendered React screen | Main JSX class names do not match the main stylesheet selectors | FAIL |
+| 4 | Visual styling on the rendered React screen | JSX/CSS class contract was corrected; no rendered screenshot/device validation | NOT VERIFIED |
 | 5 | Google sign-in end-to-end | UI/backend code exists; production OAuth credentials and live login test absent | NOT VERIFIED |
 | 6 | Session restore and secure logout end-to-end | Backend tests exist; live configured PostgreSQL/browser session test absent | NOT VERIFIED |
 | 7 | Real neural chat generation | Runtime requires a compatible trained checkpoint; no production checkpoint is shipped | BLOCKED |
@@ -45,9 +46,8 @@ These confirmations are deliberately not scored from source inspection alone. A 
 
 No 8/10-or-higher scores are claimed. The twelve-confirmation gate is therefore **not passed**. APK generation remains blocked until every confirmation has its own evidence, every score is at least 8/10, and the mean is at least 8.5/10.
 
-## Known implementation defects and limits
+## Known implementation limits
 
-- The stylesheet's primary selectors (`.shell`, `.brand`, `.nav`, and related names) do not match the current JSX names (`.app-shell`, `.brand-row`, `.nav-item`, etc.). A successful TypeScript/Vite build does not detect this visual mismatch.
 - Projects and Development navigation controls are disabled.
 - Coder workspace read/write capability is backend code only; no interactive coder UI or safe command-execution sandbox is available.
 - Frontend messages are not persisted.
