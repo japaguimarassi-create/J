@@ -38,7 +38,7 @@ def migrated_database():
             "TRUNCATE klod_sessions, klod_messages, klod_conversations, klod_projects, klod_users CASCADE"
         )
         connection.execute(
-            "UPDATE klod_platform_state SET owner_google_sub = NULL, initialized_at = NULL WHERE id = 1"
+            "UPDATE klod_platform_state SET owner_google_sub = NULL, owner_user_id = NULL, initialized_at = NULL WHERE id = 1"
         )
 
 
@@ -197,6 +197,8 @@ def test_postgres_email_verification_tokens_password_recovery_and_rate_limits(mo
     assert store.create_session_for_user(created["id"]) is None
 
     verification = store.issue_email_token(created["id"], "verify_email")
+    with pytest.raises(ValueError, match="Aguarde um minuto"):
+        store.issue_email_token(created["id"], "verify_email")
     verified = store.consume_email_token(verification, "verify_email", owner_email="owner@example.com")
     assert verified is not None
     assert verified["role"] == "admin"
@@ -214,6 +216,7 @@ def test_postgres_email_verification_tokens_password_recovery_and_rate_limits(mo
     )
     assert recovered is not None
     assert store.get_auth_user("owner@example.com")["password_hash"] == "new-argon2id-hash"
+    assert store.get_session(session["session_token"]) is None
     assert store.consume_email_token(
         recovery,
         "reset_password",
