@@ -200,6 +200,80 @@ class BytePairTokenizer:
             "unicode_categories": dict(sorted(categories.items())),
         }
 
+    @staticmethod
+    def _unicode_kind(char: str) -> str:
+        category = unicodedata.category(char)
+        if char.isspace():
+            return "whitespace"
+        if category.startswith("L"):
+            return "letter"
+        if category.startswith("M"):
+            return "mark"
+        if category.startswith("N"):
+            return "number"
+        if category.startswith("P"):
+            return "punctuation"
+        if category.startswith("S"):
+            return "symbol"
+        if category.startswith("C"):
+            return "control_or_format"
+        return "other"
+
+    def segment(self, text: str) -> list[dict[str, object]]:
+        """Split into lossless Unicode-category runs without normalizing input."""
+        if not isinstance(text, str):
+            raise TypeError("segment expects a string")
+        if not text:
+            return []
+        segments: list[dict[str, object]] = []
+        start = 0
+        byte_start = 0
+        current_kind = self._unicode_kind(text[0])
+        for index in range(1, len(text) + 1):
+            next_kind = self._unicode_kind(text[index]) if index < len(text) else None
+            if next_kind != current_kind:
+                value = text[start:index]
+                byte_end = byte_start + len(value.encode("utf-8", errors="strict"))
+                segments.append({
+                    "kind": current_kind,
+                    "text": value,
+                    "char_start": start,
+                    "char_end": index,
+                    "byte_start": byte_start,
+                    "byte_end": byte_end,
+                    "token_ids": self.encode(value),
+                })
+                byte_start = byte_end
+                start = index
+                current_kind = next_kind
+        return segments
+
+    def encode_segments(self, text: str) -> list[dict[str, object]]:
+        """Return categorized segments with BPE IDs; concatenation is exactly reversible."""
+        return self.segment(text)
+
+    def coverage_report(self, text: str) -> dict[str, object]:
+        """Report Unicode categories and observed character-name prefixes."""
+        if not isinstance(text, str):
+            raise TypeError("coverage_report expects a string")
+        scripts: Counter[str] = Counter()
+        categories: Counter[str] = Counter()
+        for char in text:
+            name = unicodedata.name(char, "UNNAMED")
+            prefix = name.split(" ", 1)[0] if name != "UNNAMED" else "UNNAMED"
+            scripts[prefix] += 1
+            categories[unicodedata.category(char)] += 1
+        encoded = self.encode(text)
+        return {
+            "unicode_data_version": self.unicode_data_version,
+            "characters": len(text),
+            "utf8_bytes": len(text.encode("utf-8", errors="strict")),
+            "token_count": len(encoded),
+            "unicode_categories": dict(sorted(categories.items())),
+            "unicode_name_prefixes": dict(sorted(scripts.items())),
+            "round_trip_exact": self.decode(encoded) == text,
+        }
+
     def iter_vocabulary(self) -> Iterator[dict[str, object]]:
         special_by_id = {value: key for key, value in self._special_ids.items()}
         for token_id, token_bytes in enumerate(self._token_bytes):
