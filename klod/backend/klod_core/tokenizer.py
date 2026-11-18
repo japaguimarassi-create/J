@@ -25,8 +25,8 @@ class ByteBPE:
     def train(cls, texts: Iterable[str], vocab_size: int = 512):
         if vocab_size < 256:
             raise ValueError("vocab_size must be at least 256")
-        sequences = [list(text.encode("utf-8")) for text in texts]
-        merges = []
+        sequences = [[bytes([b]) for b in text.encode("utf-8")] for text in texts]
+        merges: list[tuple[bytes, bytes]] = []
         while 256 + len(merges) < vocab_size:
             counts = Counter()
             for seq in sequences:
@@ -36,14 +36,13 @@ class ByteBPE:
             pair, frequency = counts.most_common(1)[0]
             if frequency < 2:
                 break
-            merges.append((bytes([pair[0]]), bytes([pair[1]])))
-            merged_id = 255 + len(merges)
+            merges.append(pair)
             updated = []
             for seq in sequences:
                 out, i = [], 0
                 while i < len(seq):
                     if i + 1 < len(seq) and (seq[i], seq[i + 1]) == pair:
-                        out.append(merged_id)
+                        out.append(seq[i] + seq[i + 1])
                         i += 2
                     else:
                         out.append(seq[i])
