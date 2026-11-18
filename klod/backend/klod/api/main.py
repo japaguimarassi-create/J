@@ -79,6 +79,13 @@ def current_session(request: Request) -> tuple[AuthStore, dict]:
         raise HTTPException(status_code=401, detail="Session is invalid or expired")
     return store, session
 
+def verify_csrf(request: Request, session: dict, csrf_header: str | None) -> None:
+    csrf_cookie = request.cookies.get("klod_csrf", "")
+    if not csrf_header or not csrf_cookie or not hmac.compare_digest(csrf_header, csrf_cookie):
+        raise HTTPException(status_code=403, detail="CSRF validation failed")
+    if not hmac.compare_digest(AuthStore.digest(csrf_header), session["csrf_hash"]):
+        raise HTTPException(status_code=403, detail="CSRF validation failed")
+
 
 @app.get("/health")
 def health() -> dict[str, str | bool]:
@@ -143,11 +150,7 @@ def auth_logout(
 ) -> dict[str, bool]:
     store, session = current_session(request)
     session_name, csrf_name, secure, same_site = cookie_settings()
-    csrf_cookie = request.cookies.get(csrf_name, "")
-    if not csrf_header or not csrf_cookie or not hmac.compare_digest(csrf_header, csrf_cookie):
-        raise HTTPException(status_code=403, detail="CSRF validation failed")
-    if not hmac.compare_digest(store.digest(csrf_header), session["csrf_hash"]):
-        raise HTTPException(status_code=403, detail="CSRF validation failed")
+    verify_csrf(request, session, csrf_header)
     try:
         store.revoke_session(request.cookies[session_name])
     except Exception as error:
@@ -169,8 +172,13 @@ def admin_users(request: Request, limit: int = 100) -> dict:
 
 
 @app.post("/v1/chat")
-def chat(payload: ChatRequest, http_request: Request) -> dict[str, str | int]:
-    current_session(http_request)
+def chat(
+    payload: ChatRequest,
+    http_request: Request,
+    csrf_header: str | None = Header(default=None, alias="X-Klod-CSRF"),
+) -> dict[str, str | int]:
+    _, session = current_session(http_request)
+    verify_csrf(http_request, session, csrf_header)
     try:
         response = runtime.generate(payload.message, payload.max_new_tokens, payload.temperature)
     except ModelUnavailable as error:
