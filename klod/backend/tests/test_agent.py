@@ -70,4 +70,4 @@ def test_coder_workspaces_are_isolated_by_user_and_project(tmp_path):
     assert agent.read_project_file("src/main.py", user_one_project_a) == "user one project a"
     assert agent.read_project_file("src/main.py", user_one_project_b) == "user one project b"
     assert agent.read_project_file("src/main.py", user_two_project_a) == "user two project a"
-    assert agent.list_project_files(user_one_project_a) == [{"path": "src/main.py", "size": 17}]
+    assert agent.list_project_files(user_one_project_a) == [{"path": "src/main.py", "size": 18}]
