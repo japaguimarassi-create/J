@@ -2,22 +2,26 @@ from __future__ import annotations
 
 import hmac
 import os
+import re
 import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+from argon2 import PasswordHasher, exceptions as argon2_errors
 
 from klod.api.runtime import ModelRuntime, ModelUnavailable
 from klod.agent import KlodAgent, KlodContext
 from klod.auth.google import InvalidGoogleIdentity, verify_google_identity
+from klod.auth import email as email_service
 from klod.auth.store import AuthStore
 from klod.tools.workspace import WorkspacePermissionError, CoderWorkspace
 
 runtime = ModelRuntime()
 workspace = CoderWorkspace(os.getenv("KLOD_WORKSPACE_ROOT", "workspaces"))
 klod_agent = KlodAgent(runtime, workspace)
+password_hasher = PasswordHasher(time_cost=2, memory_cost=19456, parallelism=1)
 
 
 @asynccontextmanager
@@ -47,6 +51,50 @@ class ChatRequest(BaseModel):
     temperature: float = Field(default=0.8, gt=0.0, le=2.0)
 
 
+class EmailPayload(BaseModel):
+    email: str = Field(min_length=5, max_length=254)
+
+    @field_validator("email")
+    @classmethod
+    def normalise_email(cls, value: str) -> str:
+        email = value.strip().lower()
+        if not re.fullmatch(r"[^@\\s]+@[^@\\s]+\\.[^@\\s]+", email):
+            raise ValueError("Informe um endereço de e-mail válido.")
+        return email
+
+
+class RegisterRequest(EmailPayload):
+    display_name: str = Field(min_length=1, max_length=160)
+    password: str = Field(min_length=10, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_bytes(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > 128:
+            raise ValueError("A senha deve ter no máximo 128 bytes.")
+        return value
+
+
+class LoginRequest(EmailPayload):
+    password: str = Field(min_length=1, max_length=128)
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=128)
+    password: str = Field(min_length=10, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_bytes(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > 128:
+            raise ValueError("A senha deve ter no máximo 128 bytes.")
+        return value
+
+
+class EmailTokenRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=128)
+
+
 class GoogleLoginRequest(BaseModel):
     credential: str = Field(min_length=20, max_length=10000)
 
@@ -65,10 +113,55 @@ class ProjectFileWrite(BaseModel):
     content: str = Field(max_length=1_000_000)
 
 
+def set_auth_cookies(response: Response, session: dict) -> None:
+    session_name, csrf_name, secure, same_site = cookie_settings()
+    max_age = 14 * 24 * 60 * 60
+    response.set_cookie(session_name, session["session_token"], max_age=max_age, httponly=True, secure=secure, samesite=same_site, path="/")
+    response.set_cookie(csrf_name, session["csrf_token"], max_age=max_age, httponly=False, secure=secure, samesite=same_site, path="/")
+
+
+def email_action_url(token: str, action: str) -> str:
+    app_url = os.getenv("KLOD_APP_URL", "").strip().rstrip("/")
+    if not app_url.startswith("https://") and not app_url.startswith("http://localhost"):
+        raise HTTPException(status_code=503, detail="KLOD_APP_URL deve apontar para o endereço HTTPS do aplicativo.")
+    if not email_service.is_configured():
+        raise HTTPException(status_code=503, detail="O envio de e-mails ainda não foi configurado no servidor.")
+    return f"{app_url}/?{action}={token}"
+
+
+def send_account_email(email: str, token: str, purpose: str) -> None:
+    action = "verify" if purpose == "verify_email" else "reset"
+    link = email_action_url(token, action)
+    if purpose == "verify_email":
+        subject = "Confirme seu e-mail para acessar o Klod"
+        text_body = f"Olá! Confirme seu endereço de e-mail para ativar sua conta Klod:\n\n{link}\n\nO link expira em 30 minutos e só pode ser usado uma vez. Se você não solicitou esta conta, ignore esta mensagem."
+        heading = "Confirme seu e-mail"
+        button = "Ativar minha conta"
+    else:
+        subject = "Redefina sua senha do Klod"
+        text_body = f"Recebemos uma solicitação para redefinir sua senha Klod:\n\n{link}\n\nO link expira em 30 minutos e só pode ser usado uma vez. Se você não solicitou a redefinição, ignore esta mensagem."
+        heading = "Redefina sua senha"
+        button = "Criar nova senha"
+    html_body = (
+        "<div style='margin:0;padding:36px 16px;background:#0b1117;font-family:Arial,sans-serif;color:#eaf3f1'>"
+        "<div style='max-width:520px;margin:auto;padding:32px;border:1px solid #263b40;border-radius:20px;background:#121d24'>"
+        "<div style='font-size:13px;font-weight:800;letter-spacing:4px;color:#7de6d0'>KLOD</div>"
+        f"<h1 style='font-size:25px;line-height:1.2;margin:28px 0 12px'>{heading}</h1>"
+        "<p style='font-size:15px;line-height:1.7;color:#a9bcba'>Use o botão abaixo para continuar com segurança. Este link expira em 30 minutos.</p>"
+        f"<p style='margin:28px 0'><a href='{link}' style='display:inline-block;padding:15px 22px;border-radius:12px;background:#7de6d0;color:#071512;text-decoration:none;font-weight:700'>{button}</a></p>"
+        "<p style='font-size:12px;line-height:1.6;color:#809492'>Se você não fez esta solicitação, pode ignorar esta mensagem.</p>"
+        "</div></div>"
+    )
+    try:
+        email_service.send_action_email(email, subject, text_body, html_body)
+    except email_service.EmailDeliveryError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+
+
 def auth_store() -> AuthStore:
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
-        raise HTTPException(status_code=503, detail="Google login is not configured: DATABASE_URL is missing")
+        raise HTTPException(status_code=503, detail="A autenticação não está configurada: DATABASE_URL está ausente")
     try:
         return AuthStore(database_url)
     except (ImportError, RuntimeError, ValueError) as error:
@@ -161,6 +254,132 @@ def google_login(payload: GoogleLoginRequest, response: Response) -> dict:
     response.set_cookie(session_name, session["session_token"], max_age=max_age, httponly=True, secure=secure, samesite=same_site, path="/")
     response.set_cookie(csrf_name, session["csrf_token"], max_age=max_age, httponly=False, secure=secure, samesite=same_site, path="/")
     return {"user": session["user"], "csrf_token": session["csrf_token"], "expires_at": session["expires_at"].isoformat()}
+
+
+@app.post("/v1/auth/register")
+def register(payload: RegisterRequest) -> dict[str, str]:
+    store = auth_store()
+    try:
+        user = store.create_email_account(
+            payload.email,
+            payload.display_name,
+            password_hasher.hash(payload.password),
+        )
+        if user:
+            token = store.issue_email_token(user["id"], "verify_email")
+            send_account_email(payload.email, token, "verify_email")
+        else:
+            existing = store.get_auth_user(payload.email)
+            if existing and not existing["email_verified"]:
+                token = store.issue_email_token(existing["id"], "verify_email")
+                send_account_email(payload.email, token, "verify_email")
+    except HTTPException:
+        raise
+    except Exception as error:
+        raise HTTPException(status_code=503, detail="Não foi possível concluir o cadastro. Tente novamente.") from error
+    return {"message": "Se o endereço puder receber uma confirmação, enviaremos um link para ativar a conta."}
+
+
+@app.post("/v1/auth/login")
+def email_login(payload: LoginRequest, request: Request, response: Response) -> dict:
+    store = auth_store()
+    remote = request.client.host if request.client else "unknown"
+    attempt_key = payload.email + ":" + remote
+    try:
+        if store.is_login_rate_limited(attempt_key):
+            raise HTTPException(status_code=429, detail="Muitas tentativas. Aguarde 15 minutos e tente novamente.")
+        user = store.get_auth_user(payload.email)
+        valid_password = False
+        if user and user["password_hash"]:
+            try:
+                valid_password = password_hasher.verify(user["password_hash"], payload.password)
+            except (argon2_errors.VerifyMismatchError, argon2_errors.VerificationError, argon2_errors.InvalidHashError):
+                valid_password = False
+        if not valid_password:
+            store.record_login_failure(attempt_key)
+            raise HTTPException(status_code=401, detail="E-mail ou senha incorretos.")
+        if not user["email_verified"]:
+            raise HTTPException(status_code=403, detail="Confirme seu e-mail antes de entrar. Confira também a pasta de spam.")
+        store.clear_login_failures(attempt_key)
+        session = store.create_session_for_user(user["id"])
+        if session is None:
+            raise HTTPException(status_code=401, detail="Não foi possível iniciar a sessão. Entre novamente.")
+    except HTTPException:
+        raise
+    except Exception as error:
+        raise HTTPException(status_code=503, detail="O serviço de autenticação está indisponível.") from error
+    set_auth_cookies(response, session)
+    return {"user": session["user"], "expires_at": session["expires_at"].isoformat()}
+
+
+@app.post("/v1/auth/verify-email")
+def verify_email(payload: EmailTokenRequest, response: Response) -> dict:
+    store = auth_store()
+    try:
+        identity = store.consume_email_token(
+            payload.token,
+            "verify_email",
+            owner_email=os.getenv("KLOD_OWNER_EMAIL", ""),
+        )
+        if identity is None:
+            raise HTTPException(status_code=400, detail="Este link é inválido, já foi usado ou expirou. Solicite outro.")
+        session = store.create_session_for_user(identity["id"])
+        if session is None:
+            raise HTTPException(status_code=503, detail="A conta foi confirmada, mas não foi possível iniciar a sessão.")
+    except HTTPException:
+        raise
+    except Exception as error:
+        raise HTTPException(status_code=503, detail="Não foi possível confirmar o endereço de e-mail.") from error
+    set_auth_cookies(response, session)
+    return {"user": session["user"]}
+
+
+@app.post("/v1/auth/resend-verification")
+def resend_verification(payload: EmailPayload) -> dict[str, str]:
+    store = auth_store()
+    try:
+        user = store.get_auth_user(payload.email)
+        if user and not user["email_verified"]:
+            token = store.issue_email_token(user["id"], "verify_email")
+            send_account_email(payload.email, token, "verify_email")
+    except HTTPException:
+        raise
+    except Exception as error:
+        raise HTTPException(status_code=503, detail="Não foi possível solicitar um novo e-mail.") from error
+    return {"message": "Se houver uma conta pendente para este endereço, enviaremos um novo link de confirmação."}
+
+
+@app.post("/v1/auth/forgot-password")
+def forgot_password(payload: EmailPayload) -> dict[str, str]:
+    store = auth_store()
+    try:
+        user = store.get_auth_user(payload.email)
+        if user:
+            token = store.issue_email_token(user["id"], "reset_password")
+            send_account_email(payload.email, token, "reset_password")
+    except HTTPException:
+        raise
+    except Exception:
+        pass
+    return {"message": "Se existir uma conta associada ao endereço, enviaremos instruções para redefinir a senha."}
+
+
+@app.post("/v1/auth/reset-password")
+def reset_password(payload: ResetPasswordRequest) -> dict[str, str]:
+    store = auth_store()
+    try:
+        identity = store.consume_email_token(
+            payload.token,
+            "reset_password",
+            new_password_hash=password_hasher.hash(payload.password),
+        )
+        if identity is None:
+            raise HTTPException(status_code=400, detail="Este link é inválido, já foi usado ou expirou. Solicite outro.")
+    except HTTPException:
+        raise
+    except Exception as error:
+        raise HTTPException(status_code=503, detail="Não foi possível redefinir a senha.") from error
+    return {"message": "Senha atualizada. Entre com sua nova senha."}
 
 
 @app.get("/v1/auth/me")
