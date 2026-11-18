@@ -2,7 +2,7 @@
 
 Klod is an original, mobile-first AI platform under active development. It is designed as **one AI and one agent identity**: one project-owned neural model, one continuous context and decision process, and one integrated coder capability. Claude Fable 5.2, Claude Opus 5.5 and Claude Code are public capability references only; their models, weights, prompts and private systems are not loaded into Klod.
 
-**Current status:** experimental implementation with an automated PostgreSQL integration suite and Playwright browser acceptance tests. The application has a persistent conversation UI, project management, an integrated text-file coder workspace and an admin dashboard. Production Google OAuth credentials, a production database, a trained production-quality checkpoint, a public deployment and a signed release APK are not supplied. The coder does not execute commands on the host and is not an unrestricted terminal.
+**Current status:** experimental implementation with an automated PostgreSQL integration suite and Playwright browser acceptance tests. The application has a persistent conversation UI, project management, an integrated text-file coder workspace and an admin dashboard. A production database, SMTP credentials, a trained production-quality checkpoint, a public deployment and a signed release APK are not supplied. The coder does not execute commands on the host and is not an unrestricted terminal.
 
 ## Architecture
 
@@ -10,7 +10,7 @@ Klod is an original, mobile-first AI platform under active development. It is de
 - `backend/klod/tokenizer`: versioned byte-level BPE; UTF-8 byte coverage and append-only vocabulary expansion.
 - `backend/klod/neural`: one decoder-only Transformer with causal attention and RoPE.
 - `backend/klod/training`: corpus loading, train/validation split, AdamW, clipping, scheduler, checkpoints, exact resume and safe expansion.
-- `backend/klod/auth`: server-side Google ID-token verification and PostgreSQL sessions.
+- `backend/klod/auth`: Argon2id password hashing, single-use email verification/recovery tokens, configurable SMTP delivery and PostgreSQL sessions. The optional legacy Google endpoint is not used by the app.
 - `backend/klod/api`: FastAPI auth, chat, conversations, projects, workspace and admin endpoints.
 - `backend/klod/tools/workspace.py`: per-user and per-project path-confined file workspace, explicit write permission and atomic file writes.
 - `backend/migrations`: PostgreSQL schema.
@@ -44,23 +44,28 @@ From the `klod` directory:
     python -m pip install -e '.[dev]'
     pytest -q
 
-Apply both database migrations in order:
+Apply all database migrations in order:
 
     psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/migrations/001_identity.sql
     psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/migrations/002_conversations_projects.sql
+    psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f backend/migrations/003_email_password_auth.sql
 
-Configure `GOOGLE_CLIENT_ID`, `DATABASE_URL`, `KLOD_CORS_ORIGINS`, `KLOD_SESSION_COOKIE_SECURE` and `KLOD_COOKIE_SAMESITE` on the API. Configure `VITE_GOOGLE_CLIENT_ID` and, when the API uses a separate origin, `VITE_KLOD_API_URL` for the frontend. Never commit credentials or put server secrets in Vite variables.
+Configure `DATABASE_URL`, `KLOD_APP_URL`, `KLOD_OWNER_EMAIL`, `KLOD_CORS_ORIGINS`, `KLOD_SESSION_COOKIE_SECURE`, `KLOD_COOKIE_SAMESITE` and the SMTP variables shown in `.env.example` on the API. `KLOD_APP_URL` must be the public HTTPS frontend origin used in email links. The frontend only needs `VITE_KLOD_API_URL` when the API uses a separate origin. Never put SMTP credentials, database URLs or other server secrets in Vite variables.
+
+Set an SMTP provider before accepting registrations. The API sends 30-minute, single-use email-confirmation and password-reset links. When `KLOD_OWNER_EMAIL` is set, only that verified address becomes administrator. Set it before enabling public sign-up; when omitted, the first address to verify becomes administrator. Legacy Google-created accounts remain in the database and can set a password through the password-recovery email.
 
 Start the API:
 
     uvicorn klod.api.main:app --host 0.0.0.0 --port 8000
 
-The Google login route verifies the signed ID token on the server. The first identity transactionally assigned as owner becomes the administrator. Session tokens are opaque, stored as hashes and delivered in HttpOnly cookies. Cookie-authenticated state changes require CSRF validation.
+Email passwords are hashed with Argon2id. Verification and recovery tokens are random, stored only as SHA-256 digests, expire after 30 minutes and are consumed once. Login failures are rate-limited per account and source address. Sessions are opaque, stored as hashes and delivered in HttpOnly cookies; cookie-authenticated state changes require CSRF validation.
 
 ## API overview
 
 - `GET /health` and `GET /v1/model`: service and checkpoint status.
-- `POST /v1/auth/google`, `GET /v1/auth/me`, `POST /v1/auth/logout`: identity and session lifecycle.
+- `POST /v1/auth/register`, `POST /v1/auth/login`, `POST /v1/auth/verify-email`: account creation, password login and email confirmation.
+- `POST /v1/auth/resend-verification`, `POST /v1/auth/forgot-password`, `POST /v1/auth/reset-password`: confirmation resend and password recovery.
+- `GET /v1/auth/me`, `POST /v1/auth/logout`: session lifecycle. An optional legacy `POST /v1/auth/google` endpoint remains for compatibility but is not required by the app.
 - `POST /v1/chat`: model inference and persistent user/assistant messages. Requires a valid session and CSRF header.
 - `GET/POST /v1/conversations`, `GET /v1/conversations/{id}`: conversation history.
 - `GET/POST /v1/projects`: project list and creation.
@@ -116,9 +121,9 @@ Each confirmation needs an evidence reference, status `pass`, score at least 8/1
 
 ## Known limitations
 
-- Production OAuth credentials, live external Google sign-in and production PostgreSQL provisioning still require configuration and real-environment testing.
+- Production SMTP credentials, migration 003 and production PostgreSQL provisioning still require configuration and real-environment testing.
 - No production-trained multilingual model/checkpoint or capability benchmark suite is currently shipped.
 - The coder currently supports safe text-file operations only; no shell runner, Git operations or unrestricted terminal is enabled.
-- Conversation and project storage require applying both SQL migrations.
+- Authentication, conversation and project storage require applying all SQL migrations.
 - Public deployment, distributed rate limiting, observability, backup/restore and incident recovery remain operational tasks.
 - A browser viewport test is not a physical-device test. APK generation and emulator installation are separate, guarded release confirmations.
