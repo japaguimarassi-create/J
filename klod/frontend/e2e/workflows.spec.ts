@@ -116,3 +116,13 @@ test('renders admin metrics and user directory for an admin identity', async ({ 
   await expect(page.getByText('admin@klod.test')).toBeVisible()
   await expect(page.getByText('12', { exact: true })).toBeVisible()
 })
+
+test('sends a message through the authenticated chat flow', async ({ page }) => {
+  await stubAuthenticatedApi(page)
+  await page.goto('/')
+  const composer = page.locator('.composer textarea')
+  await composer.fill('Explique o agente único do Klod.')
+  await page.getByRole('button', { name: 'Enviar mensagem' }).click()
+  await expect(page.getByText('Resposta de teste do Klod.')).toBeVisible()
+  await expect(page.getByText(/30 atualizações/)).toBeVisible()
+})
