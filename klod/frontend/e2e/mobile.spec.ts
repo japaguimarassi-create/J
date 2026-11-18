@@ -43,7 +43,7 @@ test('mobile registration shows email verification state', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Crie sua conta' })).toBeVisible()
   await page.getByLabel('Seu nome').fill('Klod Test')
   await page.getByLabel('Endereço de e-mail').fill('user@example.com')
-  await page.getByLabel('Senha', { exact: true }).fill('correct-horse-battery')
+  await page.getByPlaceholder('No mínimo 10 caracteres').fill('correct-horse-battery')
   await page.getByLabel('Confirmar senha').fill('correct-horse-battery')
   await page.getByRole('button', { name: 'Criar minha conta' }).click()
   await expect(page.getByRole('heading', { name: 'Confira sua caixa de entrada' })).toBeVisible()
