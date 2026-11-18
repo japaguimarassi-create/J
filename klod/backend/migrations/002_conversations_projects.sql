@@ -14,11 +14,18 @@ CREATE TABLE IF NOT EXISTS klod_messages (
     conversation_id UUID NOT NULL REFERENCES klod_conversations(id) ON DELETE CASCADE,
     role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
     content TEXT NOT NULL CHECK (length(content) <= 12000),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    message_order BIGINT GENERATED ALWAYS AS IDENTITY,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
 );
 
+ALTER TABLE klod_messages
+    ADD COLUMN IF NOT EXISTS message_order BIGINT GENERATED ALWAYS AS IDENTITY;
+
+ALTER TABLE klod_messages
+    ALTER COLUMN created_at SET DEFAULT clock_timestamp();
+
 CREATE INDEX IF NOT EXISTS klod_messages_conversation_created_idx
-    ON klod_messages (conversation_id, created_at ASC);
+    ON klod_messages (conversation_id, message_order ASC);
 
 CREATE TABLE IF NOT EXISTS klod_projects (
     id UUID PRIMARY KEY,
