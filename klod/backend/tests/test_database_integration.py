@@ -82,13 +82,13 @@ def test_postgres_first_admin_sessions_conversations_projects_and_workspace(tmp_
     original_agent = main.klod_agent
     main.klod_agent = KlodAgent(ModelRuntime(), CoderWorkspace(tmp_path / "workspace"))
     identities = {
-        "owner-test-token": identity("api-owner", "api-owner@example.com"),
-        "user-test-token": identity("api-user", "api-user@example.com"),
+        "owner-test-token-123456": identity("first-owner", "owner@example.com"),
+        "user-test-token-123456": identity("second-user", "user@example.com"),
     }
     monkeypatch.setattr(main, "verify_google_identity", lambda credential, _client_id: identities[credential])
     try:
         with TestClient(main.app) as client:
-            login = client.post("/v1/auth/google", json={"credential": "owner-test-token"})
+            login = client.post("/v1/auth/google", json={"credential": "owner-test-token-123456"})
             assert login.status_code == 200
             assert login.json()["user"]["role"] == "admin"
             csrf = client.cookies.get("klod_csrf")
@@ -124,7 +124,7 @@ def test_postgres_first_admin_sessions_conversations_projects_and_workspace(tmp_
             assert read.json()["content"] == "print('Klod')\n"
             file_list = client.get(f"/v1/projects/{project_id}/files")
             assert file_list.json()["files"][0]["path"] == "src/main.py"
-            assert client.get("/v1/admin/overview").json()["users"] == 3
+            assert client.get("/v1/admin/overview").json()["users"] == 2
 
             logout = client.post("/v1/auth/logout", headers={"X-Klod-CSRF": csrf})
             assert logout.status_code == 200
@@ -132,6 +132,6 @@ def test_postgres_first_admin_sessions_conversations_projects_and_workspace(tmp_
     finally:
         main.klod_agent = original_agent
 
-    assert store.get_session(first["session_token"]) is None or store.get_session(second["session_token"]) is not None
+    assert store.get_session(first["session_token"]) is not None
     store.revoke_session(second["session_token"])
     assert store.get_session(second["session_token"]) is None
