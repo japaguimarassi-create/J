@@ -118,3 +118,173 @@ class AuthStore:
                 )
                 rows = cursor.fetchall()
         return [{**row, "id": str(row["id"])} for row in rows]
+
+    def create_conversation(self, user_id: str, title: str = "Nova conversa") -> dict[str, Any]:
+        conversation_id = uuid.uuid4()
+        clean_title = " ".join(title.split())[:160] or "Nova conversa"
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO klod_conversations (id, user_id, title)
+                    VALUES (%s, %s, %s)
+                    RETURNING id, title, created_at, updated_at
+                    """,
+                    (conversation_id, uuid.UUID(user_id), clean_title),
+                )
+                row = cursor.fetchone()
+        return {**row, "id": str(row["id"])}
+
+    def list_conversations(self, user_id: str, limit: int = 100) -> list[dict[str, Any]]:
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, title, created_at, updated_at
+                    FROM klod_conversations
+                    WHERE user_id = %s
+                    ORDER BY updated_at DESC
+                    LIMIT %s
+                    """,
+                    (uuid.UUID(user_id), max(1, min(limit, 200))),
+                )
+                rows = cursor.fetchall()
+        return [{**row, "id": str(row["id"])} for row in rows]
+
+    def get_conversation(self, user_id: str, conversation_id: str) -> dict[str, Any] | None:
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, title, created_at, updated_at
+                    FROM klod_conversations
+                    WHERE id = %s AND user_id = %s
+                    """,
+                    (uuid.UUID(conversation_id), uuid.UUID(user_id)),
+                )
+                conversation = cursor.fetchone()
+                if conversation is None:
+                    return None
+                cursor.execute(
+                    """
+                    SELECT id, role, content, created_at
+                    FROM klod_messages
+                    WHERE conversation_id = %s
+                    ORDER BY created_at ASC, id ASC
+                    """,
+                    (uuid.UUID(conversation_id),),
+                )
+                messages = cursor.fetchall()
+        return {
+            **conversation,
+            "id": str(conversation["id"]),
+            "messages": [{**message, "id": str(message["id"])} for message in messages],
+        }
+
+    def save_chat_turn(
+        self,
+        user_id: str,
+        conversation_id: str | None,
+        user_message: str,
+        assistant_message: str,
+    ) -> str:
+        owner_id = uuid.UUID(user_id)
+        requested_id = uuid.UUID(conversation_id) if conversation_id else uuid.uuid4()
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                if conversation_id is None:
+                    title = " ".join(user_message.split())[:157] or "Nova conversa"
+                    if len(user_message) > 157:
+                        title += "…"
+                    cursor.execute(
+                        """
+                        INSERT INTO klod_conversations (id, user_id, title)
+                        VALUES (%s, %s, %s)
+                        """,
+                        (requested_id, owner_id, title),
+                    )
+                else:
+                    cursor.execute(
+                        """
+                        SELECT id, title FROM klod_conversations
+                        WHERE id = %s AND user_id = %s
+                        FOR UPDATE
+                        """,
+                        (requested_id, owner_id),
+                    )
+                    conversation = cursor.fetchone()
+                    if conversation is None:
+                        raise LookupError("Conversation not found")
+                cursor.executemany(
+                    """
+                    INSERT INTO klod_messages (id, conversation_id, role, content)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    [
+                        (uuid.uuid4(), requested_id, "user", user_message),
+                        (uuid.uuid4(), requested_id, "assistant", assistant_message),
+                    ],
+                )
+                cursor.execute(
+                    "UPDATE klod_conversations SET updated_at = now() WHERE id = %s",
+                    (requested_id,),
+                )
+        return str(requested_id)
+
+    def create_project(self, user_id: str, name: str, description: str = "") -> dict[str, Any]:
+        project_id = uuid.uuid4()
+        clean_name = " ".join(name.split())
+        clean_description = description.strip()
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO klod_projects (id, user_id, name, description)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING id, name, description, created_at, updated_at
+                    """,
+                    (project_id, uuid.UUID(user_id), clean_name, clean_description),
+                )
+                row = cursor.fetchone()
+        return {**row, "id": str(row["id"])}
+
+    def list_projects(self, user_id: str, limit: int = 100) -> list[dict[str, Any]]:
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, name, description, created_at, updated_at
+                    FROM klod_projects
+                    WHERE user_id = %s
+                    ORDER BY updated_at DESC
+                    LIMIT %s
+                    """,
+                    (uuid.UUID(user_id), max(1, min(limit, 200))),
+                )
+                rows = cursor.fetchall()
+        return [{**row, "id": str(row["id"])} for row in rows]
+
+    def get_project(self, user_id: str, project_id: str) -> dict[str, Any] | None:
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, name, description, created_at, updated_at
+                    FROM klod_projects
+                    WHERE id = %s AND user_id = %s
+                    """,
+                    (uuid.UUID(project_id), uuid.UUID(user_id)),
+                )
+                row = cursor.fetchone()
+        return {**row, "id": str(row["id"])} if row else None
+
+    def admin_overview(self) -> dict[str, int]:
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT count(*) AS total FROM klod_users")
+                users = cursor.fetchone()["total"]
+                cursor.execute("SELECT count(*) AS total FROM klod_conversations")
+                conversations = cursor.fetchone()["total"]
+                cursor.execute("SELECT count(*) AS total FROM klod_projects")
+                projects = cursor.fetchone()["total"]
+        return {"users": users, "conversations": conversations, "projects": projects}
