@@ -7,83 +7,108 @@
     {
       "id": 1,
       "name": "Build de produção do frontend",
-      "status": "pending",
-      "score": null,
-      "evidence": []
+      "status": "pass",
+      "score": 9.2,
+      "evidence": [
+        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892"
+      ]
     },
     {
       "id": 2,
-      "name": "Testes automatizados e integração PostgreSQL",
-      "status": "pending",
-      "score": null,
-      "evidence": []
+      "name": "Testes automatizados e integração PostgreSQL real",
+      "status": "pass",
+      "score": 9.1,
+      "evidence": [
+        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892"
+      ]
     },
     {
       "id": 3,
-      "name": "Layout responsivo em viewport móvel",
-      "status": "pending",
-      "score": null,
-      "evidence": []
+      "name": "Layout móvel em viewport Chrome Pixel 7 emulada (390×844)",
+      "status": "pass",
+      "score": 8.6,
+      "evidence": [
+        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892",
+        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892/artifacts/14455732557"
+      ]
     },
     {
       "id": 4,
-      "name": "Estilo visual renderizado e capturas de tela",
-      "status": "pending",
-      "score": null,
-      "evidence": []
+      "name": "Estilo visual renderizado com captura e verificações CSS",
+      "status": "pass",
+      "score": 8.8,
+      "evidence": [
+        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892",
+        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892/artifacts/14455732557"
+      ]
     },
     {
       "id": 5,
-      "name": "Verificação de identidade Google e criação de sessão",
-      "status": "pending",
+      "name": "Login Google real com credenciais OAuth e token externo válido",
+      "status": "blocked",
       "score": null,
-      "evidence": []
+      "evidence": [
+        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892"
+      ]
     },
     {
       "id": 6,
-      "name": "Restauração de sessão e logout seguro",
-      "status": "pending",
-      "score": null,
-      "evidence": []
+      "name": "Sessão PostgreSQL, cookie HttpOnly, CSRF e logout",
+      "status": "pass",
+      "score": 8.7,
+      "evidence": [
+        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892"
+      ]
     },
     {
       "id": 7,
-      "name": "Treinamento neural real e inferência via checkpoint",
-      "status": "pending",
+      "name": "Checkpoint neural de qualidade e geração real no produto",
+      "status": "blocked",
       "score": null,
-      "evidence": []
+      "evidence": [
+        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892",
+        "https://github.com/japaguimarassi-create/J/blob/klod-development/klod/docs/DEMO_TRAINING.md"
+      ]
     },
     {
       "id": 8,
-      "name": "Persistência de conversas após recarregar",
-      "status": "pending",
-      "score": null,
-      "evidence": []
+      "name": "Persistência de conversas no PostgreSQL e restauração após reload",
+      "status": "pass",
+      "score": 8.7,
+      "evidence": [
+        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892"
+      ]
     },
     {
       "id": 9,
-      "name": "Coder integrado: workspace isolado e leitura/gravação",
-      "status": "pending",
-      "score": null,
-      "evidence": []
+      "name": "Coder integrado com workspace isolado, leitura e gravação",
+      "status": "pass",
+      "score": 8.8,
+      "evidence": [
+        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892"
+      ]
     },
     {
       "id": 10,
-      "name": "Criação e listagem de projetos",
-      "status": "pending",
-      "score": null,
-      "evidence": []
+      "name": "Criação e listagem de projetos no banco e na interface",
+      "status": "pass",
+      "score": 8.8,
+      "evidence": [
+        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892"
+      ]
     },
     {
       "id": 11,
-      "name": "Painel administrativo e permissões",
-      "status": "pending",
-      "score": null,
-      "evidence": []
+      "name": "Painel administrativo com controle de acesso",
+      "status": "pass",
+      "score": 8.8,
+      "evidence": [
+        "https://github.com/japaguimarassi-create/J/actions/runs/44363756892"
+      ]
     },
     {
       "id": 12,
-      "name": "APK Android compilado, assinado e instalado em emulador",
+      "name": "APK Android compilado, instalado e verificado em emulador",
       "status": "pending",
       "score": null,
       "evidence": []
