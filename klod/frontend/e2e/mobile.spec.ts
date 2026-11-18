@@ -25,7 +25,7 @@ test('mobile navigation opens and closes', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Abrir menu' }).click()
   await expect(page.getByTestId('sidebar')).toHaveClass(/sidebar-open/)
-  await page.getByRole('button', { name: 'Fechar menu' }).click()
+  await page.getByTestId('sidebar').getByRole('button', { name: 'Fechar menu' }).click()
   await expect(page.getByTestId('sidebar')).not.toHaveClass(/sidebar-open/)
 })
 
