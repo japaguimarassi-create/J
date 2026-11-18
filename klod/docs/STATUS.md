@@ -8,8 +8,8 @@ Klod remains isolated under `klod/` on branch `klod-development`; other reposito
 The architecture remains **one Klod AI, one agent and one neural runtime**. Coder is an integrated capability of that same agent. There are no simulated specialist agents.
 
 Latest release-evidence ledger: `docs/release-evidence.json`.
-Latest fully green functional CI evidence: https://github.com/japaguimarassi-create/J/actions/runs/44363756892
-Browser screenshots and Playwright report artifact: https://github.com/japaguimarassi-create/J/actions/runs/44363756892/artifacts/14455732557
+Latest fully green CI evidence: https://github.com/japaguimarassi-create/J/actions/runs/44364778024
+Browser screenshots and Playwright report artifact: https://github.com/japaguimarassi-create/J/actions/runs/44364778024/artifacts/14456358220
 
 ## Implemented and tested
 
@@ -25,7 +25,7 @@ Browser screenshots and Playwright report artifact: https://github.com/japaguima
 - CI now runs backend tests against PostgreSQL 16, frontend production build, and Playwright browser acceptance tests for mobile, desktop and authenticated workflows.
 - The PostgreSQL integration test covers identity/session lifecycle, first-admin role, HttpOnly cookie, CSRF, logout, non-admin rejection, chat persistence, project ownership, file read/write and admin counts.
 - The browser suite completed **9/9** tests: mobile layout/overflow/style, mobile menu, prompt suggestion, desktop layout, conversation restore, project+Coder save, admin view, chat send and conversation restoration after reload.
-- Latest green functional run reported **36 backend tests passed** and **9 browser tests passed**. The browser artifact contains a rendered mobile screenshot and Playwright report.
+- Latest green commit run reported **46 backend tests passed** and **9 browser tests passed**. The browser artifact contains a rendered mobile screenshot and Playwright report.
 
 ## Twelve acceptance confirmations
 
@@ -33,17 +33,17 @@ Scores are recorded only where there is reproducible evidence. The viewport chec
 
 | # | Confirmation | Score | Status | Evidence / limitation |
 |---:|---|---:|---|---|
-| 1 | Frontend production build | 9.2/10 | PASS | CI 44363756892 |
-| 2 | Backend tests with PostgreSQL 16 | 9.1/10 | PASS | CI 44363756892; 36 tests passed |
-| 3 | Mobile layout at emulated Pixel 7 viewport | 8.6/10 | PASS | CI 44363756892; mobile screenshot and no horizontal overflow |
-| 4 | Rendered visual styling and CSS checks | 8.8/10 | PASS | CI 44363756892; screenshot plus computed style assertions |
+| 1 | Frontend production build | 9.2/10 | PASS | CI 44364778024 |
+| 2 | Backend tests with PostgreSQL 16 | 9.1/10 | PASS | CI 44364778024; 36 tests passed |
+| 3 | Mobile layout at emulated Pixel 7 viewport | 8.6/10 | PASS | CI 44364778024; mobile screenshot and no horizontal overflow |
+| 4 | Rendered visual styling and CSS checks | 8.8/10 | PASS | CI 44364778024; screenshot plus computed style assertions |
 | 5 | Live Google OAuth with real client credentials and externally issued token | — | BLOCKED | Automated verifier/session tests use a controlled verifier; no production OAuth client ID or live external login has been configured |
-| 6 | PostgreSQL session, HttpOnly cookie, CSRF and logout | 8.7/10 | PASS | CI 44363756892; TestClient against real PostgreSQL |
+| 6 | PostgreSQL session, HttpOnly cookie, CSRF and logout | 8.7/10 | PASS | CI 44364778024; TestClient against real PostgreSQL |
 | 7 | Production-quality neural checkpoint and real product inference | — | BLOCKED | A 2-step CPU training/inference smoke test exists, but the generated text was incoherent; no production checkpoint or capability benchmark exists |
-| 8 | Persistent conversations and restore after reload | 8.7/10 | PASS | CI 44363756892; PostgreSQL chat persistence plus browser reload workflow |
-| 9 | Integrated Coder workspace, isolation, read and write | 8.8/10 | PASS | CI 44363756892; unit, PostgreSQL API and browser workflow tests |
-| 10 | Project creation and listing | 8.8/10 | PASS | CI 44363756892; PostgreSQL API and browser workflow tests |
-| 11 | Admin panel and server-side permissions | 8.8/10 | PASS | CI 44363756892; admin browser view, admin API and non-admin 403 test |
+| 8 | Persistent conversations and restore after reload | 8.7/10 | PASS | CI 44364778024; PostgreSQL chat persistence plus browser reload workflow |
+| 9 | Integrated Coder workspace, isolation, read and write | 8.8/10 | PASS | CI 44364778024; unit, PostgreSQL API and browser workflow tests |
+| 10 | Project creation and listing | 8.8/10 | PASS | CI 44364778024; PostgreSQL API and browser workflow tests |
+| 11 | Admin panel and server-side permissions | 8.8/10 | PASS | CI 44364778024; admin browser view, admin API and non-admin 403 test |
 | 12 | APK build, install and launch on Android emulator/device | — | PENDING | No APK artifact has been generated; candidate workflow is intentionally gated behind confirmations 1–11 |
 
 **Current count: 9 PASS, 2 BLOCKED, 1 PENDING.** The release requirement is not met. Scores are not assigned to blocked or pending items, and no mean is claimed.
