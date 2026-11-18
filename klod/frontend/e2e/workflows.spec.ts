@@ -8,6 +8,7 @@ async function stubAuthenticatedApi(page: Page) {
     { id: 'message-1', role: 'user', content: 'Como o Klod funciona?' },
     { id: 'message-2', role: 'assistant', content: 'O Klod usa um único agente e um runtime neural.' },
   ]
+  const conversationMessages = new Map<string, typeof messages>([['conversation-1', [...messages]]])
   const projects: Array<{ id: string; name: string; description: string; updated_at: string }> = []
   const files: Record<string, string> = {}
 
@@ -33,15 +34,29 @@ async function stubAuthenticatedApi(page: Page) {
       const body = request.postDataJSON() as { title: string }
       const conversation = { id: 'conversation-created', title: body.title, updated_at: new Date().toISOString() }
       conversations.unshift(conversation)
+      conversationMessages.set(conversation.id, [])
       await route.fulfill({ json: { conversation } })
       return
     }
-    if (url.pathname === '/v1/conversations/conversation-1' && method === 'GET') {
-      await route.fulfill({ json: { conversation: { ...conversations[0], messages } } })
+    if (url.pathname.startsWith('/v1/conversations/') && method === 'GET') {
+      const conversationId = url.pathname.split('/').pop() || ''
+      const conversation = conversations.find((item) => item.id === conversationId)
+      if (!conversation) {
+        await route.fulfill({ status: 404, json: { detail: 'Conversation not found' } })
+        return
+      }
+      await route.fulfill({ json: { conversation: { ...conversation, messages: conversationMessages.get(conversationId) || [] } } })
       return
     }
     if (url.pathname === '/v1/chat' && method === 'POST') {
-      await route.fulfill({ json: { response: 'Resposta de teste do Klod.', conversation_id: 'conversation-created', training_steps: 30, parameter_count: 86000 } })
+      const body = request.postDataJSON() as { message: string; conversation_id: string }
+      const currentMessages = conversationMessages.get(body.conversation_id) || []
+      currentMessages.push({ id: 'message-' + (currentMessages.length + 1), role: 'user', content: body.message })
+      currentMessages.push({ id: 'message-' + (currentMessages.length + 1), role: 'assistant', content: 'Resposta de teste do Klod.' })
+      conversationMessages.set(body.conversation_id, currentMessages)
+      const conversation = conversations.find((item) => item.id === body.conversation_id)
+      if (conversation) conversation.updated_at = new Date().toISOString()
+      await route.fulfill({ json: { response: 'Resposta de teste do Klod.', conversation_id: body.conversation_id, training_steps: 30, parameter_count: 86000 } })
       return
     }
     if (url.pathname === '/v1/projects' && method === 'GET') {
@@ -125,4 +140,16 @@ test('sends a message through the authenticated chat flow', async ({ page }) => 
   await page.getByRole('button', { name: 'Enviar mensagem' }).click()
   await expect(page.getByText('Resposta de teste do Klod.')).toBeVisible()
   await expect(page.getByText(/30 atualizações/)).toBeVisible()
+})
+
+test('restores the conversation and its messages after a browser reload', async ({ page }) => {
+  await stubAuthenticatedApi(page)
+  await page.goto('/')
+  const composer = page.locator('.composer textarea')
+  await composer.fill('A conversa deve persistir após recarregar.')
+  await page.getByRole('button', { name: 'Enviar mensagem' }).click()
+  await expect(page.getByText('Resposta de teste do Klod.')).toBeVisible()
+  await page.reload()
+  await expect(page.getByText('A conversa deve persistir após recarregar.')).toBeVisible()
+  await expect(page.getByText('Resposta de teste do Klod.')).toBeVisible()
 })
