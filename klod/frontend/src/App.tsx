@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react'
+import AuthScreen from './AuthScreen'
 
 type Message = { id: string; role: 'user' | 'assistant'; content: string }
 type User = { id: string; email: string; display_name: string; picture: string; role: 'user' | 'admin' }
@@ -10,7 +11,6 @@ type AdminOverview = { users: number; conversations: number; projects: number }
 type ActiveView = 'chat' | 'projects' | 'coder' | 'admin'
 
 const apiBase = (import.meta.env.VITE_KLOD_API_URL || '').replace(/\/$/, '')
-const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
 function readCookie(name: string): string {
   const prefix = encodeURIComponent(name) + '='
@@ -57,13 +57,13 @@ export default function App() {
   const [modelAvailable, setModelAvailable] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [user, setUser] = useState<User | null>(null)
+  const [authReady, setAuthReady] = useState(false)
   const [authError, setAuthError] = useState('')
   const [pageError, setPageError] = useState('')
   const [notice, setNotice] = useState('')
   const [authBusy, setAuthBusy] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const googleButtonRef = useRef<HTMLDivElement>(null)
 
   async function loadAccountData(account: User) {
     const [conversationPayload, projectPayload] = await Promise.all([
@@ -119,57 +119,10 @@ export default function App() {
       if (identity?.user) await activateAccount(identity.user)
     }).catch(() => {
       if (active) setStatus('offline')
+    }).finally(() => {
+      if (active) setAuthReady(true)
     })
     return () => { active = false }
-  }, [])
-
-  useEffect(() => {
-    if (!googleClientId || !googleButtonRef.current) return
-    let active = true
-    const renderButton = () => {
-      if (!active || !googleButtonRef.current || !window.google?.accounts.id) return
-      window.google.accounts.id.initialize({
-        client_id: googleClientId,
-        callback: (credentialResponse) => {
-          void (async () => {
-            setAuthBusy(true)
-            setAuthError('')
-            try {
-              const payload = await apiRequest<{ user: User }>('/v1/auth/google', {
-                method: 'POST',
-                body: JSON.stringify({ credential: credentialResponse.credential }),
-              })
-              if (active) await activateAccount(payload.user)
-            } catch (error) {
-              if (active) setAuthError(error instanceof Error ? error.message : 'Falha na autenticação.')
-            } finally {
-              if (active) setAuthBusy(false)
-            }
-          })()
-        },
-      })
-      window.google.accounts.id.renderButton(googleButtonRef.current, {
-        type: 'standard', theme: 'filled_black', size: 'large', shape: 'pill',
-        text: 'signin_with', width: 220, logo_alignment: 'left',
-      })
-    }
-    let script = document.querySelector<HTMLScriptElement>('script[data-klod-google]')
-    if (window.google?.accounts.id) renderButton()
-    else if (script) script.addEventListener('load', renderButton)
-    else {
-      script = document.createElement('script')
-      script.src = 'https://accounts.google.com/gsi/client'
-      script.async = true
-      script.defer = true
-      script.dataset.klodGoogle = 'true'
-      script.addEventListener('load', renderButton)
-      script.addEventListener('error', () => active && setAuthError('Não foi possível carregar o login Google.'))
-      document.head.appendChild(script)
-    }
-    return () => {
-      active = false
-      script?.removeEventListener('load', renderButton)
-    }
   }, [])
 
   useEffect(() => {
@@ -363,6 +316,14 @@ export default function App() {
 
   const activeProject = projects.find((project) => project.id === activeProjectId) || null
 
+  if (!authReady) {
+    return <main className="auth-loading"><span className="auth-spinner" /><p>Preparando seu espaço Klod…</p></main>
+  }
+
+  if (!user) {
+    return <AuthScreen apiBase={apiBase} onAuthenticated={activateAccount} />
+  }
+
   return (
     <div className="app-shell">
       <aside className={'sidebar ' + (sidebarOpen ? 'sidebar-open' : '')} data-testid="sidebar">
@@ -386,17 +347,11 @@ export default function App() {
           {!conversations.length && <div className="empty-history">Suas conversas salvas aparecerão aqui.</div>}
         </div>}
         <div className="account-panel">
-          {user ? <>
-            <div className="account-identity">
-              {user.picture ? <img src={user.picture} alt="" referrerPolicy="no-referrer" /> : <span className="account-initial">{(user.display_name || user.email).slice(0, 1).toUpperCase()}</span>}
-              <div><strong>{user.display_name || user.email}</strong><small>{user.role === 'admin' ? 'Administrador' : 'Conta Google'}</small></div>
-            </div>
-            <button className="account-action" onClick={() => void logout()} disabled={authBusy}>Sair da conta</button>
-          </> : <>
-            <div className="account-prompt">Entre para acessar suas conversas e projetos.</div>
-            {googleClientId ? <div ref={googleButtonRef} className="google-button" /> : <div className="oauth-missing">Login Google aguardando configuração OAuth.</div>}
-            {authBusy && <small className="auth-note">Verificando identidade…</small>}
-          </>}
+          <div className="account-identity">
+            {user.picture ? <img src={user.picture} alt="" referrerPolicy="no-referrer" /> : <span className="account-initial">{(user.display_name || user.email).slice(0, 1).toUpperCase()}</span>}
+            <div><strong>{user.display_name || user.email}</strong><small>{user.role === 'admin' ? 'Administrador' : 'E-mail verificado'}</small></div>
+          </div>
+          <button className="account-action" onClick={() => void logout()} disabled={authBusy}>Sair da conta</button>
           {authError && <div className="auth-error" role="alert">{authError}</div>}
         </div>
         <div className="sidebar-footer"><div className={'status-dot ' + status} />{status === 'online' ? 'API conectada' : status === 'checking' ? 'Verificando conexão' : 'API desconectada'}<span className="version">v0.3</span></div>
@@ -481,8 +436,8 @@ export default function App() {
 
         {activeView === 'chat' && <footer className="composer-area">
           <form className="composer" onSubmit={sendMessage}>
-            <textarea ref={inputRef} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void sendMessage(event) } }} placeholder={user ? 'Pergunte ao Klod...' : 'Entre com Google para conversar…'} rows={1} maxLength={12000} disabled={!user || loading} />
-            <div className="composer-actions"><span className="composer-hint">{user ? (modelAvailable ? 'Enter para enviar · Shift + Enter para quebrar linha' : 'Modelo ainda não carregado') : 'Login Google obrigatório'}</span><button className="send-button" type="submit" disabled={!user || !draft.trim() || loading} aria-label="Enviar mensagem">↑</button></div>
+            <textarea ref={inputRef} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void sendMessage(event) } }} placeholder="Pergunte ao Klod..." rows={1} maxLength={12000} disabled={!user || loading} />
+            <div className="composer-actions"><span className="composer-hint">{modelAvailable ? 'Enter para enviar · Shift + Enter para quebrar linha' : 'Modelo ainda não carregado'}</span><button className="send-button" type="submit" disabled={!user || !draft.trim() || loading} aria-label="Enviar mensagem">↑</button></div>
           </form>
           <p className="disclaimer">{notice || (modelAvailable ? 'O modelo carregado é experimental; confira as respostas.' : 'Klod ainda não possui um checkpoint neural configurado. A interface e o backend não simulam respostas.')}</p>
         </footer>}
