@@ -1,0 +1,30 @@
+name: Klod CI
+on:
+  push:
+    paths:
+      - "klod/**"
+  pull_request:
+    paths:
+      - "klod/**"
+  workflow_dispatch:
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e "klod/backend[dev]"
+      - run: pytest -q klod/backend/tests
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - working-directory: klod/web
+        run: npm install
+      - working-directory: klod/web
+        run: npm run build
