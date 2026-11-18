@@ -37,7 +37,7 @@ class GrowthPolicy:
     def estimate_parameters(config: ModelConfig) -> int:
         width = config.d_model
         feed_forward = config.d_ff
-        per_layer = 4 * width * width + 2 * width * feed_forward + feed_forward + 2 * width
+        per_layer = 4 * width * width + 2 * width * feed_forward + feed_forward + 3 * width
         embeddings_and_output = config.vocab_size * width
         final_norm = width
         return embeddings_and_output + config.n_layers * per_layer + final_norm
