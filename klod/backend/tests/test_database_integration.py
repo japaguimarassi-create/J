@@ -18,7 +18,7 @@ def identity(subject: str, email: str) -> dict[str, str]:
     }
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(autouse=True)
 def migrated_database():
     import psycopg
 
@@ -30,7 +30,7 @@ def migrated_database():
             "TRUNCATE klod_sessions, klod_messages, klod_conversations, klod_projects, klod_users CASCADE"
         )
         connection.execute(
-            "UPDATE klod_platform_state SET owner_google_sub = NULL, initialized_at = NULL WHERE id = 1"
+            "UPDATE klod_platform_state SET owner_google_sub = NULL, owner_user_id = NULL, initialized_at = NULL WHERE id = 1"
         )
     yield
     with psycopg.connect(DATABASE_URL, autocommit=True) as connection:
@@ -181,3 +181,51 @@ def test_postgres_first_admin_sessions_conversations_projects_and_workspace(tmp_
     assert store.get_session(first["session_token"]) is not None
     store.revoke_session(second["session_token"])
     assert store.get_session(second["session_token"]) is None
+
+
+def test_postgres_email_verification_tokens_password_recovery_and_rate_limits(monkeypatch):
+    from klod.auth.store import AuthStore
+
+    assert DATABASE_URL
+    monkeypatch.setenv("DATABASE_URL", DATABASE_URL)
+    store = AuthStore(DATABASE_URL)
+
+    created = store.create_email_account("owner@example.com", "Owner", "argon2id-hash-placeholder")
+    assert created is not None
+    assert created["email_verified"] is False
+    assert store.create_email_account("OWNER@example.com", "Duplicate", "other-hash") is None
+    assert store.create_session_for_user(created["id"]) is None
+
+    verification = store.issue_email_token(created["id"], "verify_email")
+    verified = store.consume_email_token(verification, "verify_email", owner_email="owner@example.com")
+    assert verified is not None
+    assert verified["role"] == "admin"
+    assert store.consume_email_token(verification, "verify_email") is None
+
+    session = store.create_session_for_user(created["id"])
+    assert session is not None
+    assert store.get_session(session["session_token"])["email"] == "owner@example.com"
+
+    recovery = store.issue_email_token(created["id"], "reset_password")
+    recovered = store.consume_email_token(
+        recovery,
+        "reset_password",
+        new_password_hash="new-argon2id-hash",
+    )
+    assert recovered is not None
+    assert store.get_auth_user("owner@example.com")["password_hash"] == "new-argon2id-hash"
+    assert store.consume_email_token(
+        recovery,
+        "reset_password",
+        new_password_hash="replayed-hash",
+    ) is None
+
+    attempt_key = "owner@example.com:127.0.0.1"
+    assert store.is_login_rate_limited(attempt_key) is False
+    for _ in range(5):
+        store.record_login_failure(attempt_key)
+    assert store.is_login_rate_limited(attempt_key) is True
+    store.clear_login_failures(attempt_key)
+    assert store.is_login_rate_limited(attempt_key) is False
+    store.revoke_session(session["session_token"])
+    assert store.get_session(session["session_token"]) is None
