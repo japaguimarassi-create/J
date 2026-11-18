@@ -39,3 +39,35 @@ def test_coder_requires_explicit_path_level_approval(tmp_path):
     context = KlodContext(user_id="user-1", permissions=frozenset({"filesystem:write"}))
     with pytest.raises(WorkspacePermissionError):
         agent.write_project_file("../outside.txt", "blocked", context)
+
+
+def test_coder_workspaces_are_isolated_by_user_and_project(tmp_path):
+    workspace = CoderWorkspace(tmp_path)
+    agent = KlodAgent(FakeRuntime(), workspace)
+    user_one_project_a = KlodContext(
+        user_id="user-1",
+        permissions=frozenset({"filesystem:read", "filesystem:write"}),
+        approved_operations=frozenset({"filesystem:write:src/main.py"}),
+        metadata={"workspace_id": "project-a"},
+    )
+    user_one_project_b = KlodContext(
+        user_id="user-1",
+        permissions=frozenset({"filesystem:read", "filesystem:write"}),
+        approved_operations=frozenset({"filesystem:write:src/main.py"}),
+        metadata={"workspace_id": "project-b"},
+    )
+    user_two_project_a = KlodContext(
+        user_id="user-2",
+        permissions=frozenset({"filesystem:read", "filesystem:write"}),
+        approved_operations=frozenset({"filesystem:write:src/main.py"}),
+        metadata={"workspace_id": "project-a"},
+    )
+
+    agent.write_project_file("src/main.py", "user one project a", user_one_project_a)
+    agent.write_project_file("src/main.py", "user one project b", user_one_project_b)
+    agent.write_project_file("src/main.py", "user two project a", user_two_project_a)
+
+    assert agent.read_project_file("src/main.py", user_one_project_a) == "user one project a"
+    assert agent.read_project_file("src/main.py", user_one_project_b) == "user one project b"
+    assert agent.read_project_file("src/main.py", user_two_project_a) == "user two project a"
+    assert agent.list_project_files(user_one_project_a) == [{"path": "src/main.py", "size": 17}]
