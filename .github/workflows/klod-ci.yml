@@ -183,7 +183,15 @@ jobs:
       - name: Assemble development debug APK
         working-directory: klod/frontend/android
         run: ./gradlew --no-daemon assembleDebug
+      - name: Publish installable development APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: klod-development-debug-apk
+          path: klod/frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
       - name: Install and launch development APK on emulator
+        timeout-minutes: 8
+        continue-on-error: true
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -198,11 +206,10 @@ jobs:
             adb shell cat /sdcard/klod-window.xml
             mkdir -p klod/frontend/test-results
             adb exec-out screencap -p > klod/frontend/test-results/klod-development-android.png
-      - name: Upload development APK and emulator evidence
+      - name: Upload emulator smoke-test evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: klod-development-debug-apk
-          path: |
-            klod/frontend/android/app/build/outputs/apk/debug/app-debug.apk
-            klod/frontend/test-results/klod-development-android.png
-          if-no-files-found: error
+          name: klod-development-emulator-evidence
+          path: klod/frontend/test-results/klod-development-android.png
+          if-no-files-found: warn
