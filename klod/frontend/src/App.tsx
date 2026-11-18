@@ -110,7 +110,7 @@ export default function App() {
       const response = await fetch(apiBase + '/v1/chat', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Klod-CSRF': readCookie('klod_csrf') },
         body: JSON.stringify({ message: content }),
       })
       const payload = await response.json().catch(() => ({}))

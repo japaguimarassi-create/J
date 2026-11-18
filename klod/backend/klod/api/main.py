@@ -9,10 +9,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from klod.api.runtime import ModelRuntime, ModelUnavailable
+from klod.agent import KlodAgent
 from klod.auth.google import InvalidGoogleIdentity, verify_google_identity
 from klod.auth.store import AuthStore
 
 runtime = ModelRuntime()
+klod_agent = KlodAgent(runtime)
 
 
 @asynccontextmanager
@@ -180,13 +182,13 @@ def chat(
     _, session = current_session(http_request)
     verify_csrf(http_request, session, csrf_header)
     try:
-        response = runtime.generate(payload.message, payload.max_new_tokens, payload.temperature)
+        agent_response = klod_agent.respond(payload.message, payload.max_new_tokens, payload.temperature)
     except ModelUnavailable as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
     except (RuntimeError, ValueError) as error:
         raise HTTPException(status_code=500, detail="Model inference failed") from error
     return {
-        "response": response,
+        "response": agent_response.text,
         "model": "Klod experimental",
         "training_steps": runtime.training_steps,
         "parameter_count": runtime.parameter_count,

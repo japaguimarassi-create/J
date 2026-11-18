@@ -1,6 +1,7 @@
 import torch
+import pytest
 
-from klod.neural import GPTModel, ModelConfig
+from klod.neural import GPTModel, ModelConfig, expand_model
 
 
 def test_forward_loss_and_backward() -> None:
@@ -22,8 +23,30 @@ def test_generation_length() -> None:
 
 
 def test_odd_rope_head_dimension_rejected() -> None:
-    try:
+    with pytest.raises(ValueError):
         ModelConfig(vocab_size=300, d_model=27, n_heads=3)
-    except ValueError:
-        return
-    raise AssertionError("Odd RoPE head dimensions must be rejected")
+
+
+def test_expansion_preserves_old_weights_and_initial_function() -> None:
+    torch.manual_seed(7)
+    source_config = ModelConfig(vocab_size=300, max_seq_len=16, d_model=32, n_heads=4, n_layers=2, d_ff=64)
+    target_config = ModelConfig(vocab_size=360, max_seq_len=32, d_model=32, n_heads=4, n_layers=3, d_ff=96)
+    source = GPTModel(source_config).eval()
+    expanded, report = expand_model(source, target_config)
+    expanded.eval()
+
+    tokens = torch.randint(0, source_config.vocab_size, (2, 12))
+    old_logits, _ = source(tokens)
+    new_logits, _ = expanded(tokens)
+    assert torch.allclose(old_logits, new_logits[:, :, :source_config.vocab_size], atol=1e-6, rtol=1e-5)
+    assert torch.equal(source.embedding.weight, expanded.embedding.weight[:source_config.vocab_size])
+    assert report.added_layers == 1
+    assert report.added_vocabulary_items == 60
+    assert report.expanded_parameters > report.previous_parameters
+
+
+def test_expansion_refuses_architecture_breaking_width_change() -> None:
+    source = GPTModel(ModelConfig(vocab_size=300, d_model=32, n_heads=4, n_layers=1, d_ff=64))
+    target = ModelConfig(vocab_size=300, d_model=64, n_heads=4, n_layers=2, d_ff=128)
+    with pytest.raises(ValueError):
+        expand_model(source, target)
