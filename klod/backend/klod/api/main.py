@@ -358,6 +358,8 @@ def resend_verification(payload: EmailPayload) -> dict[str, str]:
 
 @app.post("/v1/auth/forgot-password")
 def forgot_password(payload: EmailPayload) -> dict[str, str]:
+    if not email_service.is_configured() or not os.getenv("KLOD_APP_URL", "").strip():
+        raise HTTPException(status_code=503, detail="O serviço de e-mail ainda não está configurado.")
     store = auth_store()
     try:
         user = store.get_auth_user(payload.email)
