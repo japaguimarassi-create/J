@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 
 type User = { id: string; email: string; display_name: string; picture: string; role: 'user' | 'admin' }
 type AuthMode = 'login' | 'register' | 'forgot' | 'resend' | 'sent' | 'verify' | 'reset' | 'reset-done'
@@ -34,7 +34,9 @@ export default function AuthScreen({ apiBase, onAuthenticated }: Props) {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [sentAddress, setSentAddress] = useState('')
-  const [showResend, setShowResend] = useState(false)
+  const authenticatedRef = useRef(onAuthenticated)
+
+  useEffect(() => { authenticatedRef.current = onAuthenticated }, [onAuthenticated])
 
   useEffect(() => {
     if (!verificationToken) return
@@ -44,7 +46,7 @@ export default function AuthScreen({ apiBase, onAuthenticated }: Props) {
       .then(({ user }) => {
         if (!active) return
         window.history.replaceState({}, '', window.location.pathname)
-        return onAuthenticated(user)
+        return authenticatedRef.current(user)
       })
       .catch((reason: unknown) => {
         if (!active) return
@@ -55,7 +57,7 @@ export default function AuthScreen({ apiBase, onAuthenticated }: Props) {
         if (active) setBusy(false)
       })
     return () => { active = false }
-  }, [apiBase, verificationToken, onAuthenticated])
+  }, [apiBase, verificationToken])
 
   useEffect(() => {
     if (!resetToken || mode !== 'reset') return
@@ -94,7 +96,7 @@ export default function AuthScreen({ apiBase, onAuthenticated }: Props) {
         const path = mode === 'forgot' ? '/v1/auth/forgot-password' : '/v1/auth/resend-verification'
         const result = await request<{ message: string }>(apiBase, path, { email })
         setMessage(result.message)
-        if (mode === 'resend') setMode('sent')
+        if (mode === 'resend') { setSentAddress(email.trim().toLowerCase()); setMode('sent') }
         return
       }
       if (mode === 'reset') {
