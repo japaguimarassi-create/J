@@ -19,6 +19,23 @@ permissions:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: klod_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d klod_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/klod_test
+      KLOD_SESSION_COOKIE_SECURE: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -29,7 +46,7 @@ jobs:
       - name: Install backend
         working-directory: klod
         run: python -m pip install -e '.[dev]'
-      - name: Run backend tests
+      - name: Run backend unit and PostgreSQL integration tests
         working-directory: klod
         run: pytest -q
 
@@ -46,3 +63,29 @@ jobs:
       - name: Build mobile-first web app
         working-directory: klod/frontend
         run: npm run build
+
+  browser-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install frontend and browser-test dependencies
+        working-directory: klod/frontend
+        run: npm install --no-audit --no-fund
+      - name: Install Playwright Chromium
+        working-directory: klod/frontend
+        run: npx playwright install --with-deps chromium
+      - name: Run mobile and desktop browser acceptance tests
+        working-directory: klod/frontend
+        run: npm run test:e2e
+      - name: Upload screenshots and Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: klod-browser-evidence
+          path: |
+            klod/frontend/test-results/
+            klod/frontend/playwright-report/
+          if-no-files-found: warn
