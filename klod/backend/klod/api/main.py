@@ -58,7 +58,7 @@ class EmailPayload(BaseModel):
     @classmethod
     def normalise_email(cls, value: str) -> str:
         email = value.strip().lower()
-        if not re.fullmatch(r"[^@\\s]+@[^@\\s]+\\.[^@\\s]+", email):
+        if not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
             raise ValueError("Informe um endereço de e-mail válido.")
         return email
 
@@ -77,6 +77,13 @@ class RegisterRequest(EmailPayload):
 
 class LoginRequest(EmailPayload):
     password: str = Field(min_length=1, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_bytes(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > 128:
+            raise ValueError("A senha deve ter no máximo 128 bytes.")
+        return value
 
 
 class ResetPasswordRequest(BaseModel):
