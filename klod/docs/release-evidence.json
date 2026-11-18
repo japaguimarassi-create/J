@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "minimum_score_per_confirmation": 8,
+  "minimum_average_score": 8.5,
+  "notes": "Do not assign scores from source inspection alone. Each confirmation requires reproducible evidence from the matching CI or device run.",
+  "confirmations": [
+    {
+      "id": 1,
+      "name": "Build de produção do frontend",
+      "status": "pending",
+      "score": null,
+      "evidence": []
+    },
+    {
+      "id": 2,
+      "name": "Testes automatizados e integração PostgreSQL",
+      "status": "pending",
+      "score": null,
+      "evidence": []
+    },
+    {
+      "id": 3,
+      "name": "Layout responsivo em viewport móvel",
+      "status": "pending",
+      "score": null,
+      "evidence": []
+    },
+    {
+      "id": 4,
+      "name": "Estilo visual renderizado e capturas de tela",
+      "status": "pending",
+      "score": null,
+      "evidence": []
+    },
+    {
+      "id": 5,
+      "name": "Verificação de identidade Google e criação de sessão",
+      "status": "pending",
+      "score": null,
+      "evidence": []
+    },
+    {
+      "id": 6,
+      "name": "Restauração de sessão e logout seguro",
+      "status": "pending",
+      "score": null,
+      "evidence": []
+    },
+    {
+      "id": 7,
+      "name": "Treinamento neural real e inferência via checkpoint",
+      "status": "pending",
+      "score": null,
+      "evidence": []
+    },
+    {
+      "id": 8,
+      "name": "Persistência de conversas após recarregar",
+      "status": "pending",
+      "score": null,
+      "evidence": []
+    },
+    {
+      "id": 9,
+      "name": "Coder integrado: workspace isolado e leitura/gravação",
+      "status": "pending",
+      "score": null,
+      "evidence": []
+    },
+    {
+      "id": 10,
+      "name": "Criação e listagem de projetos",
+      "status": "pending",
+      "score": null,
+      "evidence": []
+    },
+    {
+      "id": 11,
+      "name": "Painel administrativo e permissões",
+      "status": "pending",
+      "score": null,
+      "evidence": []
+    },
+    {
+      "id": 12,
+      "name": "APK Android compilado, assinado e instalado em emulador",
+      "status": "pending",
+      "score": null,
+      "evidence": []
+    }
+  ]
+}
