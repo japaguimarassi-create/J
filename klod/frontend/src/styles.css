@@ -428,3 +428,6 @@ button:disabled { cursor: not-allowed; }
   .auth-spinner { animation: none; border-top-color: #8cebd8; }
   .auth-submit { transition: none; }
 }
+
+.auth-resend-link { min-height: 38px; align-self: flex-start; padding: 4px 0; border: 0; background: transparent; color: #8de8d5; font-size: 10px; font-weight: 750; text-align: left; }
+.auth-resend-link:hover { color: #c1fff0; text-decoration: underline; }
