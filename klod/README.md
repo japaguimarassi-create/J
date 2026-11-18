@@ -36,6 +36,12 @@ Train an experimental model with a properly licensed text or JSONL corpus. JSONL
 
 The tokenizer is saved under artifacts/tokenizer.json; checkpoints are stored under artifacts/checkpoints/. A short training run proves that optimization executed, not that conversational quality has been achieved.
 
+A reproducible CPU smoke test using the original CC0 demo corpus is:
+
+    python -m klod.training.train --dataset data/demo_corpus.txt --output-dir artifacts/demo --steps 60 --seq-len 48 --vocab-size 320 --d-model 64 --n-heads 4 --n-layers 2 --d-ff 128 --batch-size 4 --learning-rate 0.002 --warmup-steps 5 --val-fraction 0.1 --eval-every 10 --eval-batches 10 --checkpoint-every 20 --log-every 10 --device cpu
+
+The observed metrics and incoherent sample output are recorded in docs/DEMO_TRAINING.md. This is not a production model.
+
 ## Google authentication and PostgreSQL
 
 Create a Google OAuth 2.0 Web client and register the exact frontend JavaScript origins. Set GOOGLE_CLIENT_ID, DATABASE_URL and VITE_GOOGLE_CLIENT_ID in the appropriate backend/frontend environments. Apply the initial schema:

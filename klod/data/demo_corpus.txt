@@ -1,0 +1,30 @@
+Klod é um projeto experimental de inteligência artificial independente. Seu objetivo é construir uma plataforma original, verificável e útil para conversar, pesquisar e programar.
+Um modelo de linguagem prevê o próximo token a partir do contexto anterior. Durante o treinamento, a rede ajusta seus parâmetros para reduzir a diferença entre a previsão e o token observado.
+Um tokenizador transforma texto em identificadores numéricos. A versão byte-level preserva todos os bytes UTF-8 e permite reconstruir acentos, símbolos, emojis, números e código.
+A arquitetura Transformer utiliza atenção causal para relacionar partes anteriores de uma sequência. A máscara causal impede que uma posição consulte tokens futuros durante a previsão.
+A codificação rotativa de posições altera as representações de consultas e chaves da atenção. Essa técnica fornece informação de posição sem adicionar uma tabela posicional aprendida tradicional.
+O treinamento supervisionado usa exemplos de instruções e respostas selecionadas. Os dados precisam ter origem autorizada, licença compatível, qualidade revisada e documentação de proveniência.
+Uma métrica de validação mede o comportamento em dados que não participam da atualização dos pesos. A perda de validação não é uma prova completa de capacidade ou compreensão.
+O otimizador AdamW combina estimativas dos gradientes com decaimento de peso desacoplado. O clipping limita a norma dos gradientes e ajuda a manter os passos de otimização estáveis.
+Um checkpoint registra os parâmetros do modelo, o estado do otimizador, o agendador e o número de passos. Um arquivo temporário é substituído atomicamente para evitar checkpoints parciais.
+Uma inferência autoregressiva gera um token de cada vez. Cada novo token é anexado ao contexto e se torna parte da entrada para a próxima previsão.
+A pesquisa responsável compara fontes e separa evidências de hipóteses. Um sistema de agentes precisa registrar ferramentas reais, resultados, limites de execução e erros.
+Um agente de programação lê arquivos autorizados, propõe alterações e executa testes em um ambiente isolado. Operações destrutivas devem exigir aprovação explícita.
+A autenticação Google precisa verificar a assinatura e os campos do token no servidor. O identificador estável da conta é o campo subject, e não apenas o endereço de email.
+A primeira conta administrativa deve ser escolhida em uma transação que impeça duas inscrições simultâneas de receberem o mesmo privilégio.
+Uma sessão segura usa um segredo aleatório, validade limitada e um cookie protegido. O banco armazena o resumo criptográfico do token, não o token bruto da sessão.
+A proteção CSRF verifica se a origem da ação corresponde ao token associado à sessão. Cookies HttpOnly impedem que scripts comuns leiam a credencial principal.
+O PostgreSQL armazena usuários, conversas, projetos e eventos com chaves e restrições. Migrações versionadas tornam as mudanças de esquema revisáveis e repetíveis.
+A interface mobile-first organiza conversas, ferramentas e projetos em telas estreitas. O layout deve continuar utilizável quando o teclado virtual estiver aberto.
+O PWA mantém recursos estáticos disponíveis durante interrupções de rede. Solicitações da API e respostas pessoais não devem ser armazenadas em cache público.
+O Capacitor permite empacotar a interface web em um aplicativo Android. O APK somente deve ser produzido depois de testes de navegação, responsividade, permissões e inicialização.
+A qualidade de software depende de testes, observabilidade e documentação. Uma funcionalidade só pode ser considerada pronta depois de uma verificação reproduzível.
+Uma rede pequena é útil para validar código e infraestrutura. Ela não deve ser confundida com um modelo amplo ou competente sem treinamento suficiente e avaliação independente.
+A quantidade de parâmetros é apenas uma medida de tamanho. A qualidade depende também dos dados, da arquitetura, do orçamento de treinamento, da distribuição de tokens e das avaliações.
+O português contém acentos, cedilha e construções diversas. O tokenizador deve preservar a escrita original e permitir fragmentar palavras que ainda não apareceram no vocabulário.
+Código-fonte inclui indentação, aspas, chaves, operadores, comentários e nomes próprios. O tokenizador deve preservar caracteres exatamente para que o texto recuperado seja utilizável.
+Números podem representar inteiros, decimais, datas, medidas e identificadores. Símbolos matemáticos exigem reconstrução fiel e testes específicos.
+Uma plataforma confiável informa quando um modelo está indisponível. Ela não deve inventar uma resposta nem afirmar que executou uma ferramenta que não foi chamada.
+A evolução de uma versão exige comparar resultados com uma referência estável. Uma atualização inferior não substitui automaticamente a versão aprovada.
+O histórico de treinamento registra dados, configuração, duração, métricas e identificadores dos checkpoints. Sem proveniência, não é possível reproduzir um experimento com confiança.
+O objetivo do Klod é combinar um modelo próprio, ferramentas reais e uma interface clara. Cada componente será testado de forma independente antes da integração completa.

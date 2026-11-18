@@ -4,7 +4,7 @@
 
 - Dedicated klod-development branch; original main and unrelated projects left untouched.
 - Isolated klod/ product directory.
-- Byte-level BPE tokenizer with versioned persistence and exact UTF-8 round-trip tests.
+- Byte-level BPE tokenizer format v2 with versioned persistence, reserved PAD/BOS/EOS/UNK IDs and exact UTF-8 round-trip tests.
 - Decoder-only Transformer with RoPE, causal multi-head attention, tied token/output embeddings, RMSNorm, residual blocks, GELU feed-forward network and next-token loss.
 - Real AdamW training loop, gradient clipping, warmup/cosine scheduler, chronological train/validation split, validation loss and atomic resumable checkpoints.
 - FastAPI model health/status and chat endpoints; chat requires a valid user session and refuses generation without a trained checkpoint.
@@ -15,12 +15,13 @@
 
 ## Validation evidence
 
-- Local suite: 17 passed on Python 3.13.5 and PyTorch 2.10.0+cpu. The project pins PyTorch 2.14.1; exact pinned runtime must be validated separately in CI.
+- Local suite: 19 passed on Python 3.13.5 and PyTorch 2.10.0+cpu, including a real checkpoint-to-inference integration test. The project pins PyTorch 2.14.1; exact pinned runtime is validated separately in CI. The project pins PyTorch 2.14.1; exact pinned runtime must be validated separately in CI.
 - python -m compileall -q backend: passed locally.
 - GitHub Actions run 44206245598 on commit 08d426f: backend and frontend jobs completed successfully.
 - GitHub Actions run 44206821260 on commit 924a009: frontend job passed; backend was still installing pinned PyTorch at last inspection.
 - Vercel preview creation returned HTTP 429 due to GitHub API rate limiting. No deployed URL is available.
 - Google OAuth and PostgreSQL code/schema exist, but production OAuth client ID and a live database are not configured; end-to-end login and admin bootstrap remain unverified.
+- A 60-step CPU experiment used the original CC0 demo corpus and produced an 86,720-parameter model with a 320-token vocabulary. Step-60 validation loss was 4.4094242; the sample output was incoherent. Checkpoint loading and autoregressive inference completed. See docs/DEMO_TRAINING.md.
 - Local npm installation timed out; remote frontend CI build passed.
 
 ## Not implemented or not yet validated

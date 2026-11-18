@@ -10,7 +10,7 @@ Decoder-only autoregressive Transformer; learned token embeddings tied to the ou
 
 ## Tokenizer
 
-Byte-level BPE starts with 256 byte IDs and appends learned pair merges. It preserves UTF-8 bytes exactly, so Portuguese accents, unseen Unicode, emoji, code, numbers and whitespace can be reconstructed losslessly. Normalization is intentionally not applied.
+Byte-level BPE starts with 256 byte IDs, appends learned pair merges and reserves PAD/BOS/EOS/UNK IDs. Training sequences add BOS/EOS boundaries. UTF-8 bytes are preserved exactly, so Portuguese accents, unseen Unicode, emoji, code, numbers and whitespace can be reconstructed losslessly. Normalization is intentionally not applied. Partial UTF-8 during generation is decoded with replacement rather than failing inference.
 
 ## Training
 

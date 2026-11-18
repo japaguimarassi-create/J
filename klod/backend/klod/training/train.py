@@ -108,7 +108,7 @@ def train(args: argparse.Namespace) -> None:
         tokenizer = BytePairTokenizer().train(texts, args.vocab_size, args.min_frequency)
         tokenizer.save(tokenizer_path)
 
-    token_ids = [token for text in texts for token in tokenizer.encode(text)]
+    token_ids = [token for text in texts for token in tokenizer.encode(text, add_bos=True, add_eos=True)]
     split_index = int(len(token_ids) * (1.0 - args.val_fraction))
     training_tokens, validation_tokens = token_ids[:split_index], token_ids[split_index:]
     dataset = TokenWindowDataset(training_tokens, args.seq_len)

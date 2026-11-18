@@ -120,7 +120,7 @@ class GPTModel(nn.Module):
         return logits, loss
 
     @torch.no_grad()
-    def generate(self, token_ids: torch.Tensor, max_new_tokens: int = 64, temperature: float = 1.0, top_k: int | None = 40):
+    def generate(self, token_ids: torch.Tensor, max_new_tokens: int = 64, temperature: float = 1.0, top_k: int | None = 40, eos_token_id: int | None = None):
         if temperature <= 0 or max_new_tokens < 0:
             raise ValueError("Invalid generation settings")
         self.eval()
@@ -134,4 +134,6 @@ class GPTModel(nn.Module):
                 logits = logits.masked_fill(logits < cutoff, -torch.inf)
             next_token = torch.multinomial(F.softmax(logits, dim=-1), num_samples=1)
             generated = torch.cat((generated, next_token), dim=1)
+            if eos_token_id is not None and bool((next_token == eos_token_id).all()):
+                break
         return generated

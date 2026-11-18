@@ -1,0 +1,24 @@
+{
+  "experiment": "Klod small-scale pipeline demonstration",
+  "corpus": "data/demo_corpus.txt",
+  "corpus_license": "CC0-1.0; original demonstration text",
+  "python": "3.13.5",
+  "pytorch": "2.10.0+cpu",
+  "device": "cpu",
+  "training_steps": 60,
+  "parameter_count": 86720,
+  "tokenizer_vocab_size": 320,
+  "model_config": {
+    "max_seq_len": 48,
+    "d_model": 64,
+    "n_heads": 4,
+    "n_layers": 2,
+    "d_ff": 128
+  },
+  "step_60_training_loss": 4.345345,
+  "step_60_validation_loss": 4.4094242,
+  "sample_prompt": "Klod é um projeto",
+  "sample_generation": "dee m die dciso veridsidvs ltcoa is",
+  "quality_assessment": "The model completed real optimization and autoregressive inference, but the output is not coherent; this is only a pipeline smoke test, not a capable conversational model.",
+  "checkpoint_included_in_repository": false
+}

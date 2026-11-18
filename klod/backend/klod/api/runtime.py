@@ -43,7 +43,7 @@ class ModelRuntime:
     def generate(self, prompt: str, max_new_tokens: int, temperature: float) -> str:
         if self.model is None or self.tokenizer is None:
             raise ModelUnavailable("Klod model is not loaded")
-        encoded = self.tokenizer.encode(prompt) or [32]
+        encoded = self.tokenizer.encode(prompt, add_bos=True)
         tokens = torch.tensor([encoded], dtype=torch.long, device=self.device)
-        output = self.model.generate(tokens, max_new_tokens=max_new_tokens, temperature=temperature, top_k=40)[0].tolist()
-        return self.tokenizer.decode(output[len(encoded):])
+        output = self.model.generate(tokens, max_new_tokens=max_new_tokens, temperature=temperature, top_k=40, eos_token_id=self.tokenizer.special_token_ids["<eos>"])[0].tolist()
+        return self.tokenizer.decode(output[len(encoded):], skip_special_tokens=True, errors="replace")
