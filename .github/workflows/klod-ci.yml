@@ -155,7 +155,7 @@ jobs:
 
   android-development-apk:
     if: github.event_name == 'push'
-    needs: [backend, frontend, browser-e2e]
+    needs: [frontend]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
