@@ -33,7 +33,7 @@ class AuthStore:
             with connection.cursor() as cursor:
                 cursor.execute("DELETE FROM klod_sessions WHERE expires_at <= now()")
                 cursor.execute("INSERT INTO klod_platform_state (id) VALUES (1) ON CONFLICT (id) DO NOTHING")
-                cursor.execute("SELECT owner_google_sub FROM klod_platform_state WHERE id = 1 FOR UPDATE")
+                cursor.execute("SELECT owner_google_sub, owner_user_id FROM klod_platform_state WHERE id = 1 FOR UPDATE")
                 state = cursor.fetchone()
                 cursor.execute(
                     """
@@ -50,13 +50,21 @@ class AuthStore:
                 )
                 user = cursor.fetchone()
                 owner_sub = state["owner_google_sub"] if state else None
+                owner_user_id = state["owner_user_id"] if state else None
                 if owner_sub is None:
                     cursor.execute(
-                        "UPDATE klod_platform_state SET owner_google_sub = %s, initialized_at = now() WHERE id = 1 AND owner_google_sub IS NULL",
-                        (identity["google_sub"],),
+                        """
+                        UPDATE klod_platform_state
+                        SET owner_google_sub = %s,
+                            owner_user_id = COALESCE(owner_user_id, %s),
+                            initialized_at = COALESCE(initialized_at, now())
+                        WHERE id = 1 AND owner_google_sub IS NULL
+                        """,
+                        (identity["google_sub"], user["id"]),
                     )
                     owner_sub = identity["google_sub"]
-                role = "admin" if identity["google_sub"] == owner_sub else "user"
+                    owner_user_id = user["id"]
+                role = "admin" if identity["google_sub"] == owner_sub or owner_user_id == user["id"] else "user"
                 cursor.execute("UPDATE klod_users SET role = %s WHERE id = %s", (role, user["id"]))
                 cursor.execute(
                     """
