@@ -233,6 +233,9 @@ export default function AuthScreen({ apiBase, onAuthenticated }: Props) {
                   </div>
                 )}
                 {error && <p className="auth-feedback auth-feedback-error" role="alert">{error}</p>}
+                {mode === 'login' && error.includes('Confirme seu e-mail') && (
+                  <button className="auth-resend-link" type="button" onClick={() => changeMode('resend')}>Reenviar confirmação de e-mail</button>
+                )}
                 {message && <p className="auth-feedback auth-feedback-success" role="status">{message}</p>}
                 <button className="auth-submit" type="submit" disabled={busy}>
                   {busy ? <><span className="auth-spinner" /> Aguarde…</> :
@@ -255,6 +258,7 @@ export default function AuthScreen({ apiBase, onAuthenticated }: Props) {
                 {message && <p className="auth-feedback auth-feedback-success" role="status">{message}</p>}
                 {error && <p className="auth-feedback auth-feedback-error" role="alert">{error}</p>}
                 <button className="auth-submit" type="button" onClick={() => void resend()} disabled={busy}>{busy ? 'Enviando…' : 'Reenviar e-mail'} <span>↗</span></button>
+                <button className="auth-back" type="button" onClick={() => changeMode('login')}>← Voltar para entrar</button>
               </div>
             )}
 
