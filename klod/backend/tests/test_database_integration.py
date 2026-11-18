@@ -45,7 +45,7 @@ def migrated_database():
 def test_postgres_first_admin_sessions_conversations_projects_and_workspace(tmp_path, monkeypatch):
     from fastapi.testclient import TestClient
 
-    from klod.agent import KlodAgent
+    from klod.agent import KlodAgent, KlodResponse
     from klod.api import main
     from klod.api.runtime import ModelRuntime
     from klod.auth.store import AuthStore
@@ -81,6 +81,16 @@ def test_postgres_first_admin_sessions_conversations_projects_and_workspace(tmp_
 
     original_agent = main.klod_agent
     main.klod_agent = KlodAgent(ModelRuntime(), CoderWorkspace(tmp_path / "workspace"))
+
+    def test_response(message, max_new_tokens=128, temperature=0.8):
+        return KlodResponse(
+            text="Resposta integrada: " + message,
+            model_status="experimental",
+            training_steps=2,
+            parameter_count=1234,
+        )
+
+    monkeypatch.setattr(main.klod_agent, "respond", test_response)
     identities = {
         "owner-test-token-123456": identity("first-owner", "owner@example.com"),
         "user-test-token-123456": identity("second-user", "user@example.com"),
@@ -91,8 +101,17 @@ def test_postgres_first_admin_sessions_conversations_projects_and_workspace(tmp_
             login = client.post("/v1/auth/google", json={"credential": "owner-test-token-123456"})
             assert login.status_code == 200
             assert login.json()["user"]["role"] == "admin"
+            session_cookie = client.cookies.get("klod_session")
             csrf = client.cookies.get("klod_csrf")
+            assert session_cookie
             assert csrf
+            assert any(
+                header.startswith("klod_session=") and "httponly" in header.lower()
+                for header in login.headers.get_list("set-cookie")
+            )
+            current_user = client.get("/v1/auth/me")
+            assert current_user.status_code == 200
+            assert current_user.json()["user"]["role"] == "admin"
 
             created_conversation = client.post(
                 "/v1/conversations",
@@ -104,6 +123,19 @@ def test_postgres_first_admin_sessions_conversations_projects_and_workspace(tmp_
             loaded_conversation = client.get("/v1/conversations/" + conversation_id)
             assert loaded_conversation.status_code == 200
             assert loaded_conversation.json()["conversation"]["messages"] == []
+
+            chat = client.post(
+                "/v1/chat",
+                json={"message": "Teste de chat persistente", "conversation_id": conversation_id},
+                headers={"X-Klod-CSRF": csrf},
+            )
+            assert chat.status_code == 200
+            assert chat.json()["response"] == "Resposta integrada: Teste de chat persistente"
+            reloaded_conversation = client.get("/v1/conversations/" + conversation_id)
+            saved_messages = reloaded_conversation.json()["conversation"]["messages"]
+            assert [item["role"] for item in saved_messages] == ["user", "assistant"]
+            assert saved_messages[0]["content"] == "Teste de chat persistente"
+            assert saved_messages[1]["content"] == "Resposta integrada: Teste de chat persistente"
 
             created_project = client.post(
                 "/v1/projects",
@@ -129,6 +161,20 @@ def test_postgres_first_admin_sessions_conversations_projects_and_workspace(tmp_
             logout = client.post("/v1/auth/logout", headers={"X-Klod-CSRF": csrf})
             assert logout.status_code == 200
             assert client.get("/v1/auth/me").status_code == 401
+
+            user_login = client.post(
+                "/v1/auth/google",
+                json={"credential": "user-test-token-123456"},
+            )
+            assert user_login.status_code == 200
+            assert user_login.json()["user"]["role"] == "user"
+            assert client.get("/v1/admin/overview").status_code == 403
+            user_csrf = client.cookies.get("klod_csrf")
+            assert user_csrf
+            assert client.post(
+                "/v1/auth/logout",
+                headers={"X-Klod-CSRF": user_csrf},
+            ).status_code == 200
     finally:
         main.klod_agent = original_agent
 
