@@ -1,0 +1,48 @@
+name: Klod CI
+
+on:
+  push:
+    branches: [klod-development]
+    paths:
+      - 'klod/**'
+      - '.github/workflows/klod-ci.yml'
+  pull_request:
+    branches: [klod-development]
+    paths:
+      - 'klod/**'
+      - '.github/workflows/klod-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: klod/pyproject.toml
+      - name: Install backend
+        working-directory: klod
+        run: python -m pip install -e '.[dev]'
+      - name: Run backend tests
+        working-directory: klod
+        run: pytest -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install frontend dependencies
+        working-directory: klod/frontend
+        run: npm install --no-audit --no-fund
+      - name: Build mobile-first web app
+        working-directory: klod/frontend
+        run: npm run build

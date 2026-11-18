@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useRef, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 
 type Message = { id: string; role: 'user' | 'assistant'; content: string }
 const apiBase = (import.meta.env.VITE_KLOD_API_URL || '').replace(/\/$/, '')
