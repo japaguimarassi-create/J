@@ -336,6 +336,12 @@ class AuthStore:
         with self._connect() as connection:
             with connection.cursor() as cursor:
                 cursor.execute(
+                    "SELECT id FROM klod_users WHERE id = %s FOR UPDATE",
+                    (uuid.UUID(user_id),),
+                )
+                if cursor.fetchone() is None:
+                    raise LookupError("User not found")
+                cursor.execute(
                     """
                     SELECT created_at > now() - interval '60 seconds' AS recently_issued
                     FROM klod_email_tokens
@@ -421,6 +427,7 @@ class AuthStore:
                         "UPDATE klod_users SET password_hash = %s, updated_at = now() WHERE id = %s",
                         (new_password_hash, row["id"]),
                     )
+                    cursor.execute("DELETE FROM klod_sessions WHERE user_id = %s", (row["id"],))
         return {
             "id": str(row["id"]),
             "email": row["email"],
