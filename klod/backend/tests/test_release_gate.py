@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -61,3 +62,11 @@ def test_release_gate_enforces_both_score_thresholds() -> None:
     errors, average = GATE.evaluate_payload(payload, 12)
     assert average == pytest.approx(8.0)
     assert any("Average" in error for error in errors)
+
+
+def test_current_release_record_blocks_android_candidate_until_real_dependencies_pass():
+    evidence_path = SCRIPT.parents[1] / "docs" / "release-evidence.json"
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    errors, _ = GATE.evaluate_payload(payload, 11)
+    assert any(error.startswith("5. ") for error in errors)
+    assert any(error.startswith("7. ") for error in errors)
