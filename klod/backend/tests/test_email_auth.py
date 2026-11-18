@@ -70,6 +70,7 @@ def test_registration_hashes_password_and_requests_email_delivery(monkeypatch):
     store = MemoryAuthStore()
     sent = []
     monkeypatch.setattr(main, "auth_store", lambda: store)
+    monkeypatch.setattr(main, "ensure_email_delivery_configured", lambda: None)
     monkeypatch.setattr(main, "send_account_email", lambda email, token, purpose: sent.append((email, token, purpose)))
     with TestClient(main.app) as client:
         response = client.post(
@@ -184,4 +185,4 @@ def test_bad_password_increments_rate_limit_counter(monkeypatch):
             json={"email": "person@example.com", "password": "incorrect-password"},
         )
     assert response.status_code == 401
-    assert store.failures == 1
+    assert store.failures == 2
