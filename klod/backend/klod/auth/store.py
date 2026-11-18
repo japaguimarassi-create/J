@@ -337,6 +337,19 @@ class AuthStore:
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
+                    SELECT created_at > now() - interval '60 seconds' AS recently_issued
+                    FROM klod_email_tokens
+                    WHERE user_id = %s AND purpose = %s
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                    """,
+                    (uuid.UUID(user_id), purpose),
+                )
+                recent = cursor.fetchone()
+                if recent and recent["recently_issued"]:
+                    raise ValueError("Aguarde um minuto antes de solicitar outro e-mail.")
+                cursor.execute(
+                    """
                     UPDATE klod_email_tokens
                     SET consumed_at = now()
                     WHERE user_id = %s AND purpose = %s AND consumed_at IS NULL
