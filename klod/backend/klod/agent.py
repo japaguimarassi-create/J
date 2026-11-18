@@ -24,8 +24,6 @@ class KlodResponse:
 
 
 class KlodAgent:
-    """The single Klod identity and model, with coding as an integrated capability."""
-
     def __init__(self, runtime: ModelRuntime, coder: CoderWorkspace | None = None) -> None:
         self.runtime = runtime
         self.coder = coder
@@ -40,6 +38,11 @@ class KlodAgent:
             training_steps=self.runtime.training_steps,
             parameter_count=self.runtime.parameter_count,
         )
+
+    def list_project_files(self, context: KlodContext) -> list[dict[str, str | int]]:
+        if self.coder is None:
+            raise RuntimeError("Klod coder workspace is not configured")
+        return self.coder.list_files(context)
 
     def read_project_file(self, relative_path: str, context: KlodContext) -> str:
         if self.coder is None:
