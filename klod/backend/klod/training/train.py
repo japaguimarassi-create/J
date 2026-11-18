@@ -169,14 +169,23 @@ def train(args: argparse.Namespace) -> None:
             raise ValueError("Model expansion requires a new output directory to preserve the parent checkpoint")
     tokenizer = _load_or_train_tokenizer(args, texts, tokenizer_source, tokenizer_path)
     token_ids = [token for text in texts for token in tokenizer.encode(text, add_bos=True, add_eos=True)]
-    split_index = int(len(token_ids) * (1.0 - args.val_fraction))
-    training_tokens, validation_tokens = token_ids[:split_index], token_ids[split_index:]
-    dataset = TokenWindowDataset(training_tokens, args.seq_len)
-    loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
     validation_loader = None
     if args.val_fraction > 0:
+        minimum_partition = args.seq_len + 1
+        if len(token_ids) < minimum_partition * 2:
+            raise ValueError(
+                "Tokenized corpus is too small for independent training and validation windows; "
+                "add more varied licensed text or reduce --seq-len"
+            )
+        split_index = int(len(token_ids) * (1.0 - args.val_fraction))
+        split_index = min(max(split_index, minimum_partition), len(token_ids) - minimum_partition)
+        training_tokens, validation_tokens = token_ids[:split_index], token_ids[split_index:]
         validation_dataset = TokenWindowDataset(validation_tokens, args.seq_len)
         validation_loader = DataLoader(validation_dataset, batch_size=args.batch_size, shuffle=False)
+    else:
+        training_tokens = token_ids
+    dataset = TokenWindowDataset(training_tokens, args.seq_len)
+    loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, drop_last=True)
     if not len(loader):
         raise ValueError("Training dataset is too small for batch size and sequence length")
 
