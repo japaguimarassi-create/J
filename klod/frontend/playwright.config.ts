@@ -15,13 +15,18 @@ export default defineConfig({
   projects: [
     {
       name: 'mobile-chromium',
-      testMatch: /mobile\\.spec\\.ts/,
+      testMatch: /mobile\.spec\.ts/,
       use: { ...devices['Pixel 7'], viewport: { width: 412, height: 915 } },
     },
     {
       name: 'desktop-chromium',
-      use: { ...devices['Desktop Chrome'], viewport: { width: 1365, height: 900 } },
       testMatch: /desktop\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1365, height: 900 } },
+    },
+    {
+      name: 'authenticated-workflows',
+      testMatch: /workflows\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1365, height: 900 } },
     },
   ],
   webServer: {
