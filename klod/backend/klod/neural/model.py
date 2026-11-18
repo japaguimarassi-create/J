@@ -116,7 +116,7 @@ class GPTModel(nn.Module):
         if targets is not None:
             if targets.shape != token_ids.shape:
                 raise ValueError("targets must match token_ids shape")
-            loss = F.cross_entropy(logits[:, :-1].reshape(-1, logits.size(-1)), targets[:, 1:].reshape(-1))
+            loss = F.cross_entropy(logits.reshape(-1, logits.size(-1)), targets.reshape(-1))
         return logits, loss
 
     @torch.no_grad()

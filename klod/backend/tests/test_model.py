@@ -50,3 +50,13 @@ def test_expansion_refuses_architecture_breaking_width_change() -> None:
     target = ModelConfig(vocab_size=300, d_model=64, n_heads=4, n_layers=2, d_ff=128)
     with pytest.raises(ValueError):
         expand_model(source, target)
+
+def test_next_token_targets_align_with_each_input_position() -> None:
+    config = ModelConfig(vocab_size=300, max_seq_len=8, d_model=16, n_heads=2, n_layers=1, d_ff=32)
+    model = GPTModel(config)
+    tokens = torch.randint(0, config.vocab_size, (2, 5))
+    targets = torch.randint(0, config.vocab_size, (2, 5))
+    logits, loss = model(tokens, targets)
+    expected = torch.nn.functional.cross_entropy(logits.reshape(-1, config.vocab_size), targets.reshape(-1))
+    assert loss is not None
+    assert torch.allclose(loss, expected)
