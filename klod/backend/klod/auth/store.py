@@ -37,12 +37,13 @@ class AuthStore:
                 state = cursor.fetchone()
                 cursor.execute(
                     """
-                    INSERT INTO klod_users (id, google_sub, email, display_name, picture_url, role)
-                    VALUES (%s, %s, %s, %s, %s, 'user')
+                    INSERT INTO klod_users (id, google_sub, email, display_name, picture_url, role, email_verified)
+                    VALUES (%s, %s, %s, %s, %s, 'user', TRUE)
                     ON CONFLICT (google_sub) DO UPDATE
                     SET email = EXCLUDED.email,
                         display_name = EXCLUDED.display_name,
-                        picture_url = EXCLUDED.picture_url
+                        picture_url = EXCLUDED.picture_url,
+                        email_verified = TRUE
                     RETURNING id, google_sub, email, display_name, picture_url, role
                     """,
                     (uuid.uuid4(), identity["google_sub"], identity["email"], identity["display_name"], identity["picture"]),
@@ -288,3 +289,203 @@ class AuthStore:
                 cursor.execute("SELECT count(*) AS total FROM klod_projects")
                 projects = cursor.fetchone()["total"]
         return {"users": users, "conversations": conversations, "projects": projects}
+
+
+    def create_email_account(self, email: str, display_name: str, password_hash: str) -> dict[str, Any] | None:
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO klod_users
+                        (id, google_sub, email, display_name, picture_url, role, email_verified, password_hash)
+                    VALUES (%s, NULL, %s, %s, '', 'user', FALSE, %s)
+                    ON CONFLICT DO NOTHING
+                    RETURNING id, email, display_name, role, email_verified
+                    """,
+                    (uuid.uuid4(), email.strip().lower(), " ".join(display_name.split())[:160], password_hash),
+                )
+                row = cursor.fetchone()
+        return {**row, "id": str(row["id"])} if row else None
+
+    def get_auth_user(self, email: str) -> dict[str, Any] | None:
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, email, display_name, picture_url, role, email_verified, password_hash
+                    FROM klod_users
+                    WHERE lower(email) = %s
+                    """,
+                    (email.strip().lower(),),
+                )
+                row = cursor.fetchone()
+        return {**row, "id": str(row["id"])} if row else None
+
+    def issue_email_token(self, user_id: str, purpose: str, lifetime_minutes: int = 30) -> str:
+        if purpose not in {"verify_email", "reset_password"}:
+            raise ValueError("Unsupported email token purpose")
+        token = secrets.token_urlsafe(32)
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE klod_email_tokens
+                    SET consumed_at = now()
+                    WHERE user_id = %s AND purpose = %s AND consumed_at IS NULL
+                    """,
+                    (uuid.UUID(user_id), purpose),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO klod_email_tokens (id, user_id, token_hash, purpose, expires_at)
+                    VALUES (%s, %s, %s, %s, now() + (%s * interval '1 minute'))
+                    """,
+                    (uuid.uuid4(), uuid.UUID(user_id), self.digest(token), purpose, lifetime_minutes),
+                )
+        return token
+
+    def consume_email_token(
+        self,
+        token: str,
+        purpose: str,
+        owner_email: str = "",
+        new_password_hash: str | None = None,
+    ) -> dict[str, Any] | None:
+        if purpose not in {"verify_email", "reset_password"}:
+            raise ValueError("Unsupported email token purpose")
+        if purpose == "reset_password" and not new_password_hash:
+            raise ValueError("A new password hash is required")
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT users.id, users.email, users.display_name, users.picture_url, users.role
+                    FROM klod_email_tokens AS tokens
+                    JOIN klod_users AS users ON users.id = tokens.user_id
+                    WHERE tokens.token_hash = %s
+                      AND tokens.purpose = %s
+                      AND tokens.consumed_at IS NULL
+                      AND tokens.expires_at > now()
+                    FOR UPDATE OF tokens, users
+                    """,
+                    (self.digest(token), purpose),
+                )
+                row = cursor.fetchone()
+                if row is None:
+                    return None
+                cursor.execute(
+                    "UPDATE klod_email_tokens SET consumed_at = now() WHERE token_hash = %s",
+                    (self.digest(token),),
+                )
+                if purpose == "verify_email":
+                    cursor.execute(
+                        "UPDATE klod_users SET email_verified = TRUE, updated_at = now() WHERE id = %s",
+                        (row["id"],),
+                    )
+                    cursor.execute("SELECT owner_user_id FROM klod_platform_state WHERE id = 1 FOR UPDATE")
+                    state = cursor.fetchone()
+                    owner_id = state["owner_user_id"] if state else None
+                    configured_owner = owner_email.strip().lower()
+                    if owner_id is None and (not configured_owner or row["email"].lower() == configured_owner):
+                        cursor.execute(
+                            "UPDATE klod_platform_state SET owner_user_id = %s, initialized_at = COALESCE(initialized_at, now()) WHERE id = 1 AND owner_user_id IS NULL",
+                            (row["id"],),
+                        )
+                        owner_id = row["id"]
+                    role = "admin" if owner_id == row["id"] else "user"
+                    cursor.execute("UPDATE klod_users SET role = %s WHERE id = %s", (role, row["id"]))
+                    row["role"] = role
+                else:
+                    cursor.execute(
+                        "UPDATE klod_users SET password_hash = %s, updated_at = now() WHERE id = %s",
+                        (new_password_hash, row["id"]),
+                    )
+        return {
+            "id": str(row["id"]),
+            "email": row["email"],
+            "display_name": row["display_name"],
+            "picture": row["picture_url"],
+            "role": row["role"],
+        }
+
+    def create_session_for_user(self, user_id: str) -> dict[str, Any] | None:
+        session_token = secrets.token_urlsafe(48)
+        csrf_token = secrets.token_urlsafe(32)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=14)
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT id, email, display_name, picture_url, role
+                    FROM klod_users
+                    WHERE id = %s AND email_verified = TRUE
+                    """,
+                    (uuid.UUID(user_id),),
+                )
+                user = cursor.fetchone()
+                if user is None:
+                    return None
+                cursor.execute("DELETE FROM klod_sessions WHERE expires_at <= now()")
+                cursor.execute(
+                    """
+                    INSERT INTO klod_sessions (id, user_id, token_hash, csrf_hash, expires_at)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (uuid.uuid4(), user["id"], self.digest(session_token), self.digest(csrf_token), expires_at),
+                )
+        return {
+            "session_token": session_token,
+            "csrf_token": csrf_token,
+            "expires_at": expires_at,
+            "user": {
+                "id": str(user["id"]),
+                "email": user["email"],
+                "display_name": user["display_name"],
+                "picture": user["picture_url"],
+                "role": user["role"],
+            },
+        }
+
+    def is_login_rate_limited(self, attempt_key: str) -> bool:
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT locked_until > now() AS blocked FROM klod_auth_attempts WHERE attempt_key = %s",
+                    (self.digest(attempt_key),),
+                )
+                row = cursor.fetchone()
+        return bool(row and row["blocked"])
+
+    def record_login_failure(self, attempt_key: str) -> None:
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO klod_auth_attempts (attempt_key, failed_count)
+                    VALUES (%s, 1)
+                    ON CONFLICT (attempt_key) DO UPDATE SET
+                        failed_count = CASE
+                            WHEN klod_auth_attempts.last_failed_at < now() - interval '15 minutes' THEN 1
+                            ELSE klod_auth_attempts.failed_count + 1
+                        END,
+                        first_failed_at = CASE
+                            WHEN klod_auth_attempts.last_failed_at < now() - interval '15 minutes' THEN now()
+                            ELSE klod_auth_attempts.first_failed_at
+                        END,
+                        locked_until = CASE
+                            WHEN klod_auth_attempts.last_failed_at < now() - interval '15 minutes' THEN NULL
+                            WHEN klod_auth_attempts.failed_count + 1 >= 5 THEN now() + interval '15 minutes'
+                            ELSE klod_auth_attempts.locked_until
+                        END,
+                        last_failed_at = now()
+                    """,
+                    (self.digest(attempt_key),),
+                )
+
+    def clear_login_failures(self, attempt_key: str) -> None:
+        with self._connect() as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "DELETE FROM klod_auth_attempts WHERE attempt_key = %s",
+                    (self.digest(attempt_key),),
+                )
