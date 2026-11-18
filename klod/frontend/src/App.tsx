@@ -462,7 +462,7 @@ export default function App() {
                 <button type="submit" disabled={savingFile || !(activeFilePath || newFilePath).trim()}>{savingFile ? 'Salvando…' : 'Salvar arquivo'}</button>
               </div>
               <textarea aria-label="Conteúdo do arquivo" value={fileContent} onChange={(event) => setFileContent(event.target.value)} placeholder="Escreva ou cole o conteúdo do arquivo…" spellCheck={false} />
-              <p className="editor-footnote">O Klod não executa comandos no host. O workspace aceita arquivos de texto com limite de tamanho e proteção contra caminhos externos.</p>
+              <p className="editor-footnote" role="status">{notice || "O Klod não executa comandos no host. O workspace aceita arquivos de texto com limite de tamanho e proteção contra caminhos externos."}</p>
             </form>
           </div>
         </section>}
