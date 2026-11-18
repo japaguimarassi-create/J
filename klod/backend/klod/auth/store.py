@@ -170,7 +170,7 @@ class AuthStore:
                     SELECT id, role, content, created_at
                     FROM klod_messages
                     WHERE conversation_id = %s
-                    ORDER BY created_at ASC, id ASC
+                    ORDER BY message_order ASC
                     """,
                     (uuid.UUID(conversation_id),),
                 )
