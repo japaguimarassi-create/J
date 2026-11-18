@@ -38,6 +38,28 @@ class BytePairTokenizer:
     def unicode_data_version(self) -> str:
         return unicodedata.unidata_version
 
+    def fingerprint(self, vocab_size: int | None = None) -> str:
+        import hashlib
+
+        limit = self.vocab_size if vocab_size is None else vocab_size
+        if limit < self.BASE_VOCAB_SIZE + len(self.SPECIAL_TOKENS) or limit > self.vocab_size:
+            raise ValueError("Fingerprint vocabulary limit is outside the tokenizer")
+        payload = {
+            "vocab_size": limit,
+            "special_token_ids": {
+                key: value for key, value in self._special_ids.items() if value < limit
+            },
+            "tokens": [
+                None if token is None else token.hex()
+                for token in self._token_bytes[:limit]
+            ],
+            "merges": [
+                list(merge) for merge in self._merges if merge[2] < limit
+            ],
+        }
+        canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return hashlib.sha256(canonical).hexdigest()
+
     def _bytes_for_token(self, token_id: int) -> bytes:
         if token_id < 0 or token_id >= len(self._token_bytes):
             raise ValueError(f"Invalid token ID: {token_id}")
@@ -209,6 +231,7 @@ class BytePairTokenizer:
             "merge_frequencies": self._merge_frequencies,
             "unicode_data_version": self.unicode_data_version,
             "encoding": "UTF-8 byte-level BPE; no normalization",
+            "fingerprint": self.fingerprint(),
         }
         temporary = destination.with_suffix(destination.suffix + ".tmp")
         temporary.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
@@ -261,4 +284,7 @@ class BytePairTokenizer:
                 raise ValueError("Special tokens cannot participate in BPE merge rules")
             if tokenizer._token_bytes[new_id] != tokenizer._bytes_for_token(left) + tokenizer._bytes_for_token(right):
                 raise ValueError("Tokenizer merge payload is inconsistent")
+        saved_fingerprint = data.get("fingerprint")
+        if version == cls.FORMAT_VERSION and saved_fingerprint and saved_fingerprint != tokenizer.fingerprint():
+            raise ValueError("Tokenizer fingerprint does not match its vocabulary payload")
         return tokenizer

@@ -65,7 +65,9 @@ def test_incremental_expansion_is_append_only(tmp_path) -> None:
     old_text_ids = tokenizer.encode("banana")
     assert tokenizer.decode(old_text_ids) == "banana"
 
+    previous_fingerprint = tokenizer.fingerprint()
     tokenizer.extend(["日本語の文章。ภาษาไทย العربية", "new corpus / paths // brackets [] {}"], 360)
+    assert tokenizer.fingerprint(previous_vocab) == previous_fingerprint
     assert tokenizer.vocab_size >= previous_vocab
     assert tokenizer.special_token_ids == previous_special_ids
     assert tokenizer._token_bytes[:previous_vocab] == previous_token_bytes

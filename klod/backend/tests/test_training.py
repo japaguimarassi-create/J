@@ -79,7 +79,6 @@ def test_tokenizer_and_neural_model_expand_from_parent_checkpoint(tmp_path: Path
         dataset,
         expanded_dir,
         tokenizer=str(output_dir / "tokenizer.json"),
-        output_dir=str(expanded_dir),
         expand_tokenizer=True,
         expand_from=str(parent),
         vocab_size=360,

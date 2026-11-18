@@ -91,7 +91,12 @@ def evaluate(model: GPTModel, loader: DataLoader, device: torch.device, max_batc
     return sum(losses) / len(losses)
 
 
-def _load_or_train_tokenizer(args: argparse.Namespace, texts: list[str], tokenizer_path: Path) -> BytePairTokenizer:
+def _load_or_train_tokenizer(
+    args: argparse.Namespace,
+    texts: list[str],
+    tokenizer_source: Path,
+    tokenizer_output: Path,
+) -> BytePairTokenizer:
     retrain = bool(getattr(args, "retrain_tokenizer", False))
     expand = bool(getattr(args, "expand_tokenizer", False))
     has_source_checkpoint = bool(getattr(args, "resume", None) or getattr(args, "expand_from", None))
@@ -100,9 +105,11 @@ def _load_or_train_tokenizer(args: argparse.Namespace, texts: list[str], tokeniz
     if retrain and has_source_checkpoint:
         raise ValueError("A tokenizer reset cannot be combined with model resume or expansion")
     if expand:
-        if not tokenizer_path.is_file():
+        if not tokenizer_source.is_file():
             raise FileNotFoundError("Cannot expand a tokenizer that does not exist")
-        tokenizer = BytePairTokenizer.load(tokenizer_path)
+        if tokenizer_source.resolve() == tokenizer_output.resolve():
+            raise ValueError("Tokenizer expansion requires a new output directory to preserve the source tokenizer")
+        tokenizer = BytePairTokenizer.load(tokenizer_source)
         previous_size = tokenizer.vocab_size
         tokenizer.extend(
             texts,
@@ -112,10 +119,12 @@ def _load_or_train_tokenizer(args: argparse.Namespace, texts: list[str], tokeniz
         )
         if tokenizer.vocab_size < previous_size:
             raise RuntimeError("Tokenizer expansion unexpectedly reduced the vocabulary")
-        tokenizer.save(tokenizer_path)
+        tokenizer.save(tokenizer_output)
         return tokenizer
-    if tokenizer_path.exists() and not retrain:
-        return BytePairTokenizer.load(tokenizer_path)
+    if tokenizer_source.exists() and not retrain:
+        tokenizer = BytePairTokenizer.load(tokenizer_source)
+        tokenizer.save(tokenizer_output)
+        return tokenizer
     if has_source_checkpoint:
         raise ValueError("A source checkpoint requires its matching tokenizer; use --expand-tokenizer only to append tokens")
     tokenizer = BytePairTokenizer().train(
@@ -124,9 +133,8 @@ def _load_or_train_tokenizer(args: argparse.Namespace, texts: list[str], tokeniz
         min_frequency=args.min_frequency,
         max_token_bytes=getattr(args, "max_token_bytes", BytePairTokenizer.DEFAULT_MAX_TOKEN_BYTES),
     )
-    tokenizer.save(tokenizer_path)
+    tokenizer.save(tokenizer_output)
     return tokenizer
-
 
 def _model_config(args: argparse.Namespace, vocab_size: int, source: ModelConfig | None = None) -> ModelConfig:
     defaults = source
@@ -152,9 +160,14 @@ def train(args: argparse.Namespace) -> None:
 
     torch.manual_seed(args.seed)
     texts = read_corpus(Path(args.dataset))
-    artifact_dir = Path(args.output_dir)
-    tokenizer_path = Path(args.tokenizer) if args.tokenizer else artifact_dir / "tokenizer.json"
-    tokenizer = _load_or_train_tokenizer(args, texts, tokenizer_path)
+    artifact_dir = Path(args.output_dir).resolve()
+    tokenizer_path = artifact_dir / "tokenizer.json"
+    tokenizer_source = Path(args.tokenizer).resolve() if args.tokenizer else tokenizer_path
+    if getattr(args, "expand_from", None):
+        source_checkpoint_path = Path(args.expand_from).resolve()
+        if source_checkpoint_path.is_relative_to(artifact_dir):
+            raise ValueError("Model expansion requires a new output directory to preserve the parent checkpoint")
+    tokenizer = _load_or_train_tokenizer(args, texts, tokenizer_source, tokenizer_path)
     token_ids = [token for text in texts for token in tokenizer.encode(text, add_bos=True, add_eos=True)]
     split_index = int(len(token_ids) * (1.0 - args.val_fraction))
     training_tokens, validation_tokens = token_ids[:split_index], token_ids[split_index:]
