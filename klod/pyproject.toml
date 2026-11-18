@@ -13,6 +13,7 @@ dependencies = [
   "uvicorn[standard]>=0.34,<1",
   "pydantic>=2.10,<3",
   "argon2-cffi>=23.1,<26",
+  "google-auth>=2.38,<3",
   "psycopg[binary]>=3.2,<4",
 ]
 
