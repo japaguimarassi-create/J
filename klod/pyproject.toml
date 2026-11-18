@@ -4,10 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "klod-ai"
-version = "0.1.0"
+version = "0.2.0"
 description = "Independent experimental language-model platform"
 requires-python = ">=3.10"
-dependencies = ["torch==2.14.1", "fastapi>=0.115,<1", "uvicorn[standard]>=0.34,<1", "pydantic>=2.10,<3", "google-auth>=2.38,<3"]
+dependencies = [
+  "torch==2.14.1",
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.34,<1",
+  "pydantic>=2.10,<3",
+  "google-auth>=2.38,<3",
+  "psycopg[binary]>=3.2,<4",
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.3,<10", "httpx>=0.28,<1", "ruff>=0.9,<1"]
