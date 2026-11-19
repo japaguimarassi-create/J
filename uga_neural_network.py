@@ -38,6 +38,10 @@ class NeuralTokenizer:
             if token not in self.token_to_id:
                 self.token_to_id[token] = len(self.id_to_token)
                 self.id_to_token.append(token)
+        while len(self.id_to_token) < self.vocab_size:
+            token = f"<unused_{len(self.id_to_token)}>"
+            self.token_to_id[token] = len(self.id_to_token)
+            self.id_to_token.append(token)
         return self
 
     def _split(self, text):
