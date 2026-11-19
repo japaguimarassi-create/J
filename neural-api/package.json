@@ -1,0 +1,12 @@
+{
+  "name": "creaturechat-neural-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpenAI-compatible procedural bootstrap API for CreatureChat",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}

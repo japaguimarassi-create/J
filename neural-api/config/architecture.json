@@ -1,0 +1,20 @@
+{
+  "name": "Neural Core",
+  "version": "0.1.0",
+  "architecture": "decoder-only-transformer-target",
+  "language_priority": ["pt-BR"],
+  "target_topology": {
+    "transformer_blocks": 12,
+    "feed_forward_units_per_block": 5120,
+    "total_feed_forward_units": 61440,
+    "model_width": 1280,
+    "initial_vocabulary_size": 16000
+  },
+  "runtime": {
+    "provider": "Vercel Node.js Functions",
+    "engine_mode": "procedural-bootstrap",
+    "trained_weights_loaded": false,
+    "training_enabled_in_runtime": false
+  },
+  "important": "The 61,440-unit topology is a declared target architecture. This bootstrap release does not contain trained Transformer weights and does not claim GPT-level language generation."
+}

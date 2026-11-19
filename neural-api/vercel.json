@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 15
+    }
+  },
+  "rewrites": [
+    { "source": "/", "destination": "/api/health" },
+    { "source": "/health", "destination": "/api/health" },
+    { "source": "/v1/models", "destination": "/api/v1/models" },
+    { "source": "/v1/tokenize", "destination": "/api/v1/tokenize" },
+    { "source": "/v1/chat/completions", "destination": "/api/v1/chat/completions" }
+  ]
+}
