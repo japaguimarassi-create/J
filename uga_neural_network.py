@@ -1,218 +1,406 @@
+import argparse
+import json
+import math
+import random
+import re
+import sqlite3
+import time
+from collections import Counter
+from pathlib import Path
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 
-class ResidualBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, stride=1):
-        super().__init__()
-        self.conv1 = nn.Conv2d(in_channels, out_channels, 3, stride=stride, padding=1, bias=False)
-        self.norm1 = nn.GroupNorm(8, out_channels)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, 3, padding=1, bias=False)
-        self.norm2 = nn.GroupNorm(8, out_channels)
-        self.shortcut = nn.Identity()
-        if stride != 1 or in_channels != out_channels:
-            self.shortcut = nn.Sequential(
-                nn.Conv2d(in_channels, out_channels, 1, stride=stride, bias=False),
-                nn.GroupNorm(8, out_channels)
-            )
+MODEL_WIDTH = 1024
+MODEL_LAYERS = 14
+MODEL_HEADS = 16
+FEED_FORWARD_WIDTH = 4096
+MAX_SEQUENCE = 256
+STATE_WIDTH = 256
+ACTION_COUNT = 64
+CONTINUOUS_ACTIONS = 8
+SPECIAL_TOKENS = ["<pad>", "<unk>", "<bos>", "<eos>", "<chat>", "<game>"]
 
-    def forward(self, x):
-        residual = self.shortcut(x)
-        x = F.gelu(self.norm1(self.conv1(x)))
-        x = self.norm2(self.conv2(x))
-        return F.gelu(x + residual)
+
+class NeuralTokenizer:
+    def __init__(self, vocab_size=8192):
+        self.vocab_size = vocab_size
+        self.token_to_id = {token: index for index, token in enumerate(SPECIAL_TOKENS)}
+        self.id_to_token = list(SPECIAL_TOKENS)
+
+    def fit(self, texts):
+        counts = Counter()
+        for text in texts:
+            counts.update(self._split(text))
+        for token, _ in counts.most_common(max(0, self.vocab_size - len(SPECIAL_TOKENS))):
+            if token not in self.token_to_id:
+                self.token_to_id[token] = len(self.id_to_token)
+                self.id_to_token.append(token)
+        return self
+
+    def _split(self, text):
+        return re.findall(r"\w+|[^\w\s]", str(text).lower(), flags=re.UNICODE)
+
+    def encode(self, text, max_length=MAX_SEQUENCE):
+        ids = [self.token_to_id["<bos>"]]
+        ids.extend(self.token_to_id.get(token, self.token_to_id["<unk>"]) for token in self._split(text))
+        ids.append(self.token_to_id["<eos>"])
+        return ids[:max_length]
+
+    def decode(self, ids):
+        ignored = {"<pad>", "<bos>", "<eos>", "<chat>", "<game>"}
+        return " ".join(
+            self.id_to_token[index] if 0 <= int(index) < len(self.id_to_token) else "<unk>"
+            for index in ids
+            if (self.id_to_token[index] if 0 <= int(index) < len(self.id_to_token) else "<unk>") not in ignored
+        )
+
+    def save(self, connection):
+        connection.execute(
+            "INSERT OR REPLACE INTO metadata(key, value) VALUES('tokenizer_vocab', ?)",
+            (json.dumps(self.id_to_token, ensure_ascii=False),)
+        )
+
+    @classmethod
+    def load(cls, connection, vocab_size=8192):
+        tokenizer = cls(vocab_size)
+        row = connection.execute(
+            "SELECT value FROM metadata WHERE key='tokenizer_vocab'"
+        ).fetchone()
+        if row:
+            tokenizer.id_to_token = json.loads(row[0])
+            tokenizer.token_to_id = {token: index for index, token in enumerate(tokenizer.id_to_token)}
+        return tokenizer
+
+
+class SQLMemory:
+    def __init__(self, path="universal_neural_memory.sqlite3"):
+        self.path = str(path)
+        self.connection = sqlite3.connect(self.path)
+        self.connection.execute("PRAGMA journal_mode=WAL")
+        self.connection.execute("PRAGMA synchronous=NORMAL")
+        self.connection.executescript("""
+            CREATE TABLE IF NOT EXISTS observations(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                mode TEXT NOT NULL,
+                input_data TEXT NOT NULL,
+                target_data TEXT,
+                reward REAL DEFAULT 0,
+                terminal INTEGER DEFAULT 0,
+                created_at REAL NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS episodes(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                mode TEXT NOT NULL,
+                summary TEXT,
+                total_reward REAL DEFAULT 0,
+                created_at REAL NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS metadata(
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_observations_mode ON observations(mode);
+            CREATE INDEX IF NOT EXISTS idx_observations_time ON observations(created_at);
+        """)
+        self.connection.commit()
+
+    def add(self, mode, input_data, target_data=None, reward=0.0, terminal=False):
+        self.connection.execute(
+            "INSERT INTO observations(mode,input_data,target_data,reward,terminal,created_at) VALUES(?,?,?,?,?,?)",
+            (mode, json.dumps(input_data, ensure_ascii=False), json.dumps(target_data, ensure_ascii=False),
+             float(reward), int(terminal), time.time())
+        )
+        self.connection.commit()
+
+    def sample(self, mode, limit=128):
+        rows = self.connection.execute(
+            "SELECT input_data,target_data,reward,terminal FROM observations WHERE mode=? ORDER BY RANDOM() LIMIT ?",
+            (mode, int(limit))
+        ).fetchall()
+        return [
+            {"input": json.loads(row[0]), "target": json.loads(row[1]) if row[1] else None,
+             "reward": row[2], "terminal": bool(row[3])}
+            for row in rows
+        ]
+
+    def count(self, mode=None):
+        if mode:
+            return self.connection.execute(
+                "SELECT COUNT(*) FROM observations WHERE mode=?", (mode,)
+            ).fetchone()[0]
+        return self.connection.execute("SELECT COUNT(*) FROM observations").fetchone()[0]
+
+    def close(self):
+        self.connection.commit()
+        self.connection.close()
+
+
+class ProceduralObserver:
+    def __init__(self, seed=None):
+        self.random = random.Random(seed)
+
+    def chat(self, text):
+        text = str(text).strip()
+        variants = [text]
+        if text:
+            variants.append(re.sub(r"\s+", " ", text))
+            variants.append(text.lower())
+        return {"text": self.random.choice(variants), "length": len(text), "source": "chat"}
+
+    def game(self, state, frame=None, noise=0.01):
+        values = torch.as_tensor(state, dtype=torch.float32).flatten()
+        if values.numel() < STATE_WIDTH:
+            values = F.pad(values, (0, STATE_WIDTH - values.numel()))
+        values = values[:STATE_WIDTH]
+        if noise > 0:
+            values = values + torch.randn_like(values) * float(noise)
+        result = {"state": values.clamp(-10, 10).tolist(), "source": "game"}
+        if frame is not None:
+            result["frame_shape"] = list(torch.as_tensor(frame).shape)
+        return result
 
 
 class VisualEncoder(nn.Module):
-    def __init__(self, output_dim=512):
+    def __init__(self, output_width=MODEL_WIDTH):
         super().__init__()
-        self.network = nn.Sequential(
+        self.layers = nn.Sequential(
             nn.Conv2d(3, 64, 5, stride=2, padding=2),
-            nn.GroupNorm(8, 64),
             nn.GELU(),
-            nn.MaxPool2d(2),
-            ResidualBlock(64, 128, 2),
-            ResidualBlock(128, 256, 2),
-            ResidualBlock(256, 512, 2),
+            nn.Conv2d(64, 128, 3, stride=2, padding=1),
+            nn.GroupNorm(8, 128),
+            nn.GELU(),
+            nn.Conv2d(128, 256, 3, stride=2, padding=1),
+            nn.GroupNorm(16, 256),
+            nn.GELU(),
             nn.AdaptiveAvgPool2d(1),
             nn.Flatten(),
-            nn.Linear(512, output_dim),
-            nn.LayerNorm(output_dim)
+            nn.Linear(256, output_width),
+            nn.LayerNorm(output_width)
         )
 
-    def forward(self, x):
-        return self.network(x)
+    def forward(self, frames):
+        if frames.dtype == torch.uint8:
+            frames = frames.float() / 255.0
+        else:
+            frames = frames.float()
+        return self.layers(frames)
 
 
-class UniversalGameNet(nn.Module):
-    def __init__(
-        self,
-        state_dim=128,
-        num_buttons=32,
-        continuous_dim=4,
-        d_model=512,
-        num_layers=12,
-        num_heads=8,
-        max_seq_len=128,
-        dropout=0.1
-    ):
+class UniversalNeuralNetwork(nn.Module):
+    def __init__(self, vocab_size=8192, dropout=0.1):
         super().__init__()
-        self.state_dim = state_dim
-        self.max_seq_len = max_seq_len
-        self.visual_encoder = VisualEncoder(512)
-        self.visual_projection = nn.Sequential(
-            nn.Linear(512, d_model),
-            nn.LayerNorm(d_model),
-            nn.GELU()
-        )
+        self.width = MODEL_WIDTH
+        self.token_embedding = nn.Embedding(vocab_size, MODEL_WIDTH, padding_idx=0)
         self.state_encoder = nn.Sequential(
-            nn.Linear(state_dim, d_model),
-            nn.LayerNorm(d_model),
+            nn.Linear(STATE_WIDTH, MODEL_WIDTH),
+            nn.LayerNorm(MODEL_WIDTH),
             nn.GELU(),
-            nn.Linear(d_model, d_model),
-            nn.LayerNorm(d_model)
-        ) if state_dim > 0 else None
-        self.fusion = nn.Sequential(
-            nn.Linear(d_model * 2, d_model),
-            nn.LayerNorm(d_model),
-            nn.GELU()
+            nn.Linear(MODEL_WIDTH, MODEL_WIDTH)
         )
-        self.position_embedding = nn.Parameter(torch.randn(1, max_seq_len, d_model) * 0.02)
-        encoder_layer = nn.TransformerEncoderLayer(
-            d_model=d_model,
-            nhead=num_heads,
-            dim_feedforward=d_model * 4,
+        self.visual_encoder = VisualEncoder()
+        self.mode_embedding = nn.Embedding(2, MODEL_WIDTH)
+        self.position_embedding = nn.Embedding(MAX_SEQUENCE, MODEL_WIDTH)
+        block = nn.TransformerEncoderLayer(
+            d_model=MODEL_WIDTH,
+            nhead=MODEL_HEADS,
+            dim_feedforward=FEED_FORWARD_WIDTH,
             dropout=dropout,
             activation="gelu",
             batch_first=True,
             norm_first=True
         )
-        self.transformer = nn.TransformerEncoder(
-            encoder_layer,
-            num_layers=num_layers,
-            norm=nn.LayerNorm(d_model)
+        self.backbone = nn.TransformerEncoder(
+            block,
+            num_layers=MODEL_LAYERS,
+            norm=nn.LayerNorm(MODEL_WIDTH),
+            enable_nested_tensor=False
         )
-        self.memory_gate = nn.Sequential(
-            nn.Linear(d_model * 2, d_model),
-            nn.Sigmoid()
-        )
-        self.button_head = nn.Sequential(
-            nn.Linear(d_model, d_model),
+        self.chat_head = nn.Linear(MODEL_WIDTH, vocab_size, bias=False)
+        self.chat_head.weight = self.token_embedding.weight
+        self.action_head = nn.Sequential(
+            nn.LayerNorm(MODEL_WIDTH),
+            nn.Linear(MODEL_WIDTH, MODEL_WIDTH),
             nn.GELU(),
-            nn.Linear(d_model, num_buttons)
+            nn.Linear(MODEL_WIDTH, ACTION_COUNT)
         )
         self.continuous_head = nn.Sequential(
-            nn.Linear(d_model, d_model),
+            nn.LayerNorm(MODEL_WIDTH),
+            nn.Linear(MODEL_WIDTH, MODEL_WIDTH // 2),
             nn.GELU(),
-            nn.Linear(d_model, continuous_dim),
+            nn.Linear(MODEL_WIDTH // 2, CONTINUOUS_ACTIONS),
             nn.Tanh()
         )
-        self.value_head = nn.Sequential(
-            nn.Linear(d_model, d_model // 2),
-            nn.GELU(),
-            nn.Linear(d_model // 2, 1)
-        )
-        self.reward_head = nn.Sequential(
-            nn.Linear(d_model, d_model // 2),
-            nn.GELU(),
-            nn.Linear(d_model // 2, 1)
-        )
-        self.done_head = nn.Linear(d_model, 1)
-        self.world_model = nn.Sequential(
-            nn.Linear(d_model, d_model * 2),
-            nn.GELU(),
-            nn.Linear(d_model * 2, d_model),
-            nn.LayerNorm(d_model)
-        )
+        self.value_head = nn.Linear(MODEL_WIDTH, 1)
+        self.reward_head = nn.Linear(MODEL_WIDTH, 1)
+        self.terminal_head = nn.Linear(MODEL_WIDTH, 1)
 
-    def forward(self, frames, state=None, causal=True):
-        if frames.ndim == 4:
-            frames = frames.unsqueeze(1)
-        if frames.ndim != 5:
-            raise ValueError("frames must have shape [B,T,C,H,W]")
-        batch, seq_len, channels, height, width = frames.shape
-        if channels != 3:
-            raise ValueError("Expected RGB frames with 3 channels")
-        if seq_len > self.max_seq_len:
-            raise ValueError("Sequence exceeds max_seq_len")
-        if frames.dtype == torch.uint8:
-            frames = frames.float() / 255.0
-        else:
-            frames = frames.float()
-        frames = frames.reshape(batch * seq_len, channels, height, width)
-        visual_features = self.visual_encoder(frames)
-        visual_features = visual_features.reshape(batch, seq_len, -1)
-        visual_features = self.visual_projection(visual_features)
-        if self.state_encoder is not None:
-            if state is None:
-                state_features = torch.zeros_like(visual_features)
-            else:
-                if state.ndim == 2:
-                    state = state.unsqueeze(1)
-                if state.shape != (batch, seq_len, self.state_dim):
-                    raise ValueError("Invalid state dimensions")
-                state_features = self.state_encoder(state.float())
-        else:
-            state_features = torch.zeros_like(visual_features)
-        fused = self.fusion(torch.cat([visual_features, state_features], dim=-1))
-        fused = fused + self.position_embedding[:, :seq_len]
-        if causal and seq_len > 1:
-            mask = torch.triu(
-                torch.ones(seq_len, seq_len, device=frames.device, dtype=torch.bool),
-                diagonal=1
-            )
-        else:
-            mask = None
-        hidden = self.transformer(fused, mask=mask)
-        gate = self.memory_gate(torch.cat([hidden, fused], dim=-1))
-        hidden = hidden + gate * fused
+    def _encode(self, embeddings, mode_id, causal=True):
+        batch, length, _ = embeddings.shape
+        positions = torch.arange(length, device=embeddings.device).unsqueeze(0)
+        mode = torch.full((batch, length), mode_id, device=embeddings.device, dtype=torch.long)
+        hidden = embeddings + self.position_embedding(positions) + self.mode_embedding(mode)
+        mask = torch.triu(
+            torch.ones(length, length, device=hidden.device, dtype=torch.bool), diagonal=1
+        ) if causal and length > 1 else None
+        return self.backbone(hidden, mask=mask)
+
+    def observe_chat(self, token_ids):
+        hidden = self._encode(self.token_embedding(token_ids), 0, causal=True)
+        return {"logits": self.chat_head(hidden), "hidden": hidden}
+
+    def observe_game(self, state, frames=None):
+        if state.ndim == 2:
+            state = state.unsqueeze(1)
+        state_features = self.state_encoder(state.float())
+        if frames is not None:
+            if frames.ndim == 4:
+                frames = frames.unsqueeze(1)
+            batch, steps = frames.shape[:2]
+            visual = self.visual_encoder(frames.reshape(batch * steps, *frames.shape[2:]))
+            visual = visual.reshape(batch, steps, MODEL_WIDTH)
+            state_features = state_features + visual
+        hidden = self._encode(state_features, 1, causal=True)
         return {
-            "button_logits": self.button_head(hidden),
+            "action_logits": self.action_head(hidden),
             "continuous_actions": self.continuous_head(hidden),
-            "state_values": self.value_head(hidden),
-            "reward_predictions": self.reward_head(hidden),
-            "done_logits": self.done_head(hidden),
-            "next_latent": self.world_model(hidden),
-            "hidden_states": hidden
+            "value": self.value_head(hidden),
+            "reward": self.reward_head(hidden),
+            "terminal_logits": self.terminal_head(hidden),
+            "hidden": hidden
         }
+
+    def forward(self, mode, **inputs):
+        if mode == "chat":
+            return self.observe_chat(inputs["token_ids"])
+        if mode == "game":
+            return self.observe_game(inputs["state"], inputs.get("frames"))
+        raise ValueError("mode must be 'chat' or 'game'")
 
     @torch.no_grad()
-    def act(self, frames, state=None, threshold=0.5):
+    def choose_action(self, state, frames=None, threshold=0.5):
         self.eval()
-        outputs = self.forward(frames, state, causal=True)
-        button_probabilities = torch.sigmoid(outputs["button_logits"][:, -1])
+        output = self.observe_game(state, frames)
+        logits = output["action_logits"][:, -1]
         return {
-            "buttons": (button_probabilities >= threshold).int(),
-            "button_probabilities": button_probabilities,
-            "continuous": outputs["continuous_actions"][:, -1],
-            "value": outputs["state_values"][:, -1],
-            "predicted_reward": outputs["reward_predictions"][:, -1],
-            "predicted_done": torch.sigmoid(outputs["done_logits"][:, -1])
+            "buttons": (torch.sigmoid(logits) >= threshold).int(),
+            "button_probabilities": torch.sigmoid(logits),
+            "continuous": output["continuous_actions"][:, -1],
+            "value": output["value"][:, -1],
+            "predicted_reward": output["reward"][:, -1],
+            "terminal_probability": torch.sigmoid(output["terminal_logits"][:, -1])
         }
 
 
-def create_uga(device=None):
-    model = UniversalGameNet(
-        state_dim=128,
-        num_buttons=32,
-        continuous_dim=4,
-        d_model=512,
-        num_layers=12,
-        num_heads=8,
-        max_seq_len=128,
-        dropout=0.1
+def count_parameters(model):
+    return sum(parameter.numel() for parameter in model.parameters() if parameter.requires_grad)
+
+
+def train_chat_step(model, optimizer, token_ids):
+    model.train()
+    optimizer.zero_grad(set_to_none=True)
+    output = model.observe_chat(token_ids[:, :-1])
+    loss = F.cross_entropy(
+        output["logits"].reshape(-1, output["logits"].size(-1)),
+        token_ids[:, 1:].reshape(-1),
+        ignore_index=0
     )
-    if device is None:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-    return model.to(device)
+    loss.backward()
+    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+    optimizer.step()
+    return float(loss.detach())
+
+
+def train_game_step(model, optimizer, state, action_targets, rewards, terminal_targets):
+    model.train()
+    optimizer.zero_grad(set_to_none=True)
+    output = model.observe_game(state)
+    action_loss = F.binary_cross_entropy_with_logits(
+        output["action_logits"][:, -1], action_targets.float()
+    )
+    reward_loss = F.smooth_l1_loss(output["reward"][:, -1].squeeze(-1), rewards.float())
+    terminal_loss = F.binary_cross_entropy_with_logits(
+        output["terminal_logits"][:, -1].squeeze(-1), terminal_targets.float()
+    )
+    loss = action_loss + reward_loss + terminal_loss
+    loss.backward()
+    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+    optimizer.step()
+    return {
+        "loss": float(loss.detach()),
+        "action_loss": float(action_loss.detach()),
+        "reward_loss": float(reward_loss.detach()),
+        "terminal_loss": float(terminal_loss.detach())
+    }
+
+
+def save_checkpoint(model, tokenizer, path, optimizer=None):
+    payload = {
+        "model": model.state_dict(),
+        "tokenizer": tokenizer.id_to_token,
+        "architecture": {
+            "layers": MODEL_LAYERS,
+            "width": MODEL_WIDTH,
+            "heads": MODEL_HEADS,
+            "feed_forward": FEED_FORWARD_WIDTH
+        }
+    }
+    if optimizer is not None:
+        payload["optimizer"] = optimizer.state_dict()
+    torch.save(payload, path)
+
+
+def load_checkpoint(path, device="cpu"):
+    payload = torch.load(path, map_location=device, weights_only=False)
+    tokenizer = NeuralTokenizer(vocab_size=len(payload["tokenizer"]))
+    tokenizer.id_to_token = payload["tokenizer"]
+    tokenizer.token_to_id = {token: index for index, token in enumerate(tokenizer.id_to_token)}
+    model = UniversalNeuralNetwork(vocab_size=len(tokenizer.id_to_token)).to(device)
+    model.load_state_dict(payload["model"])
+    return model, tokenizer
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--database", default="universal_neural_memory.sqlite3")
+    parser.add_argument("--checkpoint", default="universal_neural_network.pt")
+    parser.add_argument("--vocab-size", type=int, default=8192)
+    parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
+    parser.add_argument("--initialize", action="store_true")
+    args = parser.parse_args()
+
+    memory = SQLMemory(args.database)
+    tokenizer = NeuralTokenizer.load(memory.connection, args.vocab_size)
+    if args.initialize or not Path(args.checkpoint).exists():
+        model = UniversalNeuralNetwork(vocab_size=args.vocab_size).to(args.device)
+        tokenizer.fit([
+            "Observe the environment, predict the next state, and choose an action.",
+            "Analyze the player's position, health, inventory, objective, and nearby threats.",
+            "Respond clearly, use context, remember relevant observations, and avoid inventing facts."
+        ])
+        tokenizer.save(memory.connection)
+        save_checkpoint(model, tokenizer, args.checkpoint)
+    else:
+        model, tokenizer = load_checkpoint(args.checkpoint, args.device)
+
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=0.01)
+    print(json.dumps({
+        "status": "initialized",
+        "layers": MODEL_LAYERS,
+        "neurons_per_layer": MODEL_WIDTH,
+        "attention_heads": MODEL_HEADS,
+        "parameters": count_parameters(model),
+        "device": args.device,
+        "database": args.database,
+        "checkpoint": args.checkpoint,
+        "chat_observations": memory.count("chat"),
+        "game_observations": memory.count("game"),
+        "trained": False
+    }, indent=2))
+    memory.close()
 
 
 if __name__ == "__main__":
-    model = create_uga()
-    frames = torch.rand(2, 8, 3, 224, 224)
-    state = torch.rand(2, 8, 128)
-    outputs = model(frames, state)
-    for name, tensor in outputs.items():
-        print(name, tuple(tensor.shape))
-    print("Parameters:", sum(p.numel() for p in model.parameters()))
+    main()
