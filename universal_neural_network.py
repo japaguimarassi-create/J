@@ -94,7 +94,7 @@ class BPETokenizer:
     def decode(self, token_ids):
         pieces = []
         for token_id in token_ids:
-            if 0 <= int(token_id) < len(self.vocab) and int(token_id) < 256 + len(self.merges):
+            if 0 <= int(token_id) < len(self.vocab) and (int(token_id) < 256 or int(token_id) >= BASE_VOCAB_SIZE):
                 pieces.append(self.vocab[int(token_id)])
         return b"".join(pieces).decode("utf-8", errors="replace")
 
