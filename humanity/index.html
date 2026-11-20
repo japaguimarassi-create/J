@@ -35,11 +35,13 @@ button:active{transform:scale(.98)}button.primary{background:#526f45;border-colo
 <div id="controls">
  <button class="primary" id="toggle">Pausar</button><button id="step">+ 1 dia</button>
  <select id="speed"><option value="1">1×</option><option value="3" selected>3×</option><option value="8">8×</option><option value="20">20×</option></select>
- <button id="camera">Câmera livre</button><button id="reset">Reiniciar</button>
+ <button id="camera">Câmera livre</button><button id="save">Salvar</button><button id="load">Carregar</button><label for="modelFile"><button type="button">Importar humano GLB</button></label><input id="modelFile" type="file" accept=".glb,.gltf,model/gltf-binary,model/gltf+json" hidden><button id="reset">Reiniciar</button>
 </div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js';
 import {OrbitControls} from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/controls/OrbitControls.js';
+import {GLTFLoader} from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/utils/SkeletonUtils.js';
 const $=id=>document.getElementById(id);
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x9bb8b0);scene.fog=new THREE.Fog(0x9bb8b0,45,125);
 const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.1,300);camera.position.set(30,29,38);
@@ -102,7 +104,20 @@ function makeHuman(p){const g=new THREE.Group();const skin=mats.skin[Math.floor(
  const limbs=[];for(let s of [-1,1]){const leg=new THREE.Mesh(legGeo,cloth);leg.position.set(s*.12,.42,0);g.add(leg);limbs.push(leg);const arm=new THREE.Mesh(armGeo,skin);arm.position.set(s*.3,1.05,0);arm.rotation.z=s*.12;g.add(arm);limbs.push(arm)}
  g.userData={limbs,cloth};return g}
 function animateHuman(p,moving){const t=performance.now()*.006+p.id;const l=p.mesh.userData.limbs;l[0].rotation.x=moving?Math.sin(t)*.55:0;l[1].rotation.x=moving?-Math.sin(t)*.55:0;l[2].rotation.x=moving?-Math.sin(t)*.4:0;l[3].rotation.x=moving?Math.sin(t)*.4:0}
-let population=[],nextId=1,food=180,wood=50,waterNeed=.1,houses=6,day=0,techs=[],running=true,selected=null;
+let population=[],nextId=1,food=180,wood=50,stone=35,clay=8,fiber=12,ore=0,waterNeed=.1,houses=6,day=0,techs=[],running=true,selected=null;
+const loader=new GLTFLoader();let humanoidTemplate=null,humanoidClips=[],modelLabel='Procedural';
+const BASE_KNOWLEDGE=['fogo','plantio','domesticacao'];
+const TECHS=[
+{name:'ferramentas de pedra',needs:['fogo'],cost:{stone:4},skill:'craft',level:.12},
+{name:'ceramica',needs:['fogo'],cost:{clay:7},skill:'craft',level:.22},
+{name:'tecelagem',needs:['plantio'],cost:{fiber:8},skill:'craft',level:.2},
+{name:'irrigacao',needs:['plantio','ceramica'],cost:{wood:10,stone:5},skill:'farm',level:.3},
+{name:'carpintaria',needs:['ferramentas de pedra'],cost:{wood:16,stone:2},skill:'craft',level:.32},
+{name:'arado',needs:['domesticacao','carpintaria'],cost:{wood:18},skill:'farm',level:.42},
+{name:'roda',needs:['carpintaria','ceramica'],cost:{wood:20,stone:4},skill:'craft',level:.48},
+{name:'metalurgia do cobre',needs:['ceramica','ferramentas de pedra'],cost:{ore:5,wood:15},skill:'craft',level:.62},
+{name:'escrita',needs:['ceramica','irrigacao'],cost:{fiber:12},skill:'craft',level:.68}
+];
 function log(s){const d=document.createElement('div');d.textContent='D'+day+' · '+s;$('feed').prepend(d);while($('feed').children.length>14)$('feed').lastChild.remove()}
 function init(){createWorld();population=[];nextId=1;food=180;wood=50;day=0;techs=[];for(let i=0;i<24;i++)population.push(new Person(nextId++,rand(16,48),Math.random()<.5?'F':'M'));log('A vila foi fundada por 24 pessoas.')}
 function birth(){const females=population.filter(p=>p.sex==='F'&&p.age>=18&&p.age<40&&p.partner!==null&&p.cooldown===0);for(const m of females){const father=population.find(p=>p.id===m.partner);if(father&&father.age<55&&Math.random()<.00005&&food>35&&population.length<120){const child=new Person(nextId++,0,Math.random()<.5?'F':'M',[m.id,father.id]);child.health=rand(.8,1);child.hunger=.1;child.energy=.8;child.x=m.x+rand(-1,1);child.z=m.z+rand(-1,1);child.mesh.position.set(child.x,0,child.z);population.push(child);m.children++;m.cooldown=3000;father.cooldown=1200;food-=8;log('Nasceu uma criança. População: '+population.length)}}}
