@@ -268,7 +268,8 @@ def train(args):
                 raise ValueError("Foundation and fusion tokenizer fingerprints do not match.")
         model = HyperInterNetwork(**config)
         if args.base_checkpoint is not None:
-            model = initialize_hyper_from_foundation(model, base_payload, tokenizer_sha256)
+            model = initialize_hyper_from_foundation(model, base_payload, tokenizer_sha256, config)
+            del base_payload
         completed_experts = set()
         completed_stages = set()
 
