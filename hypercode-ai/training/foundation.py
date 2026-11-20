@@ -300,8 +300,10 @@ def train(args):
     report["status"] = "completed"
     atomic_save({
         "state_dict": model.state_dict(),
+        "optimizer_state_dict": optimizer.state_dict(),
         "config": config,
         "tokenizer_sha256": tokenizer_sha256,
+        "rng_state": capture_rng_state(),
         "steps_completed": args.steps,
         "in_progress": False,
         "training_recipe": "causal_lm_adamw_wsd_bf16_gradient_accumulation",
