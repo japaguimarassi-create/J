@@ -53,6 +53,6 @@
     "runtime_execution": "not_performed_no_docker",
     "interpretation": "Lower reference NLL is better but does not prove semantic correctness."
   },
-  "structural_tests": "8 passed locally",
-  "interpretation": "Actual gradient updates and SFT were executed only on the reduced smoke model. The target architecture has not been trained."
+  "structural_tests": "10 passed locally",
+  "interpretation": "Actual gradient updates and supervised fine-tuning were executed only on the reduced smoke model. The target architecture has not been trained."
 }

@@ -38,12 +38,17 @@ O tokenizer mantém doze estágios para linguagem natural e doze para código. A
 
 O arquivo seed_corpus.jsonl.gz contém exemplos originais criados para testar o pipeline. São poucos exemplos e não constituem um corpus suficiente para treinar um assistente útil.
 
-O script prepare_stack.py foi escrito para um subconjunto local em Parquet com colunas content, license e language, compatível com o formato do The Stack v1. Ele filtra um conjunto conservador de licenças SPDX e mantém repositório, caminho, commit e licença como proveniência. O The Stack é um conjunto com controle de acesso; é necessário ler e aceitar seus termos na página oficial antes de usar os arquivos. Cada trecho continua sujeito à licença original e pode exigir atribuição.
+O importador foi ajustado ao esquema atual do **The Stack v1.3**: lê `content`, identifica a linguagem por `lang` (ou `language` em shards antigos), e procura metadados SPDX em `licenses` ou campos equivalentes de licença do repositório. Preserva repositório, caminho, hash/commit e licenças aceitas. Ele filtra uma lista conservadora de licenças permissivas, remove duplicatas exatas e padrões de possíveis segredos.
 
-**Não use este importador diretamente no The Stack v2.** A versão v2 contém identificadores do Software Heritage e o conteúdo dos arquivos fica em armazenamento separado; download em massa exige acordo com Software Heritage e INRIA. É necessário aceitar pessoalmente os termos e obter acesso autorizado. O script não baixa dados nem aceita termos em nome do usuário.
+A página oficial atual do The Stack v1.3 lista 358 linguagens de programação, com comentários/docstrings em diversas línguas naturais. O dataset é **gated**: você precisa abrir a página, ler e aceitar pessoalmente os termos antes de baixar os arquivos. As solicitações de remoção de dados são atualizadas nas versões utilizáveis; use a versão atual e preserve as licenças e a proveniência de cada fonte. O script não baixa dados nem aceita termos em nome do usuário.
 
-Fonte: https://huggingface.co/datasets/bigcode/the-stack
-Informações da versão v2: https://huggingface.co/datasets/bigcode/the-stack-v2
+**Não use este importador diretamente no The Stack v2.** A versão v2 exige acordo com Software Heritage e INRIA para download em massa e possui princípios adicionais para treinamento; este importador não implementa seu esquema.
+
+Referências oficiais:
+- https://huggingface.co/datasets/bigcode/the-stack
+- https://huggingface.co/datasets/bigcode/the-stack-v2
+
+O dataset contém duplicatas aproximadas; o script remove conteúdo idêntico e o treinamento separa por repositório para reduzir vazamento entre treino e validação. Uma avaliação séria ainda deve deduplicar por hash e por similaridade, e manter um conjunto de benchmark separado.
 
 ~~~bash
 python -m pip install pyarrow
@@ -98,7 +103,7 @@ smoke_evidence.json registra um treino de prova executado em CPU. Ele confirma a
 
 ## Testes estruturais
 
-Os oito testes verificam dimensões-alvo, passagem do mesmo contexto pelos sete ramos, comunicação entre redes, gradientes em todos os ramos e no núcleo, máscara causal, geração de sete saídas individuais mais a resposta coletiva, pipelines de doze estágios e máscara SFT que impede a pergunta de contribuir para a perda.
+Os dez testes verificam dimensões-alvo, passagem do mesmo contexto pelos sete ramos, comunicação entre redes, gradientes em todos os ramos e no núcleo, máscara causal, geração de sete saídas individuais mais a resposta coletiva, pipelines de doze estágios, máscara SFT, campos/licenças do The Stack v1.3 e separação por repositório.
 
 ~~~bash
 python -m pytest tests -q

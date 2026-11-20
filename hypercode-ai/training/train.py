@@ -12,8 +12,23 @@ from model import HyperInterNetwork, smoke_config, target_config
 from tokenizer import ProceduralTokenizer, VOCAB_SIZE
 
 
+def split_by_repository(records, seed=2026):
+    groups = {}
+    for index, (repository, document) in enumerate(records):
+        key = str(repository).strip() if repository else f"__document_{index}"
+        groups.setdefault(key, []).append(document)
+    if len(groups) < 2:
+        raise ValueError("At least two repository groups are required for train/validation split.")
+    keys = list(groups)
+    random.Random(seed).shuffle(keys)
+    split = max(1, int(len(keys) * 0.9))
+    train_documents = [document for key in keys[:split] for document in groups[key]]
+    validation_documents = [document for key in keys[split:] for document in groups[key]]
+    return train_documents, validation_documents
+
+
 def read_corpus(path, tokenizer, context_length):
-    documents = []
+    records = []
     opener = gzip.open if str(path).endswith(".gz") else open
     with opener(path, "rt", encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, start=1):
@@ -28,11 +43,10 @@ def read_corpus(path, tokenizer, context_length):
                 continue
             ids = tokenizer.encode(text, language=row.get("language"), code=row.get("kind") == "code")
             if len(ids) >= 3:
-                documents.append(ids)
-    if len(documents) < 2:
+                records.append((row.get("repository"), ids))
+    if len(records) < 2:
         raise ValueError("At least two usable documents are required for train/validation split.")
-    random.Random(2026).shuffle(documents)
-    split = max(1, int(len(documents) * 0.9))
+    train_documents, validation_documents = split_by_repository(records)
 
     def chunk_documents(items):
         chunks = []
@@ -43,10 +57,10 @@ def read_corpus(path, tokenizer, context_length):
                     chunks.append(chunk)
         return chunks
 
-    train_chunks = chunk_documents(documents[:split])
-    validation_chunks = chunk_documents(documents[split:])
+    train_chunks = chunk_documents(train_documents)
+    validation_chunks = chunk_documents(validation_documents)
     if not train_chunks or not validation_chunks:
-        raise ValueError("The corpus is too small to create train and validation token chunks.")
+        raise ValueError("The corpus is too small to create train/validation token chunks.")
     return train_chunks, validation_chunks
 
 

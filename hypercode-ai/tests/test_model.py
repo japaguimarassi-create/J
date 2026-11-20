@@ -129,3 +129,30 @@ def test_sft_masks_user_prompt_and_trains_only_assistant_completion(tmp_path):
     assert torch.all(targets[0, :answer_start] == -100)
     assert targets[0, answer_start] != -100
     assert inputs.shape == (1, 128)
+
+
+def test_stack_v13_license_and_language_fields():
+    from prepare_stack import license_values, TARGET_LANGUAGES, scan_secrets
+
+    assert license_values('["MIT", "Apache-2.0"]') == ["apache-2.0", "mit"]
+    assert license_values("MIT") == ["mit"]
+    assert TARGET_LANGUAGES["c-sharp"] == "csharp"
+    assert TARGET_LANGUAGES["rust"] == "rust"
+    assert scan_secrets("ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
+    assert not scan_secrets("def add(a, b): return a + b")
+
+
+def test_pretraining_split_keeps_repository_groups_together():
+    from train import split_by_repository
+
+    records = [
+        ("org/repo-a", [1, 4, 5, 2]),
+        ("org/repo-a", [1, 6, 7, 2]),
+        ("org/repo-b", [1, 8, 9, 2]),
+        ("org/repo-c", [1, 10, 11, 2]),
+    ]
+    train_docs, validation_docs = split_by_repository(records, seed=1)
+    train_tokens = {tuple(document) for document in train_docs}
+    validation_tokens = {tuple(document) for document in validation_docs}
+    assert train_tokens.isdisjoint(validation_tokens)
+    assert len(train_docs) + len(validation_docs) == len(records)
