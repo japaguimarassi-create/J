@@ -50,11 +50,25 @@ Referências oficiais:
 
 O dataset contém duplicatas aproximadas; o script remove conteúdo idêntico e o treinamento separa por repositório para reduzir vazamento entre treino e validação. Uma avaliação séria ainda deve deduplicar por hash e por similaridade, e manter um conjunto de benchmark separado.
 
+O treino de base não deve depender apenas de código. Comece com uma mistura de código licenciado, texto geral de alta qualidade, matemática e documentação técnica. A proporção abaixo é somente uma hipótese inicial para ablação (40/30/20/10), não uma proporção universalmente ótima. Os datasets precisam ser obtidos respeitando suas licenças, termos de uso e filtros de privacidade; preserve a proveniência de cada arquivo.
+
 ~~~bash
 python -m pip install pyarrow tokenizers
 python prepare_stack.py --input /data/the-stack-v1 --output corpus/stack_filtered.jsonl --max-per-language 15000
-python train_bpe_tokenizer.py --data corpus/stack_filtered.jsonl --output artifacts/tokenizer.json --vocab-size 32768
+
+python mix_corpus.py \
+  --source code=corpus/stack_filtered.jsonl \
+  --source web=corpus/fineweb_edu.jsonl.gz \
+  --source math=corpus/open_web_math.jsonl.gz \
+  --source docs=corpus/documentation.jsonl.gz \
+  --weight code=0.40 --weight web=0.30 --weight math=0.20 --weight docs=0.10 \
+  --max-records 10000000 \
+  --output corpus/universal_mix.jsonl.gz
+
+python train_bpe_tokenizer.py --data corpus/universal_mix.jsonl.gz --output artifacts/tokenizer.json --vocab-size 32768
 ~~~
+
+Os nomes fineweb_edu, open_web_math e documentation são caminhos locais esperados, não downloads feitos automaticamente por este projeto. Substitua-os por shards reais previamente baixados e verificados. O misturador faz deduplicação exata por SHA-256, mantém metadados de origem/licença e registra a distribuição real; não faz deduplicação aproximada. Os shards devem estar embaralhados antes da mistura. Use o relatório gerado para ajustar pesos em ablações, não para presumir que a distribuição pretendida foi atingida quando uma fonte se esgota.
 
 ## Treino de prova e treino-alvo
 
@@ -118,29 +132,29 @@ O programa impede avançar fora dessa ordem, salva um checkpoint separado por et
 Treine primeiro a IA-base universal:
 
 ~~~bash
-python foundation.py --profile target --data corpus/stack_filtered.jsonl --tokenizer-json artifacts/tokenizer.json --steps 50000 --batch-size 1 --gradient-accumulation-steps 8 --gradient-checkpointing --output artifacts/foundation
+python foundation.py --profile target --data corpus/universal_mix.jsonl.gz --tokenizer-json artifacts/tokenizer.json --steps 50000 --batch-size 1 --gradient-accumulation-steps 8 --gradient-checkpointing --output artifacts/foundation
 ~~~
 
 Inicie a rede 1 a partir do checkpoint-base. O índice é zero-based:
 
 ~~~bash
-python staged_train.py --profile target --stage expert --expert-index 0 --data corpus/stack_filtered.jsonl --tokenizer-json artifacts/tokenizer.json --base-checkpoint artifacts/foundation/hyperinter_foundation.pt --steps 10000 --batch-size 1 --gradient-accumulation-steps 8 --gradient-checkpointing --output artifacts/staged
+python staged_train.py --profile target --stage expert --expert-index 0 --data corpus/universal_mix.jsonl.gz --tokenizer-json artifacts/tokenizer.json --base-checkpoint artifacts/foundation/hyperinter_foundation.pt --steps 10000 --batch-size 1 --gradient-accumulation-steps 8 --gradient-checkpointing --output artifacts/staged
 ~~~
 
 Treine a rede seguinte carregando o checkpoint anterior. Repita os índices de 1 a 6:
 
 ~~~bash
-python staged_train.py --profile target --stage expert --expert-index 1 --data corpus/stack_filtered.jsonl --tokenizer-json artifacts/tokenizer.json --checkpoint artifacts/staged/expert_01/hyperinter_expert_01.pt --steps 10000 --batch-size 1 --gradient-accumulation-steps 8 --gradient-checkpointing --output artifacts/staged
+python staged_train.py --profile target --stage expert --expert-index 1 --data corpus/universal_mix.jsonl.gz --tokenizer-json artifacts/tokenizer.json --checkpoint artifacts/staged/expert_01/hyperinter_expert_01.pt --steps 10000 --batch-size 1 --gradient-accumulation-steps 8 --gradient-checkpointing --output artifacts/staged
 ~~~
 
 Depois de concluir a rede 7:
 
 ~~~bash
-python staged_train.py --profile target --stage core --data corpus/stack_filtered.jsonl --tokenizer-json artifacts/tokenizer.json --checkpoint artifacts/staged/expert_07/hyperinter_expert_07.pt --steps 20000 --batch-size 1 --gradient-accumulation-steps 8 --gradient-checkpointing --output artifacts/staged
+python staged_train.py --profile target --stage core --data corpus/universal_mix.jsonl.gz --tokenizer-json artifacts/tokenizer.json --checkpoint artifacts/staged/expert_07/hyperinter_expert_07.pt --steps 20000 --batch-size 1 --gradient-accumulation-steps 8 --gradient-checkpointing --output artifacts/staged
 
-python staged_train.py --profile target --stage communication --data corpus/stack_filtered.jsonl --tokenizer-json artifacts/tokenizer.json --checkpoint artifacts/staged/core/hyperinter_core.pt --steps 10000 --batch-size 1 --gradient-accumulation-steps 8 --gradient-checkpointing --output artifacts/staged
+python staged_train.py --profile target --stage communication --data corpus/universal_mix.jsonl.gz --tokenizer-json artifacts/tokenizer.json --checkpoint artifacts/staged/core/hyperinter_core.pt --steps 10000 --batch-size 1 --gradient-accumulation-steps 8 --gradient-checkpointing --output artifacts/staged
 
-python staged_train.py --profile target --stage joint --data corpus/stack_filtered.jsonl --tokenizer-json artifacts/tokenizer.json --checkpoint artifacts/staged/communication/hyperinter_communication.pt --steps 20000 --batch-size 1 --gradient-accumulation-steps 8 --gradient-checkpointing --output artifacts/staged
+python staged_train.py --profile target --stage joint --data corpus/universal_mix.jsonl.gz --tokenizer-json artifacts/tokenizer.json --checkpoint artifacts/staged/communication/hyperinter_communication.pt --steps 20000 --batch-size 1 --gradient-accumulation-steps 8 --gradient-checkpointing --output artifacts/staged
 ~~~
 
 O ajuste supervisionado de instruções (\`finetune.py\`) vem depois da integração conjunta e usa o tokenizer BPE correspondente e o checkpoint \`artifacts/staged/joint/hyperinter_joint.pt\`.
