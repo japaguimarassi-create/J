@@ -154,7 +154,7 @@ public class MainActivity extends Activity {
         popup.show();
     }
 
-    private View buildComposer() {
+    private LinearLayout buildComposer() {
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(11), dp(10), dp(11), dp(9));
@@ -643,7 +643,7 @@ public class MainActivity extends Activity {
         parent.addView(separator());
     }
 
-    private View actionButton(String label, boolean primary) {
+    private TextView actionButton(String label, boolean primary) {
         TextView button = text(label, 12, primary ? Color.WHITE : Color.rgb(225, 235, 248), true);
         button.setGravity(Gravity.CENTER);
         button.setPadding(dp(14), dp(12), dp(14), dp(12));
