@@ -198,11 +198,12 @@ def main():
         device,
         use_bf16=use_bf16,
     )
+    effective_warmup_steps = min(args.warmup_steps, max(1, args.steps // 10))
     model.train()
     for step in range(1, args.steps + 1):
         for group in optimizer.param_groups:
             group["lr"] = args.learning_rate * wsd_multiplier(
-                step, args.steps, args.warmup_steps, args.decay_ratio
+                step, args.steps, effective_warmup_steps, args.decay_ratio
             )
         optimizer.zero_grad(set_to_none=True)
         accumulated_loss = 0.0
