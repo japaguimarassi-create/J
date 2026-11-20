@@ -8,7 +8,8 @@ import torch
 from torch.nn import functional as F
 
 from model import HyperInterNetwork
-from tokenizer import ProceduralTokenizer, VOCAB_SIZE
+from optimization import build_adamw, wsd_multiplier
+from tokenizer import load_tokenizer, normalize_text
 
 
 def load_instruction_chunks(path, tokenizer, context_length, seed=2026):
@@ -25,12 +26,23 @@ def load_instruction_chunks(path, tokenizer, context_length, seed=2026):
                 raise ValueError(f"Instruction record {line_number} needs prompt and completion strings.")
             if not prompt.strip() or not completion.strip():
                 continue
-            ids = tokenizer.encode(
-                prompt + completion,
-                language=row.get("language"),
-                code=row.get("kind") == "code",
-            )
-            target_start = len(prompt.encode("utf-8"))
+            combined = prompt + completion
+            if hasattr(tokenizer, "encode_with_offsets"):
+                ids, offsets = tokenizer.encode_with_offsets(combined)
+                prompt_boundary = len(normalize_text(prompt))
+                answer_index = next(
+                    (index for index, (start, end) in enumerate(offsets)
+                     if index > 0 and start >= prompt_boundary),
+                    len(ids) - 1,
+                )
+                target_start = answer_index - 1
+            else:
+                ids = tokenizer.encode(
+                    combined,
+                    language=row.get("language"),
+                    code=row.get("kind") == "code",
+                )
+                target_start = len(tokenizer.encode(prompt, add_special_tokens=False))
             if len(ids) >= 3:
                 records.append((ids, target_start))
     if len(records) < 2:
@@ -119,23 +131,31 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument("--data", type=Path, required=True)
+    parser.add_argument("--tokenizer-json", type=Path)
     parser.add_argument("--output", type=Path, default=Path("artifacts/sft"))
     parser.add_argument("--steps", type=int, default=100)
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--learning-rate", type=float, default=1e-4)
+    parser.add_argument("--warmup-steps", type=int, default=100)
+    parser.add_argument("--decay-ratio", type=float, default=0.1)
+    parser.add_argument("--gradient-accumulation-steps", type=int, default=1)
+    parser.add_argument("--weight-decay", type=float, default=0.01)
+    parser.add_argument("--max-grad-norm", type=float, default=1.0)
+    parser.add_argument("--auxiliary-loss-weight", type=float, default=0.2)
     parser.add_argument("--log-every", type=int, default=20)
     parser.add_argument("--gradient-checkpointing", action="store_true")
     parser.add_argument("--seed", type=int, default=123)
     args = parser.parse_args()
-    if args.steps < 1 or args.batch_size < 1:
-        parser.error("steps and batch-size must be positive")
+    if args.steps < 1 or args.batch_size < 1 or args.gradient_accumulation_steps < 1:
+        parser.error("steps, batch-size and gradient-accumulation-steps must be positive")
+    if not 0.0 < args.decay_ratio <= 1.0 or args.max_grad_norm <= 0:
+        parser.error("invalid scheduler or gradient clipping configuration")
 
     random.seed(args.seed)
     torch.manual_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     checkpoint = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
     config = dict(checkpoint["config"])
-    config["vocab_size"] = VOCAB_SIZE
     is_target = (
         config.get("experts") == 7
         and config.get("expert_layers") == 10
@@ -154,18 +174,20 @@ def main():
         enabled=device.type == "cuda" and not use_bf16,
     )
 
-    tokenizer = ProceduralTokenizer()
+    tokenizer = load_tokenizer(args.tokenizer_json)
+    if tokenizer.vocab_size != config["vocab_size"]:
+        raise ValueError("SFT tokenizer vocabulary does not match the pretrained checkpoint.")
     train_samples, validation_samples = load_instruction_chunks(
         args.data,
         tokenizer,
         config["context_length"],
         seed=args.seed,
     )
-    optimizer = torch.optim.AdamW(
-        model.parameters(),
-        lr=args.learning_rate,
-        betas=(0.9, 0.95),
-        weight_decay=0.01,
+    optimizer = build_adamw(
+        model,
+        learning_rate=args.learning_rate,
+        weight_decay=args.weight_decay,
+        fused=device.type == "cuda",
     )
     args.output.mkdir(parents=True, exist_ok=True)
     before = evaluate(
@@ -178,33 +200,48 @@ def main():
     )
     model.train()
     for step in range(1, args.steps + 1):
-        inputs, targets = make_batch(
-            train_samples,
-            args.batch_size,
-            config["context_length"],
-            device,
-        )
+        for group in optimizer.param_groups:
+            group["lr"] = args.learning_rate * wsd_multiplier(
+                step, args.steps, args.warmup_steps, args.decay_ratio
+            )
         optimizer.zero_grad(set_to_none=True)
-        with torch.autocast(
-            device_type=device.type,
-            dtype=torch.bfloat16 if use_bf16 else torch.float16,
-            enabled=device.type == "cuda",
-        ):
-            final_logits, auxiliary = model(inputs, return_aux=True)
-            final_loss = loss_for(final_logits, targets)
-            auxiliary_loss = torch.stack([
-                loss_for(auxiliary[:, index], targets) for index in range(7)
-            ]).mean()
-            loss = final_loss + 0.2 * auxiliary_loss
-        scaler.scale(loss).backward()
+        accumulated_loss = 0.0
+        collective_loss_value = 0.0
+        for _ in range(args.gradient_accumulation_steps):
+            inputs, targets = make_batch(
+                train_samples,
+                args.batch_size,
+                config["context_length"],
+                device,
+            )
+            with torch.autocast(
+                device_type=device.type,
+                dtype=torch.bfloat16 if use_bf16 else torch.float16,
+                enabled=device.type == "cuda",
+            ):
+                final_logits, auxiliary = model(inputs, return_aux=True)
+                final_loss = loss_for(final_logits, targets)
+                auxiliary_loss = torch.stack([
+                    loss_for(auxiliary[:, index], targets) for index in range(7)
+                ]).mean()
+                loss = (
+                    final_loss + args.auxiliary_loss_weight * auxiliary_loss
+                ) / args.gradient_accumulation_steps
+            if not torch.isfinite(loss):
+                raise FloatingPointError(f"Non-finite SFT loss at step {step}.")
+            accumulated_loss += loss.detach().item()
+            collective_loss_value += final_loss.detach().item() / args.gradient_accumulation_steps
+            scaler.scale(loss).backward()
         scaler.unscale_(optimizer)
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        gradient_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+        if not torch.isfinite(gradient_norm):
+            raise FloatingPointError(f"Non-finite SFT gradient norm at step {step}.")
         scaler.step(optimizer)
         scaler.update()
         if step == 1 or step % args.log_every == 0 or step == args.steps:
             print(
-                f"sft_step={step}/{args.steps} "
-                f"total={loss.item():.5f} collective={final_loss.item():.5f}"
+                f"sft_step={step}/{args.steps} total={accumulated_loss:.5f} "
+                f"collective={collective_loss_value:.5f} grad_norm={float(gradient_norm):.5f}"
             )
 
     after = evaluate(
