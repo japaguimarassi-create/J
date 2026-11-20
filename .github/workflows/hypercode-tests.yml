@@ -1,0 +1,38 @@
+name: HyperCode training tests
+
+on:
+  push:
+    paths:
+      - "hypercode-ai/training/**"
+      - "hypercode-ai/tests/**"
+      - ".github/workflows/hypercode-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install CPU PyTorch and test tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install pytest pyarrow
+
+      - name: Run architecture tests
+        run: python -m pytest hypercode-ai/tests -q
+
+      - name: Run smoke training
+        working-directory: hypercode-ai/training
+        run: python train.py --profile smoke --data seed_corpus.jsonl.gz --steps 3 --batch-size 1 --output /tmp/hypercode-ci-smoke

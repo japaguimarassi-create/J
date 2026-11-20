@@ -1,13 +1,41 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+from torch.utils.checkpoint import checkpoint
+
+
+class CausalSelfAttention(nn.Module):
+    def __init__(self, width, heads, dropout=0.0):
+        super().__init__()
+        if width % heads:
+            raise ValueError("Attention width must be divisible by head count.")
+        self.heads = heads
+        self.head_width = width // heads
+        self.dropout = dropout
+        self.qkv = nn.Linear(width, width * 3, bias=False)
+        self.output = nn.Linear(width, width, bias=False)
+
+    def forward(self, value):
+        batch, sequence, width = value.shape
+        q, k, v = self.qkv(value).view(
+            batch, sequence, 3, self.heads, self.head_width
+        ).permute(2, 0, 3, 1, 4).unbind(0)
+        attended = F.scaled_dot_product_attention(
+            q,
+            k,
+            v,
+            dropout_p=self.dropout if self.training else 0.0,
+            is_causal=True,
+        )
+        attended = attended.transpose(1, 2).contiguous().view(batch, sequence, width)
+        return self.output(attended)
 
 
 class CausalBlock(nn.Module):
     def __init__(self, width, heads, feed_forward, dropout=0.0):
         super().__init__()
         self.norm_attention = nn.LayerNorm(width)
-        self.attention = nn.MultiheadAttention(width, heads, dropout=dropout, batch_first=True)
+        self.attention = CausalSelfAttention(width, heads, dropout)
         self.norm_mlp = nn.LayerNorm(width)
         self.mlp = nn.Sequential(
             nn.Linear(width, feed_forward),
@@ -16,26 +44,48 @@ class CausalBlock(nn.Module):
             nn.Dropout(dropout),
         )
 
-    def forward(self, value, causal_mask):
-        normalized = self.norm_attention(value)
-        attended, _ = self.attention(normalized, normalized, normalized, attn_mask=causal_mask, need_weights=False)
-        value = value + attended
+    def forward(self, value):
+        value = value + self.attention(self.norm_attention(value))
         return value + self.mlp(self.norm_mlp(value))
 
 
-class CausalStack(nn.Module):
-    def __init__(self, width, depth, heads, feed_forward, dropout=0.0):
+class MutualCommunication(nn.Module):
+    def __init__(self, width, heads, feed_forward, dropout=0.0):
         super().__init__()
-        self.blocks = nn.ModuleList([
-            CausalBlock(width, heads, feed_forward, dropout)
-            for _ in range(depth)
-        ])
-        self.final_norm = nn.LayerNorm(width)
+        if width % heads:
+            raise ValueError("Communication width must be divisible by head count.")
+        self.heads = heads
+        self.head_width = width // heads
+        self.dropout = dropout
+        self.norm_attention = nn.LayerNorm(width)
+        self.qkv = nn.Linear(width, width * 3, bias=False)
+        self.output = nn.Linear(width, width, bias=False)
+        self.norm_mlp = nn.LayerNorm(width)
+        self.mlp = nn.Sequential(
+            nn.Linear(width, feed_forward),
+            nn.GELU(),
+            nn.Linear(feed_forward, width),
+            nn.Dropout(dropout),
+        )
 
-    def forward(self, value, causal_mask):
-        for block in self.blocks:
-            value = block(value, causal_mask)
-        return self.final_norm(value)
+    def forward(self, states):
+        batch, experts, sequence, width = states.shape
+        value = states.permute(0, 2, 1, 3).reshape(batch * sequence, experts, width)
+        normalized = self.norm_attention(value)
+        q, k, v = self.qkv(normalized).view(
+            batch * sequence, experts, 3, self.heads, self.head_width
+        ).permute(2, 0, 3, 1, 4).unbind(0)
+        messages = F.scaled_dot_product_attention(
+            q,
+            k,
+            v,
+            dropout_p=self.dropout if self.training else 0.0,
+            is_causal=False,
+        )
+        messages = messages.transpose(1, 2).contiguous().view(batch * sequence, experts, width)
+        value = value + self.output(messages)
+        value = value + self.mlp(self.norm_mlp(value))
+        return value.view(batch, sequence, experts, width).permute(0, 2, 1, 3).contiguous()
 
 
 class HyperInterNetwork(nn.Module):
@@ -48,6 +98,8 @@ class HyperInterNetwork(nn.Module):
         expert_width=256,
         expert_heads=8,
         expert_ff=768,
+        communication_heads=8,
+        communication_ff=512,
         fusion_layers=20,
         fusion_width=1792,
         fusion_heads=16,
@@ -56,56 +108,172 @@ class HyperInterNetwork(nn.Module):
     ):
         super().__init__()
         if experts != 7:
-            raise ValueError("The target architecture requires exactly seven expert networks.")
+            raise ValueError("The mutual architecture requires exactly seven networks.")
         if fusion_width != experts * expert_width:
-            raise ValueError("Fusion width must equal the concatenated width of all seven experts.")
-        if expert_width % expert_heads != 0 or fusion_width % fusion_heads != 0:
-            raise ValueError("Attention widths must be divisible by their head counts.")
+            raise ValueError("Fusion width must equal seven times expert width.")
+        if expert_width % expert_heads or expert_width % communication_heads:
+            raise ValueError("Expert width must be divisible by attention head counts.")
+        if fusion_width % fusion_heads:
+            raise ValueError("Fusion width must be divisible by fusion head count.")
 
         self.vocab_size = vocab_size
         self.context_length = context_length
+        self.expert_count = experts
+        self.expert_width = expert_width
+        self.fusion_width = fusion_width
+        self.gradient_checkpointing = False
+
         self.token_embedding = nn.Embedding(vocab_size, expert_width)
-        self.expert_positions = nn.Parameter(torch.zeros(1, context_length, expert_width))
+        self.position_embedding = nn.Parameter(torch.zeros(1, context_length, expert_width))
+        self.expert_identity = nn.Parameter(torch.empty(1, experts, 1, expert_width))
+        nn.init.normal_(self.position_embedding, mean=0.0, std=0.02)
+        nn.init.normal_(self.expert_identity, mean=0.0, std=0.02)
+
         self.experts = nn.ModuleList([
-            CausalStack(expert_width, expert_layers, expert_heads, expert_ff, dropout)
+            nn.ModuleList([
+                CausalBlock(expert_width, expert_heads, expert_ff, dropout)
+                for _ in range(expert_layers)
+            ])
             for _ in range(experts)
         ])
-        self.domain_router = nn.Embedding(experts, experts)
-        with torch.no_grad():
-            initial_routes = torch.full((experts, experts), -1.0)
-            initial_routes.fill_diagonal_(2.0)
-            self.domain_router.weight.copy_(initial_routes)
+        self.communication = nn.ModuleList([
+            MutualCommunication(expert_width, communication_heads, communication_ff, dropout)
+            for _ in range(expert_layers)
+        ])
+        self.expert_norms = nn.ModuleList([nn.LayerNorm(expert_width) for _ in range(experts)])
+        self.expert_heads = nn.ModuleList([
+            nn.Linear(expert_width, vocab_size) for _ in range(experts)
+        ])
 
         self.fusion_positions = nn.Parameter(torch.zeros(1, context_length, fusion_width))
-        self.fusion = CausalStack(fusion_width, fusion_layers, fusion_heads, fusion_ff, dropout)
+        nn.init.normal_(self.fusion_positions, mean=0.0, std=0.02)
+        self.fusion_blocks = nn.ModuleList([
+            CausalBlock(fusion_width, fusion_heads, fusion_ff, dropout)
+            for _ in range(fusion_layers)
+        ])
+        self.fusion_norm = nn.LayerNorm(fusion_width)
         self.output_projection = nn.Linear(fusion_width, expert_width, bias=False)
         self.output_norm = nn.LayerNorm(expert_width)
         self.output_bias = nn.Parameter(torch.zeros(vocab_size))
-        nn.init.normal_(self.expert_positions, mean=0.0, std=0.02)
-        nn.init.normal_(self.fusion_positions, mean=0.0, std=0.02)
 
-    def forward(self, input_ids, expert_id=0):
-        _, sequence = input_ids.shape
+    def set_gradient_checkpointing(self, enabled=True):
+        self.gradient_checkpointing = bool(enabled)
+
+    def _run_mutual_layer(self, states, layer_index):
+        next_states = []
+        for expert_index in range(self.expert_count):
+            block = self.experts[expert_index][layer_index]
+            current = states[:, expert_index]
+            if self.gradient_checkpointing and self.training:
+                current = checkpoint(block, current, use_reentrant=False)
+            else:
+                current = block(current)
+            next_states.append(current)
+        states = torch.stack(next_states, dim=1)
+        communication = self.communication[layer_index]
+        if self.gradient_checkpointing and self.training:
+            states = checkpoint(communication, states, use_reentrant=False)
+        else:
+            states = communication(states)
+        return states
+
+    def forward(self, input_ids, return_aux=False):
+        if input_ids.ndim != 2:
+            raise ValueError("input_ids must have shape [batch, sequence].")
+        batch, sequence = input_ids.shape
         if sequence > self.context_length:
             raise ValueError("Input sequence exceeds configured context length.")
-        if expert_id < 0 or expert_id >= len(self.experts):
-            raise ValueError("expert_id must be between 0 and 6.")
 
-        causal_mask = torch.triu(
-            torch.ones(sequence, sequence, device=input_ids.device, dtype=torch.bool),
-            diagonal=1,
+        embedded = self.token_embedding(input_ids) + self.position_embedding[:, :sequence]
+        states = embedded.unsqueeze(1) + self.expert_identity
+
+        for layer_index in range(len(self.communication)):
+            states = self._run_mutual_layer(states, layer_index)
+
+        expert_states = torch.stack([
+            self.expert_norms[index](states[:, index])
+            for index in range(self.expert_count)
+        ], dim=1)
+
+        auxiliary_logits = None
+        if return_aux:
+            auxiliary_logits = torch.stack([
+                self.expert_heads[index](expert_states[:, index])
+                for index in range(self.expert_count)
+            ], dim=1)
+
+        collective_state = expert_states.permute(0, 2, 1, 3).contiguous().view(
+            batch, sequence, self.fusion_width
         )
-        embedded = self.token_embedding(input_ids) + self.expert_positions[:, :sequence]
-        route_index = torch.tensor(expert_id, device=input_ids.device, dtype=torch.long)
-        gate = torch.softmax(self.domain_router(route_index), dim=-1)
-        expert_states = [
-            expert(embedded, causal_mask) * gate[index]
-            for index, expert in enumerate(self.experts)
-        ]
-        fused = torch.cat(expert_states, dim=-1) + self.fusion_positions[:, :sequence]
-        hidden = self.fusion(fused, causal_mask)
+        hidden = collective_state + self.fusion_positions[:, :sequence]
+        for block in self.fusion_blocks:
+            if self.gradient_checkpointing and self.training:
+                hidden = checkpoint(block, hidden, use_reentrant=False)
+            else:
+                hidden = block(hidden)
+        hidden = self.fusion_norm(hidden)
         hidden = self.output_norm(self.output_projection(hidden))
-        return F.linear(hidden, self.token_embedding.weight, self.output_bias)
+        logits = F.linear(hidden, self.token_embedding.weight, self.output_bias)
+
+        if return_aux:
+            return logits, auxiliary_logits
+        return logits
+
+    @torch.no_grad()
+    def generate_all(self, input_ids, max_new_tokens=128, temperature=0.0, top_k=40):
+        self.eval()
+        sequences = [input_ids.clone() for _ in range(self.expert_count + 1)]
+        original_batch = input_ids.size(0)
+        for _ in range(max_new_tokens):
+            batch = torch.cat([sequence[:, -self.context_length:] for sequence in sequences], dim=0)
+            final_logits, auxiliary = self(batch, return_aux=True)
+            next_tokens = []
+            for index in range(self.expert_count + 1):
+                start = index * original_batch
+                end = start + original_batch
+                if index == 0:
+                    logits = final_logits[start:end, -1, :]
+                else:
+                    logits = auxiliary[start:end, index - 1, -1, :]
+                if temperature <= 0:
+                    token = logits.argmax(dim=-1, keepdim=True)
+                else:
+                    logits = logits / temperature
+                    if top_k > 0:
+                        values, _ = torch.topk(logits, min(top_k, logits.size(-1)))
+                        logits[logits < values[:, -1:]] = -torch.inf
+                    token = torch.multinomial(torch.softmax(logits, dim=-1), num_samples=1)
+                next_tokens.append(token)
+            sequences = [
+                torch.cat([sequence, token], dim=1)
+                for sequence, token in zip(sequences, next_tokens)
+            ]
+        return sequences
+
+    @torch.no_grad()
+    def generate(self, input_ids, max_new_tokens=128, temperature=0.8, top_k=40, expert_index=None):
+        self.eval()
+        generated = input_ids
+        for _ in range(max_new_tokens):
+            context = generated[:, -self.context_length:]
+            if expert_index is None:
+                logits = self(context)[:, -1, :]
+            else:
+                _, auxiliary = self(context, return_aux=True)
+                if not 0 <= expert_index < self.expert_count:
+                    raise ValueError("expert_index must be between 0 and 6.")
+                logits = auxiliary[:, expert_index, -1, :]
+            if temperature <= 0:
+                next_token = logits.argmax(dim=-1, keepdim=True)
+            else:
+                logits = logits / temperature
+                if top_k > 0:
+                    values, _ = torch.topk(logits, min(top_k, logits.size(-1)))
+                    logits[logits < values[:, -1:]] = -torch.inf
+                probabilities = torch.softmax(logits, dim=-1)
+                next_token = torch.multinomial(probabilities, num_samples=1)
+            generated = torch.cat([generated, next_token], dim=1)
+        return generated
 
 
 def target_config():
@@ -117,6 +285,8 @@ def target_config():
         "expert_width": 256,
         "expert_heads": 8,
         "expert_ff": 768,
+        "communication_heads": 8,
+        "communication_ff": 512,
         "fusion_layers": 20,
         "fusion_width": 1792,
         "fusion_heads": 16,
@@ -128,12 +298,14 @@ def target_config():
 def smoke_config():
     return {
         "vocab_size": 260,
-        "context_length": 64,
+        "context_length": 128,
         "experts": 7,
-        "expert_layers": 1,
+        "expert_layers": 2,
         "expert_width": 32,
         "expert_heads": 4,
         "expert_ff": 64,
+        "communication_heads": 4,
+        "communication_ff": 64,
         "fusion_layers": 2,
         "fusion_width": 224,
         "fusion_heads": 7,

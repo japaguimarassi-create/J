@@ -1,0 +1,38 @@
+{
+  "status": "completed_smoke_training_only",
+  "device": "cpu",
+  "profile": "smoke",
+  "smoke_parameters": 877952,
+  "smoke_architecture": {
+    "experts": 7,
+    "expert_layers": 2,
+    "expert_width": 32,
+    "context_length": 128,
+    "fusion_layers": 2,
+    "fusion_width": 224
+  },
+  "training_records": 93,
+  "validation_records": 12,
+  "steps": 80,
+  "collective_validation_loss_before": 16.27381467819214,
+  "collective_validation_loss_after": 4.048894762992859,
+  "collective_validation_loss_delta": -12.22491991519928,
+  "coding_benchmark_tasks": 7,
+  "collective_reference_mean_nll": 4.600156273160662,
+  "expert_reference_mean_nll": [
+    4.991387299128941,
+    4.9783821787152975,
+    4.832593372889927,
+    5.014411585671561,
+    5.064483233860561,
+    4.864405700138637,
+    4.799642290387835
+  ],
+  "expert_reference_mean_nll_average": 4.935043665827537,
+  "generated_candidates": 56,
+  "generated_candidates_passing_static_syntax": 0,
+  "structural_tests": "7 passed",
+  "target_training": "not performed",
+  "target_parameter_estimate": 456728352,
+  "interpretation": "This run verifies real gradient updates and lower validation loss only in the reduced smoke configuration. It does not establish useful coding ability or train the requested target dimensions."
+}

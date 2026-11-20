@@ -1,0 +1,7 @@
+{"language":"lua","prompt":"<|user|>Lua add(a,b):\n<|assistant|>\n","reference":"local function add(a, b)\n    return a + b\nend\n"}
+{"language":"python","prompt":"<|user|>Python is_even(n):\n<|assistant|>\n","reference":"def is_even(n):\n    return n % 2 == 0\n","tests":"assert is_even(2) is True\nassert is_even(3) is False\nassert is_even(0) is True\n"}
+{"language":"javascript","prompt":"<|user|>JavaScript add(a,b):\n<|assistant|>\n","reference":"function add(a, b) {\n    return a + b;\n}\n"}
+{"language":"java","prompt":"<|user|>Java isEven(int n):\n<|assistant|>\n","reference":"static boolean isEven(int n) {\n    return n % 2 == 0;\n}\n"}
+{"language":"csharp","prompt":"<|user|>C# Add(int a,int b):\n<|assistant|>\n","reference":"static int Add(int a, int b) {\n    return a + b;\n}\n"}
+{"language":"cpp","prompt":"<|user|>C++ add(int a,int b):\n<|assistant|>\n","reference":"int add(int a, int b) {\n    return a + b;\n}\n"}
+{"language":"html","prompt":"<|user|>HTML page with one heading:\n<|assistant|>\n","reference":"<!doctype html>\n<html lang=\"en\">\n<body><h1>Hello</h1></body>\n</html>\n"}

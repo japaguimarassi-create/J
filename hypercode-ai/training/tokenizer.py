@@ -12,7 +12,7 @@ VOCAB_SIZE = 260
 WORD_SYSTEMS = (
     "unicode_nfc",
     "control_filter",
-    "sentence_boundary_detection",
+    "first_sentence_language_detection",
     "whitespace_segmentation",
     "language_aware_case_shadow",
     "unicode_word_segmentation",
@@ -60,8 +60,16 @@ def normalize_text(text):
     return "".join(char for char in value if char in "\n\t" or unicodedata.category(char)[0] != "C")
 
 
+def first_sentence(text):
+    value = normalize_text(text).strip()
+    if not value:
+        return ""
+    match = re.search(r"[.!?\\n]", value)
+    return value[:match.end()] if match else value
+
+
 def detect_language(text):
-    normalized = " " + normalize_text(text).casefold() + " "
+    normalized = " " + first_sentence(text).casefold() + " "
     scores = {language: sum(1 for word in words if f" {word} " in normalized)
               for language, words in LANGUAGE_WORDS.items()}
     return max(scores, key=scores.get) if max(scores.values()) else "en"

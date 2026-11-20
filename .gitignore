@@ -1,0 +1,7 @@
+hypercode-ai/training/artifacts/
+hypercode-ai/training/corpus/
+hypercode-ai/training/benchmark-results/
+*.pt
+*.pth
+__pycache__/
+.pytest_cache/
