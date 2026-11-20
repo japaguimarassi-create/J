@@ -684,7 +684,8 @@ public class MainActivity extends Activity {
     private View separator() {
         View line = new View(this);
         line.setBackgroundColor(BORDER);
-        return new LinearLayout.LayoutParams(-1, dp(1)).width == -1 ? line : line;
+        line.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(1)));
+        return line;
     }
 
     private LinearLayout.LayoutParams topSpace(int value) {
