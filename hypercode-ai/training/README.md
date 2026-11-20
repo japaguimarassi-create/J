@@ -78,10 +78,10 @@ Teste do pipeline em CPU, com dimensões deliberadamente reduzidas:
 python train.py --profile smoke --data seed_corpus.jsonl.gz --steps 80 --batch-size 4 --output artifacts/smoke
 ~~~
 
-Treinamento da arquitetura-alvo. Requer CUDA e GPU com memória suficiente; o script recusa executar o perfil-alvo em CPU:
+A rota recomendada é a base universal seguida da fusão progressiva descrita adiante. O comando train.py abaixo é uma ablação alternativa de treinamento direto da arquitetura completa; não execute os dois percursos como se fossem continuação um do outro. Requer CUDA e memória suficiente:
 
 ~~~bash
-python train.py --profile target --data corpus/stack_filtered.jsonl --tokenizer-json artifacts/tokenizer.json --steps 100000 --batch-size 1 --gradient-accumulation-steps 8 --gradient-checkpointing --output artifacts/target
+python train.py --profile target --data corpus/universal_mix.jsonl.gz --tokenizer-json artifacts/tokenizer.json --steps 100000 --batch-size 1 --gradient-accumulation-steps 8 --gradient-checkpointing --output artifacts/direct-ablation
 ~~~
 
 O tamanho do corpus, a quantidade de tokens, a validação e o orçamento de GPU determinam se o treinamento é suficiente. Um número de passos, isoladamente, não prova qualidade.
@@ -107,7 +107,7 @@ As verificações estáticas não provam correção semântica. A avaliação di
 Depois do pré-treinamento causal, `finetune.py` carrega o checkpoint e treina pares `prompt`/`completion`. Os tokens da pergunta do usuário são mascarados com `-100`; somente os tokens da conclusão do assistente contribuem para a perda. A perda principal continua no núcleo coletivo, com perdas auxiliares nas sete redes.
 
 ~~~bash
-python finetune.py --checkpoint artifacts/pretrain/hyperinter_checkpoint.pt --data corpus/instructions.jsonl.gz --tokenizer-json artifacts/tokenizer.json --steps 10000 --batch-size 1 --gradient-accumulation-steps 8 --gradient-checkpointing --output artifacts/sft
+python finetune.py --checkpoint artifacts/staged/joint/hyperinter_joint.pt --data corpus/instructions.jsonl.gz --tokenizer-json artifacts/tokenizer.json --steps 10000 --batch-size 1 --gradient-accumulation-steps 8 --gradient-checkpointing --output artifacts/sft
 ~~~
 
 O corpus precisa ser de pares de instrução/resposta. O arquivo `seed_instructions.jsonl.gz` é composto de exemplos originais pequenos para verificar o pipeline; não é um dataset de escala suficiente para treinar um assistente geral.
