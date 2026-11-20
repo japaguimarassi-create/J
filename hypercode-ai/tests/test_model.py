@@ -315,3 +315,58 @@ def test_weight_tying_uses_shared_vocabulary_projection():
     assert logits.shape == (2, 5, 260)
     assert len(model.expert_head_biases) == 7
     assert not hasattr(model, "expert_heads")
+
+
+
+def test_universal_foundation_weights_initialize_all_seven_networks():
+    from foundation import UniversalFoundationModel, initialize_hyper_from_foundation
+
+    config = smoke_config()
+    foundation = UniversalFoundationModel(config)
+    model = HyperInterNetwork(**config)
+    payload = {
+        "state_dict": foundation.state_dict(),
+        "config": config,
+        "tokenizer_sha256": "procedural-byte-v1",
+        "in_progress": False,
+    }
+    initialize_hyper_from_foundation(
+        model,
+        payload,
+        "procedural-byte-v1",
+        config,
+    )
+    assert torch.equal(model.token_embedding.weight, foundation.token_embedding.weight)
+    assert torch.equal(model.position_embedding, foundation.position_embedding)
+    for index in range(7):
+        for branch_block, base_block in zip(model.experts[index], foundation.blocks):
+            assert torch.equal(
+                branch_block.attention.qkv.weight,
+                base_block.attention.qkv.weight,
+            )
+        assert torch.equal(model.expert_head_biases[index], foundation.output_bias)
+        assert torch.equal(
+            model.expert_norms[index].weight,
+            foundation.norm.weight,
+        )
+
+
+def test_foundation_checkpoint_rejects_wrong_tokenizer_and_incomplete_state():
+    import pytest
+    from foundation import UniversalFoundationModel, initialize_hyper_from_foundation
+
+    config = smoke_config()
+    foundation = UniversalFoundationModel(config)
+    model = HyperInterNetwork(**config)
+    payload = {
+        "state_dict": foundation.state_dict(),
+        "config": config,
+        "tokenizer_sha256": "expected",
+        "in_progress": False,
+    }
+    with pytest.raises(ValueError):
+        initialize_hyper_from_foundation(model, payload, "wrong", config)
+    payload["tokenizer_sha256"] = "expected"
+    payload["in_progress"] = True
+    with pytest.raises(ValueError):
+        initialize_hyper_from_foundation(model, payload, "expected", config)
