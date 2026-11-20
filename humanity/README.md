@@ -11,9 +11,9 @@ Abra `humanity/index.html` por um servidor estático ou publique a pasta `humani
 - Mundo 3D com terreno irregular reproduzível, rio, floresta, casas, fogueira, campos de cultivo e artefatos que aparecem quando uma tecnologia é descoberta.
 - 24 habitantes iniciais; limite atual de 180.
 - Necessidades individuais: fome, energia, saúde, sociabilidade e idade.
-- Recursos da vila: alimento, água, madeira, pedra, argila, fibras, minério e sementes.
+- Recursos da vila: alimento, água, madeira, pedra, argila, fibras, minério e sementes. A madeira é extraída de árvores individuais, com reservas finitas registradas no salvamento.
 - Estações, crescimento de lavouras, plantio, colheita, pesca/forrageamento e coleta.
-- Animais domesticados com idade, reprodução e mortalidade.
+- Animais domesticados com idade, reprodução, mortalidade e animação procedural de caminhada.
 - Infância com dependência de cuidadores, envelhecimento e morte.
 - Vínculos, parentesco, herança parcial de traços e habilidades.
 - Conhecimento individual, invenções sujeitas a pré-requisitos, habilidades e custos de materiais.
@@ -62,7 +62,7 @@ Fontes recomendadas:
 - O mundo, edifícios, vegetação e animais ainda usam geometria procedural simplificada; não são um cenário fotorealista completo.
 - Os personagens só ficam realistas depois que o utilizador importa um ou mais modelos humanos rigados.
 - O importador de cenário distribui modelos por regras simples de nome e dimensão; ele não reconstrói automaticamente um mapa modular completo nem entende a semântica dos objetos.
-- As ações agora exigem deslocamento até zonas de trabalho (horta, floresta, rio, centro de construção ou outro habitante) e usam cooldowns de tarefa. A escolha de ação ainda é uma abstração diária, não uma simulação física contínua do trabalho.
+- As ações agora exigem deslocamento até zonas de trabalho (horta, árvores, rio, centro de construção ou outro habitante) e usam cooldowns de tarefa. A madeira é limitada pela quantidade disponível em cada árvore. A escolha de ação ainda é uma abstração diária, não uma simulação física contínua do trabalho.
 - O importador não retargeta esqueletos automaticamente.
 - O vocabulário é simbólico: transmissão de palavras e conceitos, não conversação humana livre com gramática.
 - A cognição é uma aproximação de vida artificial, não uma cópia do cérebro humano.
