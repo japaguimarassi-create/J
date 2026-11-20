@@ -14,17 +14,18 @@ Chat Android e projeto de pesquisa de uma rede neural coletiva universal para pr
 ## Estado real
 
 - Código da arquitetura universal e comunicação mútua: implementado no diretório training.
-- Tokenização procedural: doze etapas de texto e doze de código; idioma identificado pela primeira frase e vocabulário técnico em inglês.
+- Tokenizer procedural de 260 IDs mantido para smoke tests; novo tokenizer alvo BPE byte-level de até 32.768 IDs, treinado a partir do corpus e versionado pelo SHA-256.
 - Treino smoke com pesos atualizados: executado em CPU numa arquitetura reduzida; evidência em training/smoke_evidence.json.
-- Testes estruturais: quatorze verificações; CI do GitHub valida arquitetura, pré-treino, SFT, sequência progressiva e avaliação coletiva.
+- Testes estruturais: 18 verificações definidas; o novo conjunto será confirmado pela próxima execução de CI.
 - Pré-treinamento causal smoke: executado por 80 passos com pesos atualizados e perda de validação reduzida.
 - Ajuste supervisionado smoke: executado por 100 passos, mascarando o prompt e treinando apenas a resposta do assistente.
 - Pipeline progressivo smoke: validado em CI com sete redes, núcleo, comunicação, integração conjunta e avaliação das oito saídas.
-- Treinamento da arquitetura-alvo 7×(10×256)+20×1792 (456.728.352 parâmetros): ainda não executado; requer GPU CUDA com memória suficiente e corpus grande/licenciado.
+- Treinamento da arquitetura-alvo (sete ramos de 10×256 e núcleo de 20×1792): ainda não executado; o total de parâmetros depende agora do tamanho efetivo do BPE e deve ser medido no checkpoint. Requer GPU CUDA BF16 e corpus grande/licenciado.
 - Geração e comparação: 56 candidatos (sete redes + núcleo em sete tarefas) foram comparados. O NLL coletivo caiu de 4,600 antes do SFT para 4,089 após; a verificação sintática estrita final aprovou 0 candidatos. Isso não prova competência de programação.
 - O chat Android ainda não executa os pesos PyTorch. O código da interface informa essa limitação explicitamente.
-- O perfil de teste ainda usa 260 IDs byte-level e contexto 256; antes do treino de produção, a configuração precisa migrar para BPE e contexto maior.
-- O APK não foi recompilado após essas alterações de rede; o workflow Android exige confirmação manual exata `agora compile`.
+- Perfil smoke continua com dimensões pequenas e tokenizer byte-level; perfil alvo configurado para BPE byte-level de 32k e contexto 2.048.
+- Novos componentes de otimização adicionados: AdamW com weight decay seletivo, WSD, acumulação de gradientes, clipping, BF16 e RNG state nos checkpoints; CI pendente de validação nesta revisão.
+- O APK não foi recompilado; a compilação continua condicionada à confirmação manual exata `agora compile`.
 
 ## Build
 
