@@ -12,7 +12,7 @@ Em cada uma das dez etapas da arquitetura-alvo:
 
 Depois da décima etapa, as sete representações de 256 dimensões são concatenadas em uma representação coletiva de 1.792 dimensões. O núcleo de vinte camadas processa essa representação e produz os logits da resposta final. Não existe seleção de um único especialista nem divisão fixa de linguagens.
 
-## Dimensões e contagem de parâmetros
+## Dimensões e parâmetros
 
 | Parte | Configuração-alvo |
 |---|---:|
@@ -24,8 +24,9 @@ Depois da décima etapa, as sete representações de 256 dimensões são concate
 | Núcleo | 20 camadas × 1.792 |
 | Unidades dos sete especialistas | 17.920 |
 | Unidades do núcleo | 35.840 |
+| Parâmetros treináveis estimados pelo código | 456.728.352 |
 
-Com as dimensões FFN, atenção, embeddings e cabeças auxiliares, a implementação-alvo tem **456.728.352 parâmetros treináveis**. Isso é diferente da contagem de unidades/células acima.
+A contagem de parâmetros não é a mesma coisa que a contagem de unidades/células solicitada.
 
 ## Como o aprendizado funciona
 
@@ -37,11 +38,16 @@ O tokenizer mantém doze estágios para linguagem natural e doze para código. A
 
 O arquivo seed_corpus.jsonl.gz contém exemplos originais criados para testar o pipeline. São poucos exemplos e não constituem um corpus suficiente para treinar um assistente útil.
 
-Para pré-treinamento de verdade, prepare um subconjunto local do BigCode The Stack. O script prepare_stack.py filtra arquivos Parquet por linguagem e por lista conservadora de licenças SPDX e mantém repositório, caminho, commit e licença em cada registro. Cada arquivo permanece sujeito à licença original; mantenha avisos e proveniência e leia os termos atuais antes de baixar ou usar o conjunto. O script não baixa dados nem aceita termos pelo usuário.
+O script prepare_stack.py foi escrito para um subconjunto local em Parquet com colunas content, license e language, compatível com o formato do The Stack v1. Ele filtra um conjunto conservador de licenças SPDX e mantém repositório, caminho, commit e licença como proveniência. O The Stack é um conjunto com controle de acesso; é necessário ler e aceitar seus termos na página oficial antes de usar os arquivos. Cada trecho continua sujeito à licença original e pode exigir atribuição.
+
+**Não use este importador diretamente no The Stack v2.** A versão v2 contém identificadores do Software Heritage e o conteúdo dos arquivos fica em armazenamento separado; download em massa exige acordo com Software Heritage e INRIA. É necessário aceitar pessoalmente os termos e obter acesso autorizado. O script não baixa dados nem aceita termos em nome do usuário.
+
+Fonte: https://huggingface.co/datasets/bigcode/the-stack
+Informações da versão v2: https://huggingface.co/datasets/bigcode/the-stack-v2
 
 ~~~bash
 python -m pip install pyarrow
-python prepare_stack.py --input /data/the-stack --output corpus/stack_filtered.jsonl --max-per-language 15000
+python prepare_stack.py --input /data/the-stack-v1 --output corpus/stack_filtered.jsonl --max-per-language 15000
 ~~~
 
 ## Treino de prova e treino-alvo
@@ -78,11 +84,11 @@ As verificações estáticas não provam correção semântica. A avaliação di
 
 ## Evidência de teste realizada
 
-smoke_evidence.json registra um treino de prova executado em CPU. Ele confirma atualizações reais de pesos e melhora da perda de validação na configuração reduzida. A avaliação também compara as sete saídas individuais com a saída coletiva; os candidatos gerados nessa prova não passaram na verificação sintática. Isso não é treinamento nem validação do modelo-alvo de 456,7 milhões de parâmetros.
+smoke_evidence.json registra um treino de prova executado em CPU. Ele confirma atualizações reais de pesos e melhora da perda de validação na configuração reduzida. A avaliação também compara as sete saídas individuais com a saída coletiva; os candidatos gerados nessa prova não passaram na verificação sintática. Isso não é treinamento nem validação do modelo-alvo.
 
 ## Testes estruturais
 
-Os testes verificam dimensões-alvo, passagem do mesmo contexto pelos sete ramos, comunicação entre redes, gradientes em todos os ramos e no núcleo, máscara causal e pipelines de doze estágios.
+Os testes verificam dimensões-alvo, passagem do mesmo contexto pelos sete ramos, comunicação entre redes, gradientes em todos os ramos e no núcleo, máscara causal, geração de sete saídas individuais mais a resposta coletiva e pipelines de doze estágios.
 
 ~~~bash
 python -m pytest tests -q
