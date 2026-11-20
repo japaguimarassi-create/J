@@ -163,6 +163,10 @@ def code_pipeline(text):
 
 class ProceduralTokenizer:
     vocab_size = VOCAB_SIZE
+    pad_id = PAD_ID
+    bos_id = BOS_ID
+    eos_id = EOS_ID
+    unk_id = UNK_ID
 
     def analyze(self, text, language=None, code=None):
         normalized = normalize_text(text)
