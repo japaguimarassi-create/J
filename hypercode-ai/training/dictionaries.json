@@ -1,0 +1,20 @@
+{
+  "default_languages": ["pt", "en", "es", "fr"],
+  "first_sentence_detection": {
+    "pt": ["que", "não", "para", "com", "uma", "você", "como", "isso", "quero", "criar"],
+    "en": ["the", "and", "not", "for", "with", "you", "how", "what", "want", "create"],
+    "es": ["que", "no", "para", "con", "una", "como", "quiero", "crear"],
+    "fr": ["que", "pas", "pour", "avec", "vous", "comment", "créer"]
+  },
+  "programming_english": [
+    "variable", "function", "method", "class", "object", "array", "table",
+    "loop", "return", "compile", "debug", "build", "runtime", "syntax",
+    "type", "interface", "promise", "async", "await", "thread", "pointer",
+    "memory", "stack", "heap", "recursion", "algorithm", "exception",
+    "inheritance", "polymorphism", "module", "package", "dependency"
+  ],
+  "programming_languages": [
+    "Lua", "Luau", "JavaScript", "TypeScript", "Java", "Python",
+    "C#", "C++", "C", "HTML", "CSS", "SQL"
+  ]
+}
