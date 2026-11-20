@@ -66,13 +66,25 @@ class UniversalFoundationModel(nn.Module):
         return F.linear(hidden, self.token_embedding.weight, self.output_bias)
 
 
-def initialize_hyper_from_foundation(model, payload, tokenizer_sha256):
+def initialize_hyper_from_foundation(model, payload, tokenizer_sha256, target_config):
     if payload.get("tokenizer_sha256") != tokenizer_sha256:
         raise ValueError("Foundation checkpoint tokenizer fingerprint does not match.")
-    base_config = payload.get("config", {})
-    base = UniversalFoundationModel(base_config)
     if payload.get("in_progress"):
         raise ValueError("An unfinished foundation checkpoint cannot initialize the seven-network model.")
+    base_config = payload.get("config", {})
+    fields = (
+        "vocab_size",
+        "context_length",
+        "expert_layers",
+        "expert_width",
+        "expert_heads",
+        "expert_ff",
+        "dropout",
+    )
+    for field in fields:
+        if base_config.get(field) != target_config.get(field):
+            raise ValueError(f"Foundation configuration mismatch for {field}.")
+    base = UniversalFoundationModel(base_config)
     base.load_state_dict(payload["state_dict"], strict=True)
     if (
         base.vocab_size != model.vocab_size
