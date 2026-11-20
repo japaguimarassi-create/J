@@ -162,6 +162,8 @@ def code_pipeline(text):
 
 
 class ProceduralTokenizer:
+    vocab_size = VOCAB_SIZE
+
     def analyze(self, text, language=None, code=None):
         normalized = normalize_text(text)
         is_code = code if code is not None else detect_code_language(normalized) != "unknown"
@@ -189,3 +191,45 @@ class ProceduralTokenizer:
             elif not skip_special_tokens and token in (BOS_ID, EOS_ID, PAD_ID, UNK_ID):
                 continue
         return data.decode("utf-8", errors="replace")
+
+
+
+class BpeTokenizerAdapter:
+    def __init__(self, tokenizer_path):
+        from pathlib import Path
+        from tokenizers import Tokenizer
+
+        self.path = Path(tokenizer_path)
+        if not self.path.is_file():
+            raise FileNotFoundError(f"Tokenizer file not found: {self.path}")
+        self.backend = Tokenizer.from_file(str(self.path))
+        self.pad_id = self.backend.token_to_id("[PAD]")
+        self.bos_id = self.backend.token_to_id("[BOS]")
+        self.eos_id = self.backend.token_to_id("[EOS]")
+        self.unk_id = self.backend.token_to_id("[UNK]")
+        if (self.pad_id, self.bos_id, self.eos_id, self.unk_id) != (0, 1, 2, 3):
+            raise ValueError("BPE tokenizer must reserve PAD/BOS/EOS/UNK IDs as 0/1/2/3.")
+        self.vocab_size = self.backend.get_vocab_size(with_added_tokens=True)
+
+    def encode_with_offsets(self, text, add_special_tokens=True):
+        normalized = normalize_text(text)
+        encoded = self.backend.encode(normalized, add_special_tokens=False)
+        token_ids = list(encoded.ids)
+        offsets = list(encoded.offsets)
+        if add_special_tokens:
+            return [self.bos_id, *token_ids, self.eos_id], [(0, 0), *offsets, (len(normalized), len(normalized))]
+        return token_ids, offsets
+
+    def encode(self, text, language=None, code=None, add_special_tokens=True):
+        token_ids, _ = self.encode_with_offsets(text, add_special_tokens=add_special_tokens)
+        return token_ids
+
+    def decode(self, token_ids, skip_special_tokens=True):
+        ids = [int(token) for token in token_ids]
+        return self.backend.decode(ids, skip_special_tokens=skip_special_tokens)
+
+
+def load_tokenizer(tokenizer_path=None):
+    if tokenizer_path is None:
+        return ProceduralTokenizer()
+    return BpeTokenizerAdapter(tokenizer_path)
