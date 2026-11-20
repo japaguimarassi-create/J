@@ -8,6 +8,7 @@ from pathlib import Path
 
 import torch
 
+from foundation import initialize_hyper_from_foundation
 from model import HyperInterNetwork, smoke_config, target_config
 from optimization import build_adamw, capture_rng_state, restore_rng_state, wsd_multiplier
 from tokenizer import load_tokenizer
@@ -215,6 +216,8 @@ def train(args):
         raise ValueError("steps, batch-size, validation-batches and save-every must be positive.")
     if args.stage == "expert" and args.expert_index is None:
         raise ValueError("--expert-index is required with --stage expert.")
+    if args.base_checkpoint is not None and args.checkpoint is not None:
+        raise ValueError("Use --base-checkpoint only for initialization, not when resuming a fusion checkpoint.")
     if args.stage != "expert" and args.expert_index is not None:
         raise ValueError("--expert-index is only valid with --stage expert.")
 
@@ -255,9 +258,20 @@ def train(args):
     else:
         if args.stage != "expert" or args.expert_index != 0:
             raise ValueError("Start with expert index 0. Later stages require their preceding checkpoint.")
+        if args.profile == "target" and args.base_checkpoint is None:
+            raise RuntimeError("Target fusion requires a trained universal foundation checkpoint.")
+        if args.base_checkpoint is not None:
+            base_payload = torch.load(args.base_checkpoint, map_location="cpu", weights_only=False)
+            if base_payload.get("config") != config:
+                raise ValueError("Foundation architecture does not match the selected fusion profile.")
+            if base_payload.get("tokenizer_sha256") != tokenizer_sha256:
+                raise ValueError("Foundation and fusion tokenizer fingerprints do not match.")
         model = HyperInterNetwork(**config)
+        if args.base_checkpoint is not None:
+            model = initialize_hyper_from_foundation(model, base_payload, tokenizer_sha256)
         completed_experts = set()
         completed_stages = set()
+        del base_payload if args.base_checkpoint is not None else None
 
     in_progress = loaded.get("in_progress_stage") if loaded else None
     in_progress_expert = loaded.get("in_progress_expert_index") if loaded else None
@@ -274,6 +288,7 @@ def train(args):
 
     trainable = configure_stage(model, args.stage, args.expert_index)
     model = model.to(device)
+    trainable = [parameter for parameter in model.parameters() if parameter.requires_grad]
     model.set_gradient_checkpointing(args.gradient_checkpointing or args.profile == "target")
     optimizer = build_adamw(
         model,
@@ -289,6 +304,15 @@ def train(args):
         already_completed_steps = int(loaded.get("steps_completed_in_stage", 0))
         if already_completed_steps >= args.steps:
             raise ValueError("Checkpoint already reached the requested total number of steps.")
+    else:
+        stage_seed = args.seed + (
+            1009 * args.expert_index if args.stage == "expert"
+            else {"core": 20011, "communication": 30011, "joint": 40009}[args.stage]
+        )
+        random.seed(stage_seed)
+        torch.manual_seed(stage_seed)
+        if device.type == "cuda":
+            torch.cuda.manual_seed_all(stage_seed)
 
     use_bf16 = device.type == "cuda" and torch.cuda.is_bf16_supported()
     scaler = torch.amp.GradScaler(
@@ -485,6 +509,7 @@ def main():
     parser.add_argument("--expert-index", type=int)
     parser.add_argument("--data", type=Path, required=True)
     parser.add_argument("--tokenizer-json", type=Path)
+    parser.add_argument("--base-checkpoint", type=Path)
     parser.add_argument("--checkpoint", type=Path)
     parser.add_argument("--output", type=Path, default=Path("artifacts/staged"))
     parser.add_argument("--steps", type=int, default=1000)
