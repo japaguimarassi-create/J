@@ -16,7 +16,7 @@ Chat Android e projeto de pesquisa de uma rede neural coletiva universal para pr
 - Código da arquitetura universal e comunicação mútua: implementado no diretório training.
 - Tokenizer procedural de 260 IDs mantido para smoke tests; novo tokenizer alvo BPE byte-level de até 32.768 IDs, treinado a partir do corpus e versionado pelo SHA-256.
 - Treino smoke com pesos atualizados: executado em CPU numa arquitetura reduzida; evidência em training/smoke_evidence.json.
-- Testes estruturais: 20 testes definidos, incluindo transferência dos pesos da fundação para os sete ramos; execução da nova suíte aguardando CI.
+- Testes estruturais: 22 testes definidos, incluindo transferência da fundação, mistura ponderada, deduplicação, BPE e máscara exata do SFT; execução da nova suíte aguardando confirmação da CI.
 - Pré-treinamento causal smoke: executado por 80 passos com pesos atualizados e perda de validação reduzida.
 - Ajuste supervisionado smoke: executado por 100 passos, mascarando o prompt e treinando apenas a resposta do assistente.
 - Pipeline progressivo smoke anterior: validado em CI com sete redes, núcleo, comunicação, integração conjunta e avaliação das oito saídas. A execução revisada agora acrescenta o pré-treino da fundação e os novos testes.
