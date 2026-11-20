@@ -199,6 +199,7 @@ def checkpoint_payload(model, optimizer, config, tokenizer_sha256, completed_exp
         "in_progress_stage": stage if in_progress else None,
         "in_progress_expert_index": expert_index if in_progress else None,
         "steps_completed_in_stage": current_step if in_progress else 0,
+        "tokens_seen_in_stage": current_step * report.get("tokens_per_optimizer_step", 0),
         "last_stage_report": report,
         "training_method": "progressive_component_training_then_full_joint_finetuning",
         "all_seven_networks_are_universal": True,
@@ -342,6 +343,8 @@ def train(args):
         "tokenizer_vocab_size": tokenizer.vocab_size,
         "tokenizer_sha256": tokenizer_sha256,
         "effective_batch_size": args.batch_size * args.gradient_accumulation_steps,
+        "tokens_per_optimizer_step": args.batch_size * config["context_length"] * args.gradient_accumulation_steps,
+        "tokens_seen_before": already_completed_steps * args.batch_size * config["context_length"] * args.gradient_accumulation_steps,
         "gradient_accumulation_steps": args.gradient_accumulation_steps,
         "scheduler": "warmup_stable_decay",
         "decay_ratio": args.decay_ratio,
@@ -421,6 +424,7 @@ def train(args):
         device,
         use_bf16,
     )
+    report["tokens_seen"] = args.steps * args.batch_size * model.context_length * args.gradient_accumulation_steps
     if not math.isfinite(validation_after["loss"]):
         raise FloatingPointError(f"Non-finite validation loss after {stage_label}.")
 
