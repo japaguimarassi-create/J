@@ -1,30 +1,30 @@
 # HyperCode AI
 
-Aplicativo Android de chat para assistência em programação, acompanhado de uma arquitetura experimental de sete especialistas e um núcleo GPT causal.
+Chat Android e projeto de pesquisa de uma rede neural coletiva universal para programação.
 
-## Estado da versão 0.1
+## Arquitetura pretendida
 
-- Interface Android nativa e chat local: implementados.
-- Detecção do idioma pela primeira frase: implementada para português, inglês, espanhol e francês.
-- Vocabulário técnico inglês: incluído no pipeline de treinamento.
-- Sete especialistas e núcleo central: definidos no modelo PyTorch.
-- 12 estágios de processamento textual e 12 estágios de processamento de código: definidos.
-- Pré-treinamento GPT: código implementado, ainda não executado com corpus real.
-- Pesos GPT no APK: não incluídos.
-- Respostas no APK: modo determinístico inicial, não um LLM treinado.
+- Sete redes neurais completas, todas universais e treinadas com os mesmos dados.
+- Cada rede recebe o mesmo contexto e executa dez camadas de 256 unidades.
+- Após cada camada, há comunicação por atenção entre os sete estados. Nenhuma rede é escolhida isoladamente.
+- As sete representações de 256 dimensões são concatenadas em um estado coletivo de 1.792 dimensões.
+- O núcleo coletivo executa vinte camadas de 1.792 unidades e produz a única resposta final.
+- O treinamento usa previsão causal do próximo token, com perda principal na saída coletiva e perdas auxiliares nas sete redes.
 
-## Build do APK
+## Estado real
 
-O GitHub Actions compila o APK debug em cada push que altera esta pasta. Abra a aba Actions do repositório e baixe o artefato hypercode-debug-apk quando o job terminar com sucesso.
+- Código da arquitetura universal e comunicação mútua: implementado no diretório training.
+- Tokenização procedural: doze etapas de texto e doze de código; idioma identificado pela primeira frase e vocabulário técnico em inglês.
+- Treino smoke com pesos atualizados: executado em CPU numa arquitetura reduzida; evidência em training/smoke_evidence.json.
+- Testes estruturais: seis aprovados.
+- Treinamento da arquitetura-alvo 7×(10×256)+20×1792: ainda não executado.
+- Geração de código no teste smoke: candidatos foram comparados; nenhum passou a verificação sintática. A perda coletiva foi menor que a média das sete saídas individuais, mas isso não prova competência de programação.
+- O chat Android ainda não executa os pesos PyTorch. O código da interface informa essa limitação explicitamente.
 
-## Treinamento
+## Build
 
-Consulte training/README.md. O perfil smoke testa o pipeline em escala reduzida. O perfil target representa a arquitetura solicitada e exige GPU CUDA com grande memória e um corpus licenciado de programação e linguagem natural.
+A compilação do APK é manual e condicionada à confirmação exata "agora compile". Commits de código e testes não compilam o aplicativo automaticamente. Não execute o workflow de APK antes dessa confirmação.
 
-## Contagem de unidades
+## Treinamento e avaliação
 
-7 × (10 × 256) = 17.920 unidades especializadas.
-
-20 × 1.792 = 35.840 unidades centrais.
-
-O núcleo possui exatamente o dobro das unidades dos sete especialistas juntos.
+Consulte training/README.md para preparar o corpus licenciado, treinar a arquitetura-alvo, gerar código pelas sete redes e pelo núcleo, comparar NLL e validar candidatos. O perfil-alvo exige CUDA e um corpus grande; o script recusa simular o treino-alvo em CPU.
