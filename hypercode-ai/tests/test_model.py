@@ -304,7 +304,7 @@ def test_sft_masks_prompt_using_bpe_character_offsets(tmp_path):
     inputs, targets = make_batch(train_samples, 1, 128, torch.device("cpu"))
     assert torch.any(targets[0] == -100)
     first_unmasked = int(torch.where(targets[0] != -100)[0][0].item())
-    assert first_unmasked < 128
+    assert first_unmasked == len(tokenizer.encode(prompt, add_special_tokens=False))
     assert inputs.shape == (1, 128)
 
 
