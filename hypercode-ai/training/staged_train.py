@@ -271,7 +271,6 @@ def train(args):
             model = initialize_hyper_from_foundation(model, base_payload, tokenizer_sha256)
         completed_experts = set()
         completed_stages = set()
-        del base_payload if args.base_checkpoint is not None else None
 
     in_progress = loaded.get("in_progress_stage") if loaded else None
     in_progress_expert = loaded.get("in_progress_expert_index") if loaded else None
