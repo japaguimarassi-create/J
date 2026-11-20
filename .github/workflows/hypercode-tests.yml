@@ -28,7 +28,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
-          python -m pip install pytest pyarrow
+          python -m pip install pytest pyarrow tokenizers
 
       - name: Run architecture tests
         run: python -m pytest hypercode-ai/tests -q
@@ -50,16 +50,24 @@ jobs:
           CHECKPOINT=""
           for INDEX in 0 1 2 3 4 5 6; do
             LABEL=$(printf "%02d" "$((INDEX + 1))")
-            ARGS=(--profile smoke --stage expert --expert-index "$INDEX" --data seed_corpus.jsonl.gz --output "$OUTPUT" --steps 1 --batch-size 1 --validation-batches 1 --save-every 1 --log-every 1 --allow-validation-regression)
+            ARGS=(--profile smoke --stage expert --expert-index "$INDEX" --data seed_corpus.jsonl.gz --output "$OUTPUT" --steps 2 --batch-size 1 --validation-batches 2 --save-every 1 --log-every 2 --allow-validation-regression)
             if [ -n "$CHECKPOINT" ]; then
               ARGS+=(--checkpoint "$CHECKPOINT")
             fi
             python staged_train.py "${ARGS[@]}"
             CHECKPOINT="$OUTPUT/expert_${LABEL}/hyperinter_expert_${LABEL}.pt"
           done
-          python staged_train.py --profile smoke --stage core --data seed_corpus.jsonl.gz --checkpoint "$CHECKPOINT" --output "$OUTPUT" --steps 1 --batch-size 1 --validation-batches 1 --save-every 1 --log-every 1 --allow-validation-regression
+          python staged_train.py --profile smoke --stage core --data seed_corpus.jsonl.gz --checkpoint "$CHECKPOINT" --output "$OUTPUT" --steps 3 --batch-size 1 --validation-batches 2 --save-every 1 --log-every 3 --allow-validation-regression
           CHECKPOINT="$OUTPUT/core/hyperinter_core.pt"
-          python staged_train.py --profile smoke --stage communication --data seed_corpus.jsonl.gz --checkpoint "$CHECKPOINT" --output "$OUTPUT" --steps 1 --batch-size 1 --validation-batches 1 --save-every 1 --log-every 1 --allow-validation-regression
+          python staged_train.py --profile smoke --stage communication --data seed_corpus.jsonl.gz --checkpoint "$CHECKPOINT" --output "$OUTPUT" --steps 3 --batch-size 1 --validation-batches 2 --save-every 1 --log-every 3 --allow-validation-regression
           CHECKPOINT="$OUTPUT/communication/hyperinter_communication.pt"
-          python staged_train.py --profile smoke --stage joint --data seed_corpus.jsonl.gz --checkpoint "$CHECKPOINT" --output "$OUTPUT" --steps 1 --batch-size 1 --validation-batches 1 --save-every 1 --log-every 1 --allow-validation-regression
-          python evaluate.py --checkpoint "$OUTPUT/joint/hyperinter_joint.pt" --tasks coding_benchmark.jsonl --output "$OUTPUT/final-evaluation" --generate --max-new-tokens 4
+          python staged_train.py --profile smoke --stage joint --data seed_corpus.jsonl.gz --checkpoint "$CHECKPOINT" --output "$OUTPUT" --steps 4 --batch-size 1 --validation-batches 2 --save-every 1 --log-every 2 --allow-validation-regression
+          python evaluate.py --checkpoint "$OUTPUT/joint/hyperinter_joint.pt" --tasks coding_benchmark.jsonl --output "$OUTPUT/final-evaluation" --generate --max-new-tokens 8
+
+      - name: Upload fused model and training evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: hyperinter-fusion-smoke-${{ github.sha }}
+          path: /tmp/hypercode-staged
+          if-no-files-found: error
+          retention-days: 30
