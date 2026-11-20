@@ -1,45 +1,77 @@
 # HUMANITY — Simulação de evolução de uma civilização
 
-Protótipo web 3D mobile-first de uma vila pré-industrial. A simulação roda no navegador usando Three.js e JavaScript, sem serviços de IA externos.
+Protótipo 3D de vida artificial e evolução cultural, feito para navegador e dispositivos móveis. O mundo começa como uma vila agrícola pré-industrial. Não há eletricidade, internet, motores, computadores ou tecnologias modernas dentro da vila; as descobertas dependem de experimentação simulada, materiais, habilidades e transmissão social.
 
 ## Executar
 
-Abra `humanity/index.html` por um servidor estático ou habilite GitHub Pages para servir a pasta/arquivo. É necessário acesso à internet para carregar Three.js pelo CDN.
+Abra `humanity/index.html` por um servidor estático ou publique a pasta `humanity` em um serviço de hospedagem estática. O navegador precisa de internet para carregar Three.js 0.161 pelo CDN.
 
-## O que já existe
+## Simulação atual
 
-- Terreno, rio, floresta, casas, campos, fogueira e animais gerados proceduralmente.
-- 24 habitantes iniciais com idade, saúde, fome, energia, sociabilidade, traços individuais e habilidades.
-- Agentes com uma pequena rede neural MLP individual (10 entradas, 64 unidades ocultas, 8 ações).
-- Atualização online por gradiente de política com recompensa, baseline e memória episódica curta.
-- Ações de plantar, colher, coletar madeira, buscar água, construir, socializar, descansar e explorar.
-- Envelhecimento, mortalidade, vínculos, reprodução probabilística e nascimentos.
-- Progressão tecnológica condicionada a recursos e população.
-- Animações procedurais simples de caminhada e repouso; inspeção de habitantes, velocidade, pausa e avanço manual.
+- Mundo 3D com terreno irregular reproduzível, rio, floresta, casas, fogueira, campos de cultivo e artefatos que aparecem quando uma tecnologia é descoberta.
+- 24 habitantes iniciais; limite atual de 180.
+- Necessidades individuais: fome, energia, saúde, sociabilidade e idade.
+- Recursos da vila: alimento, água, madeira, pedra, argila, fibras, minério e sementes.
+- Estações, crescimento de lavouras, plantio, colheita, pesca/forrageamento e coleta.
+- Animais domesticados com idade, reprodução e mortalidade.
+- Infância com dependência de cuidadores, envelhecimento e morte.
+- Vínculos, parentesco, herança parcial de traços e habilidades.
+- Conhecimento individual, invenções sujeitas a pré-requisitos, habilidades e custos de materiais.
+- Aprendizagem social de técnicas e de um vocabulário simbólico emergente.
+- Memória episódica de ações e memória autobiográfica de eventos importantes.
+- Salvamento automático e manual em IndexedDB; localStorage é usado como fallback.
+- Importação de personagens humanoides GLB/FBX e de arquivos de animação GLB/FBX.
 
-## Limites científicos e técnicos
+## Arquitetura neural por habitante
 
-Este é um protótipo de vida artificial, não uma reprodução de um cérebro humano. Os nomes de regiões cerebrais são inspirações arquiteturais; não há equivalência biológica. O treinamento é online e local, baseado em recompensas simuladas. Não existe pré-treinamento em dados humanos, linguagem natural avançada, percepção visual real, genética complexa, cultura detalhada, medicina, clima completo ou economia robusta.
+Cada pessoa tem três módulos artificiais treinados online dentro da simulação:
 
-Os humanos 3D atuais são figuras procedurais simplificadas, não modelos anatômicos fotorealistas. As animações atuais são procedurais, não captura de movimento. O próximo estágio visual deve substituir os placeholders por personagens humanoides rigados GLB/FBX e clips retargetáveis.
+| Módulo | Arquitetura | Papel |
+|---|---:|---|
+| Política de ação | 14 → 256 → 8 | Escolher entre 8 ações |
+| Avaliador | 14 → 32 → 1 | Estimar valor e calcular vantagem |
+| Modelo preditivo | 22 → 24 → 4 | Prever fome, energia, saúde e sociabilidade depois de uma ação |
 
-## Fontes de modelos e animações para a próxima etapa
+A rede de decisão usa atualização por gradiente de política; o avaliador usa uma atualização actor-critic simplificada; o modelo preditivo aprende com transições observadas. A memória de trabalho retém até 96 experiências recentes. Há também até 64 eventos autobiográficos registrados por pessoa.
 
-- [Ara 3D Gen](https://github.com/TuriaArt/3d-gen-TU): gerador aberto de personagens humanoides rigados, com exportação GLB/FBX e biblioteca de animações; conferir licenças e requisitos.
-- [Moveset Free](https://extensions.blender.org/add-ons/moveset/): animações procedurais para rigs humanoides e exportação GLB/FBX.
-- [Three procedural locomotion](https://github.com/PabloMesquida/three-procedural-locomotion): locomoção procedural para Three.js.
-- [Quaternius Universal Animation Library](https://quaternius.com/): animações e assets 3D; conferir licença de cada pacote.
+Cada habitante contém aproximadamente 6.736 pesos treináveis. No limite de 180 habitantes, isso representa aproximadamente 1.212.480 pesos distribuídos entre agentes. A rede não é um modelo de linguagem e não foi pré-treinada com dados humanos: ela aprende somente por recompensas e transições dentro deste ambiente.
 
-## Próximas etapas recomendadas
+## Personagens e animações 3D
 
-1. Persistência de mundo e estado dos agentes em IndexedDB.
-2. Agricultura sazonal com ciclos de crescimento, estoque e fome real.
-3. Reprodução com herança de traços, parentesco e cuidado infantil.
-4. Aprendizagem social, linguagem emergente simplificada e transmissão de técnicas.
-5. Sistema de experimentos e invenções com materiais, hipóteses, falhas e validação.
-6. Personagens GLB rigados, retarget de animações de trabalho, cuidado, caça, construção e interação.
-7. Otimização por lotes/LOD para centenas de habitantes em celulares.
+O modelo procedural de pessoa é apenas um substituto visual. Para personagens realistas:
 
-## Licenças
+1. Crie ou exporte um personagem humanoide já rigado em GLB ou FBX.
+2. Na simulação, use **Modelo humano 3D** para importar o personagem.
+3. Use **Animações 3D** para selecionar um ou vários arquivos de animação compatíveis.
 
-O código deste protótipo é disponibilizado sob MIT. As dependências e assets externos mantêm suas próprias licenças.
+Fontes recomendadas:
+
+- [Ara 3D Gen](https://ara3dgen.com/): criador de personagens humanoides com pele, cabelo, roupas, rig e exportação GLB/FBX. Verifique os termos dos ativos que exportar.
+- [Quaternius Universal Animation Library](https://quaternius.com/packs/universalanimationlibrary.html): mais de 120 animações humanoides; a página declara licença CC0 e inclui locomoção, sentar, rastejar e outras ações.
+- [Quaternius Universal Animation Library 2](https://quaternius.com/packs/universalanimationlibrary2.html): pacote complementar com animações adicionais, incluindo agricultura e pesca.
+- [SupaVoxel — Animate 3D Model](https://supavoxel.com/tools/animate-3d-model): ferramenta no navegador que anuncia retargeting de animações CC0 para personagens humanoides e exportação GLB.
+
+**Compatibilidade:** o importador deste protótipo não executa retargeting automático. Clipes importados separadamente precisam usar nomes de ossos/trilhas compatíveis com o esqueleto do personagem. Quando os rigs forem diferentes, faça retargeting antes de importar. A simulação tenta selecionar clipes por nomes como walk, idle, farm, harvest, chop, fish, build e talk; se não encontrar um clipe adequado, usa uma animação de caminhada/repouso disponível.
+
+## Limitações que ainda existem
+
+- O mundo, edifícios, vegetação e animais ainda usam geometria procedural simplificada; não são um cenário fotorealista completo.
+- Os personagens só ficam realistas depois que o utilizador importa um modelo humano rigado.
+- O importador não retargeta esqueletos automaticamente.
+- O vocabulário é simbólico: transmissão de palavras e conceitos, não conversação humana livre com gramática.
+- A cognição é uma aproximação de vida artificial, não uma cópia do cérebro humano.
+- Não há ainda percepção visual real, audição, linguagem natural aberta, sistema político completo, medicina detalhada, clima meteorológico completo ou economia histórica aprofundada.
+- O estado do mundo é salvo no dispositivo. O arquivo de modelo humano importado precisa ser selecionado novamente depois de limpar os dados do navegador ou trocar de dispositivo.
+
+## Próximas etapas técnicas
+
+1. Testes de equilíbrio populacional e calibração dos ciclos de fome, colheita e água.
+2. Sistema de relações familiares, amizade, cooperação, conflito e luto com efeitos comportamentais.
+3. Comunicação composicional: combinar símbolos em frases e associar símbolos a objetos/ações observadas.
+4. Experimentos materiais com hipóteses, tentativas, falhas, validação e aperfeiçoamento de ferramentas.
+5. Modelos GLB para casas, ferramentas, vegetação, animais e recursos.
+6. LOD, instanciamento de malhas e atualização neural em lotes para centenas de agentes no celular.
+
+## Licença
+
+O código do protótipo é disponibilizado sob MIT. Three.js e ativos externos mantêm suas próprias licenças.
