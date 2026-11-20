@@ -16,10 +16,13 @@ Chat Android e projeto de pesquisa de uma rede neural coletiva universal para pr
 - Código da arquitetura universal e comunicação mútua: implementado no diretório training.
 - Tokenização procedural: doze etapas de texto e doze de código; idioma identificado pela primeira frase e vocabulário técnico em inglês.
 - Treino smoke com pesos atualizados: executado em CPU numa arquitetura reduzida; evidência em training/smoke_evidence.json.
-- Testes estruturais: seis aprovados.
-- Treinamento da arquitetura-alvo 7×(10×256)+20×1792: ainda não executado.
-- Geração de código no teste smoke: candidatos foram comparados; nenhum passou a verificação sintática. A perda coletiva foi menor que a média das sete saídas individuais, mas isso não prova competência de programação.
+- Testes estruturais: oito aprovados localmente; CI do GitHub também valida o pipeline.
+- Pré-treinamento causal smoke: executado por 80 passos com pesos atualizados e perda de validação reduzida.
+- Ajuste supervisionado smoke: executado por 100 passos, mascarando o prompt e treinando apenas a resposta do assistente.
+- Treinamento da arquitetura-alvo 7×(10×256)+20×1792 (456.728.352 parâmetros): ainda não executado; requer GPU CUDA com memória suficiente e corpus grande/licenciado.
+- Geração e comparação: 56 candidatos (sete redes + núcleo em sete tarefas) foram comparados. O NLL coletivo caiu de 4,600 antes do SFT para 4,089 após; a verificação sintática estrita final aprovou 0 candidatos. Isso não prova competência de programação.
 - O chat Android ainda não executa os pesos PyTorch. O código da interface informa essa limitação explicitamente.
+- O APK não foi recompilado após essas alterações de rede; o workflow Android exige confirmação manual exata `agora compile`.
 
 ## Build
 

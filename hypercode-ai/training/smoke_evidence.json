@@ -1,38 +1,58 @@
 {
-  "status": "completed_smoke_training_only",
-  "device": "cpu",
-  "profile": "smoke",
-  "smoke_parameters": 877952,
-  "smoke_architecture": {
-    "experts": 7,
-    "expert_layers": 2,
-    "expert_width": 32,
-    "context_length": 128,
-    "fusion_layers": 2,
-    "fusion_width": 224
+  "status": "completed_smoke_pretraining_and_sft_only",
+  "environment": {
+    "device": "cpu",
+    "cuda_available": false,
+    "docker_available": false
   },
-  "training_records": 93,
-  "validation_records": 12,
-  "steps": 80,
-  "collective_validation_loss_before": 16.27381467819214,
-  "collective_validation_loss_after": 4.048894762992859,
-  "collective_validation_loss_delta": -12.22491991519928,
-  "coding_benchmark_tasks": 7,
-  "collective_reference_mean_nll": 4.600156273160662,
-  "expert_reference_mean_nll": [
-    4.991387299128941,
-    4.9783821787152975,
-    4.832593372889927,
-    5.014411585671561,
-    5.064483233860561,
-    4.864405700138637,
-    4.799642290387835
-  ],
-  "expert_reference_mean_nll_average": 4.935043665827537,
-  "generated_candidates": 56,
-  "generated_candidates_passing_static_syntax": 0,
-  "structural_tests": "7 passed",
-  "target_training": "not performed",
-  "target_parameter_estimate": 456728352,
-  "interpretation": "This run verifies real gradient updates and lower validation loss only in the reduced smoke configuration. It does not establish useful coding ability or train the requested target dimensions."
+  "target": {
+    "experts": 7,
+    "expert_layers": 10,
+    "expert_width": 256,
+    "fusion_layers": 20,
+    "fusion_width": 1792,
+    "expert_units": 17920,
+    "core_units": 35840,
+    "trainable_parameters": 456728352,
+    "training": "not_performed"
+  },
+  "pretraining_smoke": {
+    "parameters": 877952,
+    "architecture": {
+      "experts": 7,
+      "expert_layers": 2,
+      "expert_width": 32,
+      "context_length": 128,
+      "fusion_layers": 2,
+      "fusion_width": 224
+    },
+    "train_records": 93,
+    "validation_records": 12,
+    "steps": 80,
+    "collective_validation_loss_before": 16.27381467819214,
+    "collective_validation_loss_after": 4.048894762992859,
+    "collective_validation_loss_delta": -12.22491991519928
+  },
+  "supervised_finetuning_smoke": {
+    "steps": 100,
+    "train_chunks": 95,
+    "validation_chunks": 12,
+    "assistant_completion_only_loss": true,
+    "collective_validation_loss_before": 4.317183285951614,
+    "collective_validation_loss_after": 3.9361971616744995,
+    "collective_validation_loss_delta": -0.38098612427711487
+  },
+  "coding_benchmark": {
+    "tasks": 7,
+    "generated_candidates": 56,
+    "pre_sft_collective_mean_nll": 4.600156273160662,
+    "pre_sft_expert_mean_nll_average": 4.935043665827537,
+    "post_sft_collective_mean_nll": 4.089205469403948,
+    "post_sft_expert_mean_nll_average": 4.683111336766458,
+    "post_sft_candidates_passing_strict_static_syntax": 0,
+    "runtime_execution": "not_performed_no_docker",
+    "interpretation": "Lower reference NLL is better but does not prove semantic correctness."
+  },
+  "structural_tests": "8 passed locally",
+  "interpretation": "Actual gradient updates and SFT were executed only on the reduced smoke model. The target architecture has not been trained."
 }

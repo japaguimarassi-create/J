@@ -82,13 +82,23 @@ python sandbox_tests.py --candidates benchmark-results/candidates.jsonl --tasks 
 
 As verificações estáticas não provam correção semântica. A avaliação dinâmica precisa de testes específicos por tarefa e runtime por linguagem.
 
+## Fase 2 — ajuste supervisionado de instruções (SFT)
+
+Depois do pré-treinamento causal, `finetune.py` carrega o checkpoint e treina pares `prompt`/`completion`. Os tokens da pergunta do usuário são mascarados com `-100`; somente os tokens da conclusão do assistente contribuem para a perda. A perda principal continua no núcleo coletivo, com perdas auxiliares nas sete redes.
+
+~~~bash
+python finetune.py --checkpoint artifacts/pretrain/hyperinter_checkpoint.pt --data corpus/instructions.jsonl.gz --steps 10000 --batch-size 1 --gradient-checkpointing --output artifacts/sft
+~~~
+
+O corpus precisa ser de pares de instrução/resposta. O arquivo `seed_instructions.jsonl.gz` é composto de exemplos originais pequenos para verificar o pipeline; não é um dataset de escala suficiente para treinar um assistente geral.
+
 ## Evidência de teste realizada
 
-smoke_evidence.json registra um treino de prova executado em CPU. Ele confirma atualizações reais de pesos e melhora da perda de validação na configuração reduzida. A avaliação também compara as sete saídas individuais com a saída coletiva; os candidatos gerados nessa prova não passaram na verificação sintática. Isso não é treinamento nem validação do modelo-alvo.
+smoke_evidence.json registra um treino de prova executado em CPU. Ele confirma atualizações reais de pesos e melhora da perda de validação na configuração reduzida. A avaliação também compara as sete saídas individuais com a saída coletiva; os candidatos gerados nessa prova não passaram na verificação sintática. Isso não é treinamento nem validação do modelo-alvo. Consulte `smoke_evidence.json` para os números medidos.
 
 ## Testes estruturais
 
-Os testes verificam dimensões-alvo, passagem do mesmo contexto pelos sete ramos, comunicação entre redes, gradientes em todos os ramos e no núcleo, máscara causal, geração de sete saídas individuais mais a resposta coletiva e pipelines de doze estágios.
+Os oito testes verificam dimensões-alvo, passagem do mesmo contexto pelos sete ramos, comunicação entre redes, gradientes em todos os ramos e no núcleo, máscara causal, geração de sete saídas individuais mais a resposta coletiva, pipelines de doze estágios e máscara SFT que impede a pergunta de contribuir para a perda.
 
 ~~~bash
 python -m pytest tests -q

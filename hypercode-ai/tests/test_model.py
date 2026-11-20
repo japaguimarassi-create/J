@@ -100,3 +100,32 @@ def test_generate_all_returns_seven_network_candidates_and_one_collective():
     sequences = model.generate_all(prefix, max_new_tokens=3, temperature=0)
     assert len(sequences) == 8
     assert all(sequence.shape == (1, 7) for sequence in sequences)
+
+
+def test_sft_masks_user_prompt_and_trains_only_assistant_completion(tmp_path):
+    import json
+    from finetune import load_instruction_chunks, make_batch
+
+    prompt = "<|user|>Crie uma função soma.<|assistant|>\n"
+    completion = "def soma(a, b):\n    return a + b\n"
+    data = tmp_path / "instructions.jsonl"
+    data.write_text(
+        "".join(
+            json.dumps({
+                "prompt": prompt,
+                "completion": completion,
+                "language": "pt",
+                "kind": "code",
+            }) + "\n"
+            for _ in range(5)
+        ),
+        encoding="utf-8",
+    )
+    tokenizer = ProceduralTokenizer()
+    train_samples, validation_samples = load_instruction_chunks(data, tokenizer, 128, seed=7)
+    assert train_samples and validation_samples
+    inputs, targets = make_batch(train_samples, 1, 128, torch.device("cpu"))
+    answer_start = len(prompt.encode("utf-8"))
+    assert torch.all(targets[0, :answer_start] == -100)
+    assert targets[0, answer_start] != -100
+    assert inputs.shape == (1, 128)

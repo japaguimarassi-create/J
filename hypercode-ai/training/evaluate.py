@@ -23,8 +23,11 @@ def answer_loss(logits, targets, first_answer_token):
 
 def python_syntax_ok(source):
     try:
-        ast.parse(source)
-        return True
+        tree = ast.parse(source)
+        return any(
+            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+            for node in ast.walk(tree)
+        )
     except SyntaxError:
         return False
 
@@ -91,7 +94,7 @@ def main():
     args = parser.parse_args()
 
     checkpoint = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
-    config = checkpoint["config"]
+    config = dict(checkpoint["config"])
     config["vocab_size"] = VOCAB_SIZE
     model = HyperInterNetwork(**config)
     model.load_state_dict(checkpoint["state_dict"])
@@ -133,7 +136,11 @@ def main():
             }
             if args.generate:
                 prefix = torch.tensor([[1, *prompt_ids]], dtype=torch.long)
-                generated = model.generate_all(prefix, max_new_tokens=args.max_new_tokens, temperature=0.0)
+                generated = model.generate_all(
+                    prefix,
+                    max_new_tokens=args.max_new_tokens,
+                    temperature=0.0,
+                )
                 decoded = [
                     tokenizer.decode(sequence[0, prefix.size(1):].tolist())
                     for sequence in generated
@@ -163,7 +170,10 @@ def main():
         "candidate_file": str(candidates_path),
         "interpretation": "Lower reference NLL is better. Syntax checks are not proof of semantic correctness.",
     }
-    (args.output / "summary.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+    (args.output / "summary.json").write_text(
+        json.dumps(report, indent=2),
+        encoding="utf-8",
+    )
     print(json.dumps(report, indent=2))
 
 

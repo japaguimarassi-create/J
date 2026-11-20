@@ -36,3 +36,7 @@ jobs:
       - name: Run smoke training
         working-directory: hypercode-ai/training
         run: python train.py --profile smoke --data seed_corpus.jsonl.gz --steps 3 --batch-size 1 --output /tmp/hypercode-ci-smoke
+
+      - name: Run smoke supervised fine-tuning
+        working-directory: hypercode-ai/training
+        run: python finetune.py --checkpoint /tmp/hypercode-ci-smoke/hyperinter_checkpoint.pt --data seed_instructions.jsonl.gz --steps 1 --batch-size 1 --output /tmp/hypercode-ci-sft
