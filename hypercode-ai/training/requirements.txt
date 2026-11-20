@@ -1,3 +1,4 @@
 torch>=2.6
 pyarrow>=16
 pytest>=8
+tokenizers>=0.20
