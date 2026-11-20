@@ -141,8 +141,8 @@ class HyperInterNetwork(nn.Module):
             for _ in range(expert_layers)
         ])
         self.expert_norms = nn.ModuleList([nn.LayerNorm(expert_width) for _ in range(experts)])
-        self.expert_heads = nn.ModuleList([
-            nn.Linear(expert_width, vocab_size) for _ in range(experts)
+        self.expert_head_biases = nn.ParameterList([
+            nn.Parameter(torch.zeros(vocab_size)) for _ in range(experts)
         ])
 
         self.fusion_positions = nn.Parameter(torch.zeros(1, context_length, fusion_width))
@@ -226,7 +226,11 @@ class HyperInterNetwork(nn.Module):
         auxiliary_logits = None
         if return_aux:
             auxiliary_logits = torch.stack([
-                self.expert_heads[index](expert_states[:, index])
+                F.linear(
+                    expert_states[:, index],
+                    self.token_embedding.weight,
+                    self.expert_head_biases[index],
+                )
                 for index in range(self.expert_count)
             ], dim=1)
         logits = self.forward_from_expert_states(expert_states)
@@ -236,7 +240,11 @@ class HyperInterNetwork(nn.Module):
 
     def forward_expert(self, input_ids, expert_index):
         state = self.encode_expert(input_ids, expert_index)
-        return self.expert_heads[expert_index](state)
+        return F.linear(
+            state,
+            self.token_embedding.weight,
+            self.expert_head_biases[expert_index],
+        )
 
     @torch.no_grad()
     def generate_all(self, input_ids, max_new_tokens=128, temperature=0.0, top_k=40):
@@ -297,8 +305,8 @@ class HyperInterNetwork(nn.Module):
 
 def target_config():
     return {
-        "vocab_size": 260,
-        "context_length": 256,
+        "vocab_size": 32768,
+        "context_length": 2048,
         "experts": 7,
         "expert_layers": 10,
         "expert_width": 256,
