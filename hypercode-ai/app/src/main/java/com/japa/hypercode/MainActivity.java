@@ -34,7 +34,7 @@ public class MainActivity extends Activity {
         preferences = getSharedPreferences("hypercode", MODE_PRIVATE);
         conversationLanguage = preferences.getString("conversation_language", null);
         buildScreen();
-        appendMessage("HyperCode", "Chat inicial ativo. A primeira frase define o idioma da conversa. Os sete especialistas e o núcleo central estão descritos no projeto de treinamento.\n\nEstado da versão: este APK é a interface funcional com modo local baseado em regras. Os pesos GPT ainda não foram treinados nem incorporados.", false);
+        appendMessage("HyperCode", "Interface HyperCode. As sete redes recebem a mesma pergunta, comunicam seus estados em dez etapas e enviam uma representação coletiva ao núcleo final.\n\nCheckpoint-alvo ainda não treinado nem integrado ao aplicativo. O chat não deve ser confundido com o modelo neural final.", false);
     }
 
     private void buildScreen() {
@@ -45,7 +45,7 @@ public class MainActivity extends Activity {
 
         TextView title = text("HYPERCODE AI", 22, Color.WHITE, true);
         root.addView(title);
-        TextView subtitle = text("MULTI-EXPERT PROGRAMMING CHAT", 10, Color.rgb(137, 159, 193), true);
+        TextView subtitle = text("SEVEN-NETWORK MUTUAL INTELLIGENCE", 10, Color.rgb(137, 159, 193), true);
         subtitle.setLetterSpacing(0.12f);
         root.addView(subtitle);
 
@@ -56,16 +56,16 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(-1, -2);
         statusParams.topMargin = dp(14);
         root.addView(status, statusParams);
-        status.addView(text("CORE STATUS  •  CHECKPOINT PENDING", 11, accent, true));
-        status.addView(text("7 especialistas: 10 × 256 cada  |  Núcleo: 20 × 1792 = 35.840 unidades", 11, Color.WHITE, false));
-        status.addView(text("Treinamento GPT: não executado  •  Modo local: regras", 10, Color.rgb(255, 194, 112), false));
+        status.addView(text("MUTUAL CORE  •  TRAINING REQUIRED", 11, accent, true));
+        status.addView(text("7 redes universais: 10 × 256  |  Núcleo: 20 × 1.792", 11, Color.WHITE, false));
+        status.addView(text("Mesmo contexto • comunicação mútua • uma resposta coletiva", 10, Color.rgb(255, 194, 112), false));
 
-        TextView experts = text("ESPECIALISTAS", 10, Color.rgb(137, 159, 193), true);
+        TextView experts = text("REDES UNIVERSAIS", 10, Color.rgb(137, 159, 193), true);
         LinearLayout.LayoutParams ep = new LinearLayout.LayoutParams(-1, -2);
         ep.topMargin = dp(12);
         root.addView(experts, ep);
 
-        String[] names = {"Lua / Python", "Web / JavaScript", "Java / JVM", "C / C++", "C#", "Algoritmos", "Debug / Review"};
+        String[] names = {"NETWORK 01", "NETWORK 02", "NETWORK 03", "NETWORK 04", "NETWORK 05", "NETWORK 06", "NETWORK 07"};
         LinearLayout grid = new LinearLayout(this);
         grid.setOrientation(LinearLayout.VERTICAL);
         for (int i = 0; i < names.length; i += 2) {
