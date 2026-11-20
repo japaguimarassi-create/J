@@ -104,19 +104,27 @@ O orquestrador \`staged_train.py\` divide o treino sem transformar as redes em e
 
 A sequência obrigatória é:
 
-1. \`expert --expert-index 0\` até \`expert --expert-index 6\`: cada rede é treinada individualmente, sem comunicação entre redes nessa fase. A primeira rede aprende os embeddings compartilhados de tokens/posições; depois eles ficam congelados enquanto as seis redes restantes aprendem. Isso impede que cada fase desloque a base representacional das redes anteriores.
-2. \`core\`: congela as sete redes e treina somente o núcleo para combinar as sete representações independentes.
-3. \`communication\`: congela as redes e o núcleo, desbloqueia as dez camadas de comunicação e treina a troca de informações usando a perda da resposta coletiva.
-4. \`joint\`: desbloqueia toda a arquitetura e faz o ajuste conjunto, com perda do núcleo e perdas auxiliares das sete saídas.
+0. \`foundation.py\`: treina uma rede-base universal causal de dez camadas e largura 256 com o corpus comum. Esta é uma única rede de fundação, separada da fusão final.
+1. Inicialização: os embeddings, posições, dez blocos, normalização e bias de vocabulário da fundação são copiados para os sete ramos. Cada ramo recebe uma identidade pequena e distinta.
+2. \`expert --expert-index 0\` até \`expert --expert-index 6\`: cada rede é treinada individualmente, sem comunicação entre redes nessa fase. O primeiro ramo pode ajustar embeddings compartilhados; depois ficam congelados. Cada ramo usa uma semente de amostragem independente, mas todos recebem o mesmo corpus universal e o mesmo objetivo.
+3. \`core\`: congela as sete redes e treina somente o núcleo para combinar as sete representações independentes.
+4. \`communication\`: congela as redes e o núcleo, desbloqueia as dez camadas de comunicação e treina a troca de informações usando a perda da resposta coletiva.
+5. \`joint\`: desbloqueia toda a arquitetura e faz o ajuste conjunto, com perda do núcleo e perdas auxiliares das sete saídas.
 
 O programa impede avançar fora dessa ordem, salva um checkpoint separado por etapa, registra a perda de validação antes/depois e salva checkpoints intermediários com estado do otimizador para retomar uma etapa interrompida. A validação usa os mesmos lotes determinísticos antes e depois. Por padrão, uma regressão de validação reprova a etapa, mantém o checkpoint como pendente e bloqueia a próxima fase. Para retomar, carregue o checkpoint pendente e aumente o total de `--steps`. A opção `--allow-validation-regression` existe apenas para smoke tests curtos e CI.
 
 ### Comandos de execução
 
-Inicie pela rede 1. O índice é zero-based:
+Treine primeiro a IA-base universal:
 
 ~~~bash
-python staged_train.py --profile target --stage expert --expert-index 0 --data corpus/stack_filtered.jsonl --tokenizer-json artifacts/tokenizer.json --steps 10000 --batch-size 1 --gradient-accumulation-steps 8 --gradient-checkpointing --output artifacts/staged
+python foundation.py --profile target --data corpus/stack_filtered.jsonl --tokenizer-json artifacts/tokenizer.json --steps 50000 --batch-size 1 --gradient-accumulation-steps 8 --gradient-checkpointing --output artifacts/foundation
+~~~
+
+Inicie a rede 1 a partir do checkpoint-base. O índice é zero-based:
+
+~~~bash
+python staged_train.py --profile target --stage expert --expert-index 0 --data corpus/stack_filtered.jsonl --tokenizer-json artifacts/tokenizer.json --base-checkpoint artifacts/foundation/hyperinter_foundation.pt --steps 10000 --batch-size 1 --gradient-accumulation-steps 8 --gradient-checkpointing --output artifacts/staged
 ~~~
 
 Treine a rede seguinte carregando o checkpoint anterior. Repita os índices de 1 a 6:
@@ -135,7 +143,7 @@ python staged_train.py --profile target --stage communication --data corpus/stac
 python staged_train.py --profile target --stage joint --data corpus/stack_filtered.jsonl --tokenizer-json artifacts/tokenizer.json --checkpoint artifacts/staged/communication/hyperinter_communication.pt --steps 20000 --batch-size 1 --gradient-accumulation-steps 8 --gradient-checkpointing --output artifacts/staged
 ~~~
 
-O ajuste supervisionado de instruções (\`finetune.py\`) vem depois da integração conjunta e usa o checkpoint \`artifacts/staged/joint/hyperinter_joint.pt\`.
+O ajuste supervisionado de instruções (\`finetune.py\`) vem depois da integração conjunta e usa o tokenizer BPE correspondente e o checkpoint \`artifacts/staged/joint/hyperinter_joint.pt\`.
 
 ### Teste geral e configuração
 
