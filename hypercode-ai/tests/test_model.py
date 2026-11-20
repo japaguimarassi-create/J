@@ -252,7 +252,7 @@ def test_wsd_scheduler_warmup_stable_and_linear_decay():
 
 def test_bpe_tokenizer_training_round_trip(tmp_path):
     import json
-    from train_bpe_tokenizer import train_bpe_tokenizer
+    from train_bpe_tokenizer import train_bpe
     from tokenizer import load_tokenizer
 
     corpus = tmp_path / "corpus.jsonl"
