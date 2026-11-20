@@ -54,11 +54,12 @@ jobs:
             if [ -n "$CHECKPOINT" ]; then
               ARGS+=(--checkpoint "$CHECKPOINT")
             fi
-            python staged_train.py "\${ARGS[@]}"
-            CHECKPOINT="$OUTPUT/expert_\${LABEL}/hyperinter_expert_\${LABEL}.pt"
+            python staged_train.py "${ARGS[@]}"
+            CHECKPOINT="$OUTPUT/expert_${LABEL}/hyperinter_expert_${LABEL}.pt"
           done
           python staged_train.py --profile smoke --stage core --data seed_corpus.jsonl.gz --checkpoint "$CHECKPOINT" --output "$OUTPUT" --steps 1 --batch-size 1 --validation-batches 1 --save-every 1 --log-every 1
           CHECKPOINT="$OUTPUT/core/hyperinter_core.pt"
           python staged_train.py --profile smoke --stage communication --data seed_corpus.jsonl.gz --checkpoint "$CHECKPOINT" --output "$OUTPUT" --steps 1 --batch-size 1 --validation-batches 1 --save-every 1 --log-every 1
           CHECKPOINT="$OUTPUT/communication/hyperinter_communication.pt"
           python staged_train.py --profile smoke --stage joint --data seed_corpus.jsonl.gz --checkpoint "$CHECKPOINT" --output "$OUTPUT" --steps 1 --batch-size 1 --validation-batches 1 --save-every 1 --log-every 1
+          python evaluate.py --checkpoint "$OUTPUT/joint/hyperinter_joint.pt" --tasks coding_benchmark.jsonl --output "$OUTPUT/final-evaluation" --generate --max-new-tokens 4
