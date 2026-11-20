@@ -14,7 +14,7 @@ Abra `humanity/index.html` por um servidor estático ou publique a pasta `humani
 - Recursos da vila: alimento, água, madeira, pedra, argila, fibras, minério e sementes. A madeira é extraída de árvores individuais, com reservas finitas registradas no salvamento.
 - Estações, crescimento de lavouras, plantio, colheita, pesca/forrageamento e coleta.
 - Animais domesticados com idade, reprodução, mortalidade e animação procedural de caminhada.
-- Infância com dependência de cuidadores, envelhecimento e morte.
+- Infância com dependência de cuidadores, envelhecimento e morte; adultos próximos podem assumir o cuidado de órfãos.
 - Vínculos, parentesco, herança parcial de traços e habilidades.
 - Conhecimento individual, invenções sujeitas a pré-requisitos, habilidades e custos de materiais.
 - Aprendizagem social de técnicas e de um vocabulário simbólico emergente.
