@@ -3,6 +3,7 @@ import gzip
 import hashlib
 import json
 import os
+import random
 import sqlite3
 import tempfile
 from pathlib import Path
@@ -39,6 +40,8 @@ def source_rows(path, source_name):
                 raise ValueError(
                     f"Invalid JSON in source {source_name} at line {line_number}: {error}"
                 ) from error
+            if not isinstance(row, dict):
+                raise ValueError(f"Source {source_name} line {line_number} must be a JSON object.")
             raw_text = row.get("text") or row.get("content") or row.get("document")
             if not isinstance(raw_text, str) or not raw_text.strip():
                 continue
@@ -56,7 +59,25 @@ def source_rows(path, source_name):
             }
 
 
-def mix_corpora(sources, weights, output_path, max_records=0, require_license=False):
+def allocate_quotas(total, active_sources, weights):
+    weight_total = sum(weights[name] for name in active_sources)
+    exact = {
+        name: total * weights[name] / weight_total
+        for name in active_sources
+    }
+    quotas = {name: int(value) for name, value in exact.items()}
+    remainder = total - sum(quotas.values())
+    order = sorted(
+        active_sources,
+        key=lambda name: exact[name] - quotas[name],
+        reverse=True,
+    )
+    for name in order[:remainder]:
+        quotas[name] += 1
+    return quotas
+
+
+def mix_corpora(sources, weights, output_path, max_records=0, require_license=False, seed=2026):
     if not sources:
         raise ValueError("At least one --source NAME=PATH is required.")
     if max_records < 0:
@@ -73,73 +94,115 @@ def mix_corpora(sources, weights, output_path, max_records=0, require_license=Fa
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary_output = destination.with_suffix(destination.suffix + ".tmp")
     counts = {name: 0 for name in sources}
-    skipped = {name: 0 for name in sources}
-    seen_count = 0
-    total_written = 0
+    duplicates = {name: 0 for name in sources}
+    missing_license = {name: 0 for name in sources}
     active = {
         name: iter(source_rows(path, name))
         for name, path in sources.items()
     }
-    current = {name: 0.0 for name in sources}
+    rng = random.Random(seed)
+    seen_count = 0
+    total_written = 0
 
-    with tempfile.TemporaryDirectory(prefix="hypercode-dedup-") as temp_dir:
+    with tempfile.TemporaryDirectory(prefix="hypercode-mix-") as temp_dir:
         database = sqlite3.connect(str(Path(temp_dir) / "seen.sqlite"))
         database.execute("CREATE TABLE seen (digest TEXT PRIMARY KEY)")
-        opener = gzip.open if str(destination).endswith(".gz") else open
+        source_temp_paths = {
+            name: Path(temp_dir) / f"{name}.jsonl"
+            for name in sources
+        }
+        source_outputs = {
+            name: source_temp_paths[name].open("w", encoding="utf-8")
+            for name in sources
+        }
         try:
-            with opener(temporary_output, "wt", encoding="utf-8") as output:
-                while active and (max_records == 0 or total_written < max_records):
-                    active_weight = sum(normalized_weights[name] for name in active)
-                    for name in active:
-                        current[name] += normalized_weights[name]
-                    selected = max(active, key=lambda name: current[name])
-                    current[selected] -= active_weight
-                    try:
-                        row = next(active[selected])
-                    except StopIteration:
-                        del active[selected]
-                        continue
-
-                    digest = hashlib.sha256(row["text"].encode("utf-8")).hexdigest()
-                    cursor = database.execute(
-                        "INSERT OR IGNORE INTO seen(digest) VALUES (?)",
-                        (digest,),
+            while active and (max_records == 0 or total_written < max_records):
+                if max_records:
+                    quotas = allocate_quotas(
+                        max_records - total_written,
+                        list(active),
+                        normalized_weights,
                     )
-                    if cursor.rowcount == 0:
-                        skipped[selected] += 1
-                        continue
+                else:
+                    quotas = {name: None for name in active}
 
-                    seen_count += 1
-                    if require_license and not row["license"]:
-                        skipped[selected] += 1
-                        continue
+                for name in list(active):
+                    quota = quotas[name]
+                    accepted = 0
+                    while quota is None or accepted < quota:
+                        try:
+                            row = next(active[name])
+                        except StopIteration:
+                            del active[name]
+                            break
 
-                    row["sha256"] = digest
-                    output.write(json.dumps(row, ensure_ascii=False) + "\n")
-                    counts[selected] += 1
-                    total_written += 1
-                    if total_written % 10000 == 0:
-                        database.commit()
+                        if require_license and not row["license"]:
+                            missing_license[name] += 1
+                            continue
+
+                        digest = hashlib.sha256(row["text"].encode("utf-8")).hexdigest()
+                        cursor = database.execute(
+                            "INSERT OR IGNORE INTO seen(digest) VALUES (?)",
+                            (digest,),
+                        )
+                        if cursor.rowcount == 0:
+                            duplicates[name] += 1
+                            continue
+
+                        row["sha256"] = digest
+                        row["source_record_id"] = row["source_record_id"] or digest
+                        source_outputs[name].write(
+                            json.dumps(row, ensure_ascii=False) + "\n"
+                        )
+                        counts[name] += 1
+                        seen_count += 1
+                        accepted += 1
+                        total_written += 1
+                        if total_written % 10000 == 0:
+                            database.commit()
+                        if max_records and total_written >= max_records:
+                            break
+                    if max_records and total_written >= max_records:
+                        break
+
+                if max_records and total_written >= max_records:
+                    break
         finally:
+            for handle in source_outputs.values():
+                handle.close()
             database.commit()
             database.close()
+
+        if total_written == 0:
+            raise ValueError("No usable unique records were written. Check paths, source fields and license filters.")
+
+        opener = gzip.open if str(destination).endswith(".gz") else open
+        with opener(temporary_output, "wt", encoding="utf-8") as output:
+            source_order = list(sources)
+            rng.shuffle(source_order)
+            for name in source_order:
+                with source_temp_paths[name].open("r", encoding="utf-8") as source_file:
+                    for line in source_file:
+                        output.write(line)
 
     os.replace(temporary_output, destination)
     total_weight = sum(counts.values())
     report = {
         "output": str(destination),
         "records_written": total_written,
-        "unique_records_seen": seen_count,
-        "require_license_metadata": require_license,
+        "unique_records_written": seen_count,
         "source_weights": normalized_weights,
         "source_counts": counts,
         "source_actual_mix": {
             name: count / total_weight if total_weight else 0.0
             for name, count in counts.items()
         },
-        "duplicates_or_filtered": skipped,
+        "duplicates": duplicates,
+        "missing_license": missing_license,
+        "require_license_metadata": require_license,
+        "max_records": max_records,
         "near_duplicate_deduplication": False,
-        "note": "Verify source terms and license compatibility before training; provenance is preserved per record.",
+        "note": "Input shards should be shuffled before mixing. Verify source terms and licenses; provenance remains attached to every record.",
     }
     report_path = destination.with_suffix(destination.suffix + ".report.json")
     report_path.write_text(
@@ -156,6 +219,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--max-records", type=int, default=0)
     parser.add_argument("--require-license-metadata", action="store_true")
+    parser.add_argument("--seed", type=int, default=2026)
     args = parser.parse_args()
     sources = parse_assignments(args.source, "source")
     raw_weights = parse_assignments(args.weight, "weight")
@@ -166,6 +230,7 @@ def main():
         args.output,
         max_records=args.max_records,
         require_license=args.require_license_metadata,
+        seed=args.seed,
     )
     print(json.dumps(report, indent=2, ensure_ascii=False))
 
