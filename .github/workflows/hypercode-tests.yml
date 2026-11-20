@@ -41,17 +41,24 @@ jobs:
         working-directory: hypercode-ai/training
         run: python finetune.py --checkpoint /tmp/hypercode-ci-smoke/hyperinter_checkpoint.pt --data seed_instructions.jsonl.gz --steps 1 --batch-size 1 --output /tmp/hypercode-ci-sft
 
+      - name: Train universal foundation model
+        working-directory: hypercode-ai/training
+        run: python foundation.py --profile smoke --data seed_corpus.jsonl.gz --steps 3 --batch-size 1 --validation-batches 2 --save-every 1 --log-every 1 --output /tmp/hypercode-base --allow-validation-regression
+
       - name: Run progressive seven-network training pipeline
         working-directory: hypercode-ai/training
         shell: bash
         run: |
           set -euo pipefail
           OUTPUT=/tmp/hypercode-staged
+          BASE_CHECKPOINT=/tmp/hypercode-base/hyperinter_foundation.pt
           CHECKPOINT=""
           for INDEX in 0 1 2 3 4 5 6; do
             LABEL=$(printf "%02d" "$((INDEX + 1))")
             ARGS=(--profile smoke --stage expert --expert-index "$INDEX" --data seed_corpus.jsonl.gz --output "$OUTPUT" --steps 2 --batch-size 1 --validation-batches 2 --save-every 1 --log-every 2 --allow-validation-regression)
-            if [ -n "$CHECKPOINT" ]; then
+            if [ "$INDEX" -eq 0 ]; then
+              ARGS+=(--base-checkpoint "$BASE_CHECKPOINT")
+            else
               ARGS+=(--checkpoint "$CHECKPOINT")
             fi
             python staged_train.py "${ARGS[@]}"
@@ -68,6 +75,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: hyperinter-fusion-smoke-${{ github.sha }}
-          path: /tmp/hypercode-staged
+          path: |
+            /tmp/hypercode-base
+            /tmp/hypercode-staged
           if-no-files-found: error
           retention-days: 30
