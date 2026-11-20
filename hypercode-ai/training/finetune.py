@@ -224,6 +224,7 @@ def main():
                 config["context_length"],
                 device,
             )
+            supervised_tokens_this_step += int((targets != -100).sum().item())
             with torch.autocast(
                 device_type=device.type,
                 dtype=torch.bfloat16 if use_bf16 else torch.float16,
