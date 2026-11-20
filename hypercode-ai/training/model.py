@@ -70,6 +70,12 @@ class HyperInterNetwork(nn.Module):
             CausalStack(expert_width, expert_layers, expert_heads, expert_ff, dropout)
             for _ in range(experts)
         ])
+        self.domain_router = nn.Embedding(experts, experts)
+        with torch.no_grad():
+            initial_routes = torch.full((experts, experts), -1.0)
+            initial_routes.fill_diagonal_(2.0)
+            self.domain_router.weight.copy_(initial_routes)
+
         self.fusion_positions = nn.Parameter(torch.zeros(1, context_length, fusion_width))
         self.fusion = CausalStack(fusion_width, fusion_layers, fusion_heads, fusion_ff, dropout)
         self.output_projection = nn.Linear(fusion_width, expert_width, bias=False)
@@ -90,10 +96,13 @@ class HyperInterNetwork(nn.Module):
             diagonal=1,
         )
         embedded = self.token_embedding(input_ids) + self.expert_positions[:, :sequence]
-        selected = self.experts[expert_id](embedded, causal_mask)
-        inactive = torch.zeros_like(selected)
-        routed = [selected if index == expert_id else inactive for index in range(7)]
-        fused = torch.cat(routed, dim=-1) + self.fusion_positions[:, :sequence]
+        route_index = torch.tensor(expert_id, device=input_ids.device, dtype=torch.long)
+        gate = torch.softmax(self.domain_router(route_index), dim=-1)
+        expert_states = [
+            expert(embedded, causal_mask) * gate[index]
+            for index, expert in enumerate(self.experts)
+        ]
+        fused = torch.cat(expert_states, dim=-1) + self.fusion_positions[:, :sequence]
         hidden = self.fusion(fused, causal_mask)
         hidden = self.output_norm(self.output_projection(hidden))
         return F.linear(hidden, self.token_embedding.weight, self.output_bias)
