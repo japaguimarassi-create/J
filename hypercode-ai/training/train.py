@@ -1,7 +1,6 @@
 import argparse
 import gzip
 import json
-import math
 import random
 from pathlib import Path
 
@@ -9,7 +8,8 @@ import torch
 from torch.nn import functional as F
 
 from model import HyperInterNetwork, smoke_config, target_config
-from tokenizer import ProceduralTokenizer, VOCAB_SIZE
+from optimization import build_adamw, wsd_multiplier
+from tokenizer import load_tokenizer
 
 
 def split_by_repository(records, seed=2026):
@@ -109,8 +109,10 @@ def train(args):
     random.seed(args.seed)
     torch.manual_seed(args.seed)
     config = target_config() if args.profile == "target" else smoke_config()
-    config["vocab_size"] = VOCAB_SIZE
-    tokenizer = ProceduralTokenizer()
+    if args.profile == "target" and args.tokenizer_json is None:
+        raise RuntimeError("Target training requires a trained BPE tokenizer. Run train_bpe_tokenizer.py first.")
+    tokenizer = load_tokenizer(args.tokenizer_json)
+    config["vocab_size"] = tokenizer.vocab_size
     train_samples, validation_samples = read_corpus(args.data, tokenizer, config["context_length"])
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if args.profile == "target" and device.type != "cuda":
@@ -120,11 +122,11 @@ def train(args):
 
     model = HyperInterNetwork(**config).to(device)
     model.set_gradient_checkpointing(args.gradient_checkpointing or args.profile == "target")
-    optimizer = torch.optim.AdamW(
-        model.parameters(),
-        lr=args.learning_rate,
-        betas=(0.9, 0.95),
-        weight_decay=0.1,
+    optimizer = build_adamw(
+        model,
+        learning_rate=args.learning_rate,
+        weight_decay=args.weight_decay,
+        fused=device.type == "cuda",
     )
     use_bf16 = device.type == "cuda" and torch.cuda.is_bf16_supported()
     scaler = torch.amp.GradScaler("cuda", enabled=device.type == "cuda" and not use_bf16)
@@ -144,34 +146,51 @@ def train(args):
 
     model.train()
     for step in range(1, args.steps + 1):
-        inputs, targets = make_batch(train_samples, args.batch_size, config["context_length"], device)
-        warmup = min(1.0, step / max(1, args.warmup_steps))
-        decay = max(0.05, 0.5 * (1.0 + math.cos(math.pi * step / max(1, args.steps))))
         for group in optimizer.param_groups:
-            group["lr"] = args.learning_rate * warmup * decay
+            group["lr"] = args.learning_rate * wsd_multiplier(
+                step, args.steps, args.warmup_steps, args.decay_ratio
+            )
         optimizer.zero_grad(set_to_none=True)
-        with torch.autocast(
-            device_type=device.type,
-            dtype=torch.bfloat16 if use_bf16 else torch.float16,
-            enabled=device.type == "cuda",
-        ):
-            final_logits, auxiliary_logits = model(inputs, return_aux=True)
-            final_loss = language_model_loss(final_logits, targets)
-            auxiliary_losses = [
-                language_model_loss(auxiliary_logits[:, index], targets)
-                for index in range(7)
-            ]
-            auxiliary_loss = torch.stack(auxiliary_losses).mean()
-            loss = final_loss + args.auxiliary_loss_weight * auxiliary_loss
-        scaler.scale(loss).backward()
+        accumulated_loss = 0.0
+        collective_loss_value = 0.0
+        auxiliary_loss_value = 0.0
+        for _ in range(args.gradient_accumulation_steps):
+            inputs, targets = make_batch(
+                train_samples,
+                args.batch_size,
+                config["context_length"],
+                device,
+            )
+            with torch.autocast(
+                device_type=device.type,
+                dtype=torch.bfloat16 if use_bf16 else torch.float16,
+                enabled=device.type == "cuda",
+            ):
+                final_logits, auxiliary_logits = model(inputs, return_aux=True)
+                final_loss = language_model_loss(final_logits, targets)
+                auxiliary_losses = [
+                    language_model_loss(auxiliary_logits[:, index], targets)
+                    for index in range(7)
+                ]
+                auxiliary_loss = torch.stack(auxiliary_losses).mean()
+                loss = (final_loss + args.auxiliary_loss_weight * auxiliary_loss) / args.gradient_accumulation_steps
+            if not torch.isfinite(loss):
+                raise FloatingPointError(f"Non-finite loss at step {step}.")
+            accumulated_loss += loss.detach().item()
+            collective_loss_value += final_loss.detach().item() / args.gradient_accumulation_steps
+            auxiliary_loss_value += auxiliary_loss.detach().item() / args.gradient_accumulation_steps
+            scaler.scale(loss).backward()
         scaler.unscale_(optimizer)
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        gradient_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+        if not torch.isfinite(gradient_norm):
+            raise FloatingPointError(f"Non-finite gradient norm at step {step}.")
         scaler.step(optimizer)
         scaler.update()
         if step == 1 or step % args.log_every == 0 or step == args.steps:
             print(
-                f"step={step}/{args.steps} total={loss.item():.5f} "
-                f"collective={final_loss.item():.5f} experts={auxiliary_loss.item():.5f}"
+                f"step={step}/{args.steps} total={accumulated_loss:.5f} "
+                f"collective={collective_loss_value:.5f} experts={auxiliary_loss_value:.5f} "
+                f"grad_norm={float(gradient_norm):.5f}"
             )
 
     after = evaluate_loss(model, validation_samples, args.batch_size, config["context_length"], device)
@@ -185,6 +204,9 @@ def train(args):
         "all_experts_receive_every_sample": True,
         "mutual_message_passing_layers": config["expert_layers"],
         "auxiliary_loss_weight": args.auxiliary_loss_weight,
+        "tokenizer_vocab_size": tokenizer.vocab_size,
+        "tokenizer_json": str(args.tokenizer_json) if args.tokenizer_json else None,
+        "training_recipe": "AdamW_betas_0.9_0.95_WSD_embedding_no_decay",
     }, checkpoint_path)
     metadata.update({
         "steps": args.steps,
@@ -203,11 +225,16 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--profile", choices=("smoke", "target"), default="smoke")
     parser.add_argument("--data", type=Path, required=True)
+    parser.add_argument("--tokenizer-json", type=Path)
     parser.add_argument("--output", type=Path, default=Path("artifacts"))
     parser.add_argument("--steps", type=int, default=50)
     parser.add_argument("--batch-size", type=int, default=2)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
-    parser.add_argument("--warmup-steps", type=int, default=10)
+    parser.add_argument("--warmup-steps", type=int, default=2000)
+    parser.add_argument("--decay-ratio", type=float, default=0.1)
+    parser.add_argument("--gradient-accumulation-steps", type=int, default=1)
+    parser.add_argument("--weight-decay", type=float, default=0.1)
+    parser.add_argument("--max-grad-norm", type=float, default=1.0)
     parser.add_argument("--log-every", type=int, default=10)
     parser.add_argument("--auxiliary-loss-weight", type=float, default=0.2)
     parser.add_argument("--gradient-checkpointing", action="store_true")
@@ -217,6 +244,12 @@ def main():
         parser.error("steps and batch-size must be positive.")
     if args.auxiliary_loss_weight < 0:
         parser.error("auxiliary-loss-weight cannot be negative.")
+    if args.gradient_accumulation_steps < 1:
+        parser.error("gradient-accumulation-steps must be positive.")
+    if args.max_grad_norm <= 0:
+        parser.error("max-grad-norm must be positive.")
+    if not 0.0 < args.decay_ratio <= 1.0:
+        parser.error("decay-ratio must be in (0, 1].")
     train(args)
 
 
