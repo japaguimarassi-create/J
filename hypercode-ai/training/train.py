@@ -1,5 +1,6 @@
 import argparse
 import gzip
+import hashlib
 import json
 import random
 from pathlib import Path
@@ -86,17 +87,22 @@ def language_model_loss(logits, targets):
     )
 
 
-def evaluate_loss(model, samples, batch_size, context_length, device, batches=4):
+def evaluate_loss(model, samples, batch_size, context_length, device, batches=4, use_bf16=False):
     model.eval()
     totals = {"collective": 0.0, "experts": [0.0] * 7}
     count = 0
     with torch.no_grad():
         for _ in range(batches):
             inputs, targets = make_batch(samples, batch_size, context_length, device)
-            final_logits, auxiliary = model(inputs, return_aux=True)
-            totals["collective"] += language_model_loss(final_logits, targets).item()
-            for index in range(7):
-                totals["experts"][index] += language_model_loss(auxiliary[:, index], targets).item()
+            with torch.autocast(
+                device_type=device.type,
+                dtype=torch.bfloat16 if use_bf16 else torch.float16,
+                enabled=device.type == "cuda",
+            ):
+                final_logits, auxiliary = model(inputs, return_aux=True)
+                totals["collective"] += language_model_loss(final_logits, targets).item()
+                for index in range(7):
+                    totals["experts"][index] += language_model_loss(auxiliary[:, index], targets).item()
             count += 1
     model.train()
     return {
@@ -113,6 +119,10 @@ def train(args):
         raise RuntimeError("Target training requires a trained BPE tokenizer. Run train_bpe_tokenizer.py first.")
     tokenizer = load_tokenizer(args.tokenizer_json)
     config["vocab_size"] = tokenizer.vocab_size
+    tokenizer_sha256 = (
+        hashlib.sha256(Path(args.tokenizer_json).read_bytes()).hexdigest()
+        if args.tokenizer_json else "procedural-byte-v1"
+    )
     train_samples, validation_samples = read_corpus(args.data, tokenizer, config["context_length"])
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if args.profile == "target" and device.type != "cuda":
@@ -132,7 +142,10 @@ def train(args):
     scaler = torch.amp.GradScaler("cuda", enabled=device.type == "cuda" and not use_bf16)
     args.output.mkdir(parents=True, exist_ok=True)
     parameter_count = sum(parameter.numel() for parameter in model.parameters())
-    before = evaluate_loss(model, validation_samples, args.batch_size, config["context_length"], device)
+    before = evaluate_loss(
+        model, validation_samples, args.batch_size, config["context_length"], device,
+        use_bf16=use_bf16,
+    )
     metadata = {
         "profile": args.profile,
         "device": str(device),
@@ -140,6 +153,10 @@ def train(args):
         "validation_records": len(validation_samples),
         "parameters": parameter_count,
         "architecture": config,
+        "tokenizer_vocab_size": tokenizer.vocab_size,
+        "tokenizer_sha256": tokenizer_sha256,
+        "effective_batch_size": args.batch_size * args.gradient_accumulation_steps,
+        "gradient_accumulation_steps": args.gradient_accumulation_steps,
         "validation_before": before,
     }
     effective_warmup_steps = min(args.warmup_steps, max(1, args.steps // 10))
@@ -197,7 +214,10 @@ def train(args):
                 f"grad_norm={float(gradient_norm):.5f}"
             )
 
-    after = evaluate_loss(model, validation_samples, args.batch_size, config["context_length"], device)
+    after = evaluate_loss(
+        model, validation_samples, args.batch_size, config["context_length"], device,
+        use_bf16=use_bf16,
+    )
     checkpoint_path = args.output / "hyperinter_checkpoint.pt"
     torch.save({
         "state_dict": model.state_dict(),
@@ -209,6 +229,7 @@ def train(args):
         "mutual_message_passing_layers": config["expert_layers"],
         "auxiliary_loss_weight": args.auxiliary_loss_weight,
         "tokenizer_vocab_size": tokenizer.vocab_size,
+        "tokenizer_sha256": tokenizer_sha256,
         "tokenizer_json": str(args.tokenizer_json) if args.tokenizer_json else None,
         "training_recipe": "AdamW_betas_0.9_0.95_WSD_embedding_no_decay",
     }, checkpoint_path)
