@@ -156,3 +156,60 @@ def test_pretraining_split_keeps_repository_groups_together():
     validation_tokens = {tuple(document) for document in validation_docs}
     assert train_tokens.isdisjoint(validation_tokens)
     assert len(train_docs) + len(validation_docs) == len(records)
+
+
+
+def test_individual_expert_and_independent_core_bypass_communication():
+    model = HyperInterNetwork(**smoke_config()).eval()
+    calls = [0] * 2
+    handles = [
+        model.communication[0].register_forward_hook(lambda *args: calls.__setitem__(0, calls[0] + 1)),
+        model.communication[1].register_forward_hook(lambda *args: calls.__setitem__(1, calls[1] + 1)),
+    ]
+    tokens = torch.randint(4, 260, (1, 16))
+    expert_logits = model.forward_expert(tokens, 3)
+    core_logits = model(tokens, use_communication=False)
+    for handle in handles:
+        handle.remove()
+    assert expert_logits.shape == (1, 16, 260)
+    assert core_logits.shape == (1, 16, 260)
+    assert calls == [0, 0]
+
+
+def test_staged_training_freezes_unselected_components():
+    from staged_train import configure_stage
+
+    model = HyperInterNetwork(**smoke_config())
+    configure_stage(model, "expert", 4)
+    assert any(parameter.requires_grad for parameter in model.experts[4].parameters())
+    assert all(not parameter.requires_grad for parameter in model.experts[3].parameters())
+    assert all(not parameter.requires_grad for parameter in model.communication.parameters())
+    assert all(not parameter.requires_grad for parameter in model.fusion_blocks.parameters())
+
+    configure_stage(model, "core")
+    assert all(parameter.requires_grad for parameter in model.fusion_blocks.parameters())
+    assert all(not parameter.requires_grad for parameter in model.communication.parameters())
+    assert all(not parameter.requires_grad for parameter in model.experts.parameters())
+
+    configure_stage(model, "communication")
+    assert all(parameter.requires_grad for parameter in model.communication.parameters())
+    assert all(not parameter.requires_grad for parameter in model.experts.parameters())
+    assert all(not parameter.requires_grad for parameter in model.fusion_blocks.parameters())
+
+    configure_stage(model, "joint")
+    assert all(parameter.requires_grad for parameter in model.parameters())
+
+
+def test_stage_order_requires_seven_networks_then_core_then_communication():
+    import pytest
+    from staged_train import validate_stage_prerequisites
+
+    with pytest.raises(ValueError):
+        validate_stage_prerequisites("core", None, {0, 1, 2}, set())
+    with pytest.raises(ValueError):
+        validate_stage_prerequisites("communication", None, set(range(7)), set())
+    with pytest.raises(ValueError):
+        validate_stage_prerequisites("joint", None, set(range(7)), {"core"})
+    validate_stage_prerequisites("core", None, set(range(7)), set())
+    validate_stage_prerequisites("communication", None, set(range(7)), {"core"})
+    validate_stage_prerequisites("joint", None, set(range(7)), {"core", "communication"})

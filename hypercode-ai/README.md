@@ -9,19 +9,20 @@ Chat Android e projeto de pesquisa de uma rede neural coletiva universal para pr
 - Após cada camada, há comunicação por atenção entre os sete estados. Nenhuma rede é escolhida isoladamente.
 - As sete representações de 256 dimensões são concatenadas em um estado coletivo de 1.792 dimensões.
 - O núcleo coletivo executa vinte camadas de 1.792 unidades e produz a única resposta final.
-- O treinamento usa previsão causal do próximo token e uma fase SFT com mascaramento do prompt, perda principal na saída coletiva e perdas auxiliares nas sete redes.
+- O treinamento é progressivo: sete redes universais individualmente, núcleo, comunicação mútua, integração conjunta e SFT com mascaramento do prompt.
 
 ## Estado real
 
 - Código da arquitetura universal e comunicação mútua: implementado no diretório training.
 - Tokenização procedural: doze etapas de texto e doze de código; idioma identificado pela primeira frase e vocabulário técnico em inglês.
 - Treino smoke com pesos atualizados: executado em CPU numa arquitetura reduzida; evidência em training/smoke_evidence.json.
-- Testes estruturais: dez aprovados localmente; CI do GitHub também valida o pipeline.
+- Testes estruturais: treze aprovados localmente; CI do GitHub valida arquitetura, pré-treino, SFT e a sequência progressiva de componentes.
 - Pré-treinamento causal smoke: executado por 80 passos com pesos atualizados e perda de validação reduzida.
 - Ajuste supervisionado smoke: executado por 100 passos, mascarando o prompt e treinando apenas a resposta do assistente.
 - Treinamento da arquitetura-alvo 7×(10×256)+20×1792 (456.728.352 parâmetros): ainda não executado; requer GPU CUDA com memória suficiente e corpus grande/licenciado.
 - Geração e comparação: 56 candidatos (sete redes + núcleo em sete tarefas) foram comparados. O NLL coletivo caiu de 4,600 antes do SFT para 4,089 após; a verificação sintática estrita final aprovou 0 candidatos. Isso não prova competência de programação.
 - O chat Android ainda não executa os pesos PyTorch. O código da interface informa essa limitação explicitamente.
+- O perfil de teste ainda usa 260 IDs byte-level e contexto 256; antes do treino de produção, a configuração precisa migrar para BPE e contexto maior.
 - O APK não foi recompilado após essas alterações de rede; o workflow Android exige confirmação manual exata `agora compile`.
 
 ## Build

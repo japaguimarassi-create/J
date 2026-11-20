@@ -1,0 +1,393 @@
+import argparse
+import json
+import math
+import os
+import random
+from pathlib import Path
+
+import torch
+
+from model import HyperInterNetwork, smoke_config, target_config
+from tokenizer import ProceduralTokenizer, VOCAB_SIZE
+from train import language_model_loss, make_batch, read_corpus
+
+
+STAGES = ("expert", "core", "communication", "joint")
+
+
+def configure_stage(model, stage, expert_index=None):
+    for parameter in model.parameters():
+        parameter.requires_grad_(False)
+
+    if stage == "expert":
+        if expert_index is None or not 0 <= expert_index < 7:
+            raise ValueError("The expert stage requires an expert index from 0 to 6.")
+        model.token_embedding.requires_grad_(True)
+        model.position_embedding.requires_grad_(True)
+        for module in (
+            model.experts[expert_index],
+            model.expert_norms[expert_index],
+            model.expert_heads[expert_index],
+        ):
+            for parameter in module.parameters():
+                parameter.requires_grad_(True)
+    elif stage == "core":
+        model.fusion_positions.requires_grad_(True)
+        for module in (
+            model.fusion_blocks,
+            model.fusion_norm,
+            model.output_projection,
+            model.output_norm,
+        ):
+            for parameter in module.parameters():
+                parameter.requires_grad_(True)
+        model.output_bias.requires_grad_(True)
+    elif stage == "communication":
+        for module in model.communication:
+            for parameter in module.parameters():
+                parameter.requires_grad_(True)
+    elif stage == "joint":
+        for parameter in model.parameters():
+            parameter.requires_grad_(True)
+    else:
+        raise ValueError(f"Unknown training stage: {stage}")
+
+    parameters = [parameter for parameter in model.parameters() if parameter.requires_grad]
+    if not parameters:
+        raise RuntimeError(f"Stage {stage} has no trainable parameters.")
+    return parameters
+
+
+def validate_stage_prerequisites(stage, expert_index, completed_experts, completed_stages):
+    if stage == "expert":
+        if expert_index is None or not 0 <= expert_index < 7:
+            raise ValueError("The expert stage requires expert index 0 through 6.")
+        if "core" in completed_stages:
+            raise ValueError("Expert training is closed after the core stage.")
+        missing = set(range(expert_index)) - set(completed_experts)
+        if missing:
+            raise ValueError(f"Train expert networks in order; missing {sorted(missing)}.")
+        if expert_index in completed_experts:
+            raise ValueError(f"Expert {expert_index} is already marked complete.")
+    elif stage == "core":
+        if set(completed_experts) != set(range(7)):
+            raise ValueError("Core training requires all seven expert checkpoints.")
+        if "core" in completed_stages:
+            raise ValueError("Core stage is already complete.")
+    elif stage == "communication":
+        if "core" not in completed_stages:
+            raise ValueError("Communication training requires a completed core.")
+        if "communication" in completed_stages:
+            raise ValueError("Communication stage is already complete.")
+    elif stage == "joint":
+        if "communication" not in completed_stages:
+            raise ValueError("Joint training requires completed communication.")
+        if "joint" in completed_stages:
+            raise ValueError("Joint stage is already complete.")
+    else:
+        raise ValueError(f"Unknown stage: {stage}")
+
+
+def stage_logits(model, inputs, stage, expert_index):
+    if stage == "expert":
+        return model.forward_expert(inputs, expert_index)
+    if stage == "core":
+        return model(inputs, use_communication=False)
+    return model(inputs, use_communication=True)
+
+
+def stage_loss(model, inputs, targets, stage, expert_index, auxiliary_weight):
+    if stage != "joint":
+        return language_model_loss(stage_logits(model, inputs, stage, expert_index), targets)
+    final_logits, expert_logits = model(inputs, return_aux=True, use_communication=True)
+    collective_loss = language_model_loss(final_logits, targets)
+    individual_losses = [
+        language_model_loss(expert_logits[:, index], targets)
+        for index in range(7)
+    ]
+    return collective_loss + auxiliary_weight * torch.stack(individual_losses).mean()
+
+
+def evaluate_stage(model, samples, args, device, use_bf16):
+    model.eval()
+    losses = []
+    random_state = random.getstate()
+    random.seed(args.seed + 100003)
+    with torch.no_grad():
+        for _ in range(args.validation_batches):
+            inputs, targets = make_batch(
+                samples,
+                args.batch_size,
+                model.context_length,
+                device,
+            )
+            with torch.autocast(
+                device_type=device.type,
+                dtype=torch.bfloat16 if use_bf16 else torch.float16,
+                enabled=device.type == "cuda",
+            ):
+                logits = stage_logits(model, inputs, args.stage, args.expert_index)
+                loss = language_model_loss(logits, targets)
+            losses.append(loss.item())
+    random.setstate(random_state)
+    model.train()
+    mean_loss = sum(losses) / len(losses)
+    return {"loss": mean_loss, "batches": len(losses)}
+
+
+def atomic_save(payload, path):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    torch.save(payload, temporary)
+    os.replace(temporary, path)
+
+
+def checkpoint_payload(model, optimizer, config, completed_experts, completed_stages,
+                       stage, expert_index, current_step, report, in_progress):
+    return {
+        "state_dict": model.state_dict(),
+        "optimizer_state_dict": optimizer.state_dict(),
+        "config": config,
+        "completed_experts": sorted(completed_experts),
+        "completed_stages": sorted(completed_stages),
+        "in_progress_stage": stage if in_progress else None,
+        "in_progress_expert_index": expert_index if in_progress else None,
+        "steps_completed_in_stage": current_step if in_progress else 0,
+        "last_stage_report": report,
+        "training_method": "progressive_component_training_then_full_joint_finetuning",
+        "all_seven_networks_are_universal": True,
+        "same_corpus_for_all_experts": True,
+    }
+
+
+def expected_output_path(args):
+    label = f"expert_{args.expert_index + 1:02d}" if args.stage == "expert" else args.stage
+    return args.output / label / f"hyperinter_{label}.pt"
+
+
+def train(args):
+    if args.steps < 1 or args.batch_size < 1 or args.validation_batches < 1 or args.save_every < 1:
+        raise ValueError("steps, batch-size, validation-batches and save-every must be positive.")
+    if args.stage == "expert" and args.expert_index is None:
+        raise ValueError("--expert-index is required with --stage expert.")
+    if args.stage != "expert" and args.expert_index is not None:
+        raise ValueError("--expert-index is only valid with --stage expert.")
+
+    random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    config = target_config() if args.profile == "target" else smoke_config()
+    config["vocab_size"] = VOCAB_SIZE
+    tokenizer = ProceduralTokenizer()
+    train_samples, validation_samples = read_corpus(
+        args.data,
+        tokenizer,
+        config["context_length"],
+    )
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if args.profile == "target" and device.type != "cuda":
+        raise RuntimeError("The target architecture requires CUDA; no reduced CPU fallback is allowed.")
+    if args.profile == "target" and not torch.cuda.is_bf16_supported():
+        raise RuntimeError("Target training requires a CUDA GPU with BF16 support.")
+
+    loaded = None
+    if args.checkpoint:
+        loaded = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
+        if loaded.get("config") != config:
+            raise ValueError("Checkpoint architecture does not match the selected profile.")
+        model = HyperInterNetwork(**config)
+        model.load_state_dict(loaded["state_dict"])
+        completed_experts = set(loaded.get("completed_experts", []))
+        completed_stages = set(loaded.get("completed_stages", []))
+    else:
+        if args.stage != "expert" or args.expert_index != 0:
+            raise ValueError("Start with expert index 0. Later stages require their preceding checkpoint.")
+        model = HyperInterNetwork(**config)
+        completed_experts = set()
+        completed_stages = set()
+
+    in_progress = loaded.get("in_progress_stage") if loaded else None
+    in_progress_expert = loaded.get("in_progress_expert_index") if loaded else None
+    if in_progress:
+        if in_progress != args.stage or in_progress_expert != args.expert_index:
+            raise ValueError(f"Checkpoint is unfinished at {in_progress}; resume that exact stage first.")
+    else:
+        validate_stage_prerequisites(
+            args.stage,
+            args.expert_index,
+            completed_experts,
+            completed_stages,
+        )
+
+    trainable = configure_stage(model, args.stage, args.expert_index)
+    model = model.to(device)
+    model.set_gradient_checkpointing(args.gradient_checkpointing or args.profile == "target")
+    optimizer = torch.optim.AdamW(
+        trainable,
+        lr=args.learning_rate,
+        betas=(0.9, 0.95),
+        weight_decay=args.weight_decay,
+    )
+    already_completed_steps = 0
+    if in_progress:
+        if loaded.get("optimizer_state_dict"):
+            optimizer.load_state_dict(loaded["optimizer_state_dict"])
+        already_completed_steps = int(loaded.get("steps_completed_in_stage", 0))
+        if already_completed_steps >= args.steps:
+            raise ValueError("Checkpoint already reached the requested total number of steps.")
+
+    use_bf16 = device.type == "cuda" and torch.cuda.is_bf16_supported()
+    scaler = torch.amp.GradScaler(
+        "cuda",
+        enabled=device.type == "cuda" and not use_bf16,
+    )
+    output_path = expected_output_path(args)
+    stage_label = f"expert_{args.expert_index + 1:02d}" if args.stage == "expert" else args.stage
+
+    validation_before = evaluate_stage(
+        model,
+        validation_samples,
+        args,
+        device,
+        use_bf16,
+    )
+    report = {
+        "stage": stage_label,
+        "expert_index": args.expert_index,
+        "profile": args.profile,
+        "device": str(device),
+        "trainable_parameters": sum(parameter.numel() for parameter in trainable),
+        "steps_requested": args.steps,
+        "steps_resumed_from": already_completed_steps,
+        "validation_before": validation_before,
+        "same_universal_corpus_for_all_seven": True,
+    }
+    print(json.dumps(report, ensure_ascii=False))
+
+    model.train()
+    for step in range(already_completed_steps + 1, args.steps + 1):
+        inputs, targets = make_batch(
+            train_samples,
+            args.batch_size,
+            model.context_length,
+            device,
+        )
+        warmup = min(1.0, step / max(1, args.warmup_steps))
+        decay = max(0.05, 0.5 * (1.0 + math.cos(math.pi * step / max(1, args.steps))))
+        for group in optimizer.param_groups:
+            group["lr"] = args.learning_rate * warmup * decay
+
+        optimizer.zero_grad(set_to_none=True)
+        with torch.autocast(
+            device_type=device.type,
+            dtype=torch.bfloat16 if use_bf16 else torch.float16,
+            enabled=device.type == "cuda",
+        ):
+            loss = stage_loss(
+                model,
+                inputs,
+                targets,
+                args.stage,
+                args.expert_index,
+                args.auxiliary_loss_weight,
+            )
+        if not torch.isfinite(loss):
+            raise FloatingPointError(f"Non-finite loss at {stage_label} step {step}.")
+        scaler.scale(loss).backward()
+        scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_norm_(trainable, args.max_grad_norm)
+        scaler.step(optimizer)
+        scaler.update()
+
+        if step == 1 or step % args.log_every == 0 or step == args.steps:
+            print(f"stage={stage_label} step={step}/{args.steps} loss={loss.item():.6f}")
+
+        if step % args.save_every == 0 and step < args.steps:
+            payload = checkpoint_payload(
+                model,
+                optimizer,
+                config,
+                completed_experts,
+                completed_stages,
+                args.stage,
+                args.expert_index,
+                step,
+                report,
+                True,
+            )
+            atomic_save(payload, output_path)
+
+    validation_after = evaluate_stage(
+        model,
+        validation_samples,
+        args,
+        device,
+        use_bf16,
+    )
+    if not math.isfinite(validation_after["loss"]):
+        raise FloatingPointError(f"Non-finite validation loss after {stage_label}.")
+
+    if args.stage == "expert":
+        completed_experts.add(args.expert_index)
+    else:
+        completed_stages.add(args.stage)
+
+    report.update({
+        "validation_after": validation_after,
+        "validation_delta": validation_after["loss"] - validation_before["loss"],
+        "status": "completed" if validation_after["loss"] <= validation_before["loss"] else "completed_with_validation_regression",
+        "next_required_step": (
+            f"expert_{args.expert_index + 2:02d}" if args.stage == "expert" and args.expert_index < 6
+            else "core" if args.stage == "expert"
+            else "communication" if args.stage == "core"
+            else "joint" if args.stage == "communication"
+            else "general_evaluation"
+        ),
+    })
+    payload = checkpoint_payload(
+        model,
+        optimizer,
+        config,
+        completed_experts,
+        completed_stages,
+        args.stage,
+        args.expert_index,
+        args.steps,
+        report,
+        False,
+    )
+    atomic_save(payload, output_path)
+    report_path = output_path.with_suffix(".report.json")
+    report_path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(json.dumps(report, ensure_ascii=False))
+    print(f"checkpoint={output_path}")
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--profile", choices=("smoke", "target"), default="smoke")
+    parser.add_argument("--stage", choices=STAGES, required=True)
+    parser.add_argument("--expert-index", type=int)
+    parser.add_argument("--data", type=Path, required=True)
+    parser.add_argument("--checkpoint", type=Path)
+    parser.add_argument("--output", type=Path, default=Path("artifacts/staged"))
+    parser.add_argument("--steps", type=int, default=1000)
+    parser.add_argument("--batch-size", type=int, default=1)
+    parser.add_argument("--learning-rate", type=float, default=2e-4)
+    parser.add_argument("--warmup-steps", type=int, default=50)
+    parser.add_argument("--weight-decay", type=float, default=0.1)
+    parser.add_argument("--auxiliary-loss-weight", type=float, default=0.2)
+    parser.add_argument("--max-grad-norm", type=float, default=1.0)
+    parser.add_argument("--log-every", type=int, default=50)
+    parser.add_argument("--save-every", type=int, default=250)
+    parser.add_argument("--validation-batches", type=int, default=4)
+    parser.add_argument("--gradient-checkpointing", action="store_true")
+    parser.add_argument("--seed", type=int, default=42)
+    args = parser.parse_args()
+    if args.expert_index is not None and not 0 <= args.expert_index < 7:
+        parser.error("expert-index must be between 0 and 6")
+    train(args)
+
+
+if __name__ == "__main__":
+    main()

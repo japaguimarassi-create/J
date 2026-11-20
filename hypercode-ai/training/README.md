@@ -97,13 +97,68 @@ python finetune.py --checkpoint artifacts/pretrain/hyperinter_checkpoint.pt --da
 
 O corpus precisa ser de pares de instrução/resposta. O arquivo `seed_instructions.jsonl.gz` é composto de exemplos originais pequenos para verificar o pipeline; não é um dataset de escala suficiente para treinar um assistente geral.
 
+## Treinamento progressivo por componentes
+
+O orquestrador \`staged_train.py\` divide o treino sem transformar as redes em especialistas por linguagem. Todas as sete redes usam o mesmo corpus universal, a mesma tarefa causal e o mesmo contexto.
+
+A sequência obrigatória é:
+
+1. \`expert --expert-index 0\` até \`expert --expert-index 6\`: cada rede é treinada individualmente, sem comunicação entre redes nessa fase. O estado compartilhado de tokens/posições e apenas a rede selecionada são otimizados.
+2. \`core\`: congela as sete redes e treina somente o núcleo para combinar as sete representações independentes.
+3. \`communication\`: congela as redes e o núcleo, desbloqueia as dez camadas de comunicação e treina a troca de informações usando a perda da resposta coletiva.
+4. \`joint\`: desbloqueia toda a arquitetura e faz o ajuste conjunto, com perda do núcleo e perdas auxiliares das sete saídas.
+
+O programa impede avançar fora dessa ordem, salva um checkpoint separado por etapa, registra a perda de validação antes/depois e salva checkpoints intermediários com estado do otimizador para retomar uma etapa interrompida. A validação usa os mesmos lotes determinísticos antes e depois. Uma regressão de validação aparece no relatório e precisa ser resolvida antes de aceitar o checkpoint.
+
+### Comandos de execução
+
+Inicie pela rede 1. O índice é zero-based:
+
+~~~bash
+python staged_train.py --profile target --stage expert --expert-index 0 --data corpus/stack_filtered.jsonl --steps 10000 --batch-size 1 --gradient-checkpointing --output artifacts/staged
+~~~
+
+Treine a rede seguinte carregando o checkpoint anterior. Repita os índices de 1 a 6:
+
+~~~bash
+python staged_train.py --profile target --stage expert --expert-index 1 --data corpus/stack_filtered.jsonl --checkpoint artifacts/staged/expert_01/hyperinter_expert_01.pt --steps 10000 --batch-size 1 --gradient-checkpointing --output artifacts/staged
+~~~
+
+Depois de concluir a rede 7:
+
+~~~bash
+python staged_train.py --profile target --stage core --data corpus/stack_filtered.jsonl --checkpoint artifacts/staged/expert_07/hyperinter_expert_07.pt --steps 20000 --batch-size 1 --gradient-checkpointing --output artifacts/staged
+
+python staged_train.py --profile target --stage communication --data corpus/stack_filtered.jsonl --checkpoint artifacts/staged/core/hyperinter_core.pt --steps 10000 --batch-size 1 --gradient-checkpointing --output artifacts/staged
+
+python staged_train.py --profile target --stage joint --data corpus/stack_filtered.jsonl --checkpoint artifacts/staged/communication/hyperinter_communication.pt --steps 20000 --batch-size 1 --gradient-checkpointing --output artifacts/staged
+~~~
+
+O ajuste supervisionado de instruções (\`finetune.py\`) vem depois da integração conjunta e usa o checkpoint \`artifacts/staged/joint/hyperinter_joint.pt\`.
+
+### Teste geral e configuração
+
+Depois do estágio joint, gere as sete respostas individuais e a resposta coletiva, compare NLL, verifique sintaxe e revise a qualidade:
+
+~~~bash
+python evaluate.py --checkpoint artifacts/staged/joint/hyperinter_joint.pt --tasks coding_benchmark.jsonl --output artifacts/final-benchmark --generate --max-new-tokens 128
+~~~
+
+A resposta coletiva só deve ser promovida quando superar ou igualar a melhor saída individual no conjunto de validação e atingir critérios de correção funcional. NLL menor, sozinho, não prova que o código funciona. Rode testes dinâmicos em sandbox isolada por linguagem antes de aceitar o modelo.
+
+A calibração final deve medir temperatura/top-k, limite de geração, contexto, taxa de repetição e correção dos códigos em um conjunto de validação separado. Não ajuste esses parâmetros usando o conjunto de teste final.
+
+### Nota sobre o tokenizer e o contexto
+
+O perfil atual usa vocabulário de 260 IDs com fallback UTF-8 byte-level e contexto de 256 tokens. Isso serve para smoke tests, mas representa aproximadamente 256 bytes de contexto, curto para tarefas de programação reais. Antes do treinamento-alvo longo, a etapa de configuração deve migrar para um tokenizer subword treinado (por exemplo, BPE de 16k–32k tokens) e testar contexto de 2.048 tokens ou mais. Essa migração altera a dimensão do vocabulário e exige inicializar novamente os embeddings/output head; não carregue checkpoints de 260 IDs como se fossem compatíveis.
+
 ## Evidência de teste realizada
 
 smoke_evidence.json registra um treino de prova executado em CPU. Ele confirma atualizações reais de pesos e melhora da perda de validação na configuração reduzida. A avaliação também compara as sete saídas individuais com a saída coletiva; os candidatos gerados nessa prova não passaram na verificação sintática. Isso não é treinamento nem validação do modelo-alvo. Consulte `smoke_evidence.json` para os números medidos.
 
 ## Testes estruturais
 
-Os dez testes verificam dimensões-alvo, passagem do mesmo contexto pelos sete ramos, comunicação entre redes, gradientes em todos os ramos e no núcleo, máscara causal, geração de sete saídas individuais mais a resposta coletiva, pipelines de doze estágios, máscara SFT, campos/licenças do The Stack v1.3 e separação por repositório.
+Os treze testes verificam dimensões-alvo, passagem do mesmo contexto pelos sete ramos, comunicação entre redes, gradientes em todos os ramos e no núcleo, máscara causal, geração de sete saídas individuais mais a resposta coletiva, pipelines de doze estágios, máscara SFT, campos/licenças do The Stack v1.3 e separação por repositório.
 
 ~~~bash
 python -m pytest tests -q

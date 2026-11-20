@@ -40,3 +40,25 @@ jobs:
       - name: Run smoke supervised fine-tuning
         working-directory: hypercode-ai/training
         run: python finetune.py --checkpoint /tmp/hypercode-ci-smoke/hyperinter_checkpoint.pt --data seed_instructions.jsonl.gz --steps 1 --batch-size 1 --output /tmp/hypercode-ci-sft
+
+      - name: Run progressive seven-network training pipeline
+        working-directory: hypercode-ai/training
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUTPUT=/tmp/hypercode-staged
+          CHECKPOINT=""
+          for INDEX in 0 1 2 3 4 5 6; do
+            LABEL=$(printf "%02d" "$((INDEX + 1))")
+            ARGS=(--profile smoke --stage expert --expert-index "$INDEX" --data seed_corpus.jsonl.gz --output "$OUTPUT" --steps 1 --batch-size 1 --validation-batches 1 --save-every 1 --log-every 1)
+            if [ -n "$CHECKPOINT" ]; then
+              ARGS+=(--checkpoint "$CHECKPOINT")
+            fi
+            python staged_train.py "\${ARGS[@]}"
+            CHECKPOINT="$OUTPUT/expert_\${LABEL}/hyperinter_expert_\${LABEL}.pt"
+          done
+          python staged_train.py --profile smoke --stage core --data seed_corpus.jsonl.gz --checkpoint "$CHECKPOINT" --output "$OUTPUT" --steps 1 --batch-size 1 --validation-batches 1 --save-every 1 --log-every 1
+          CHECKPOINT="$OUTPUT/core/hyperinter_core.pt"
+          python staged_train.py --profile smoke --stage communication --data seed_corpus.jsonl.gz --checkpoint "$CHECKPOINT" --output "$OUTPUT" --steps 1 --batch-size 1 --validation-batches 1 --save-every 1 --log-every 1
+          CHECKPOINT="$OUTPUT/communication/hyperinter_communication.pt"
+          python staged_train.py --profile smoke --stage joint --data seed_corpus.jsonl.gz --checkpoint "$CHECKPOINT" --output "$OUTPUT" --steps 1 --batch-size 1 --validation-batches 1 --save-every 1 --log-every 1

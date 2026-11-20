@@ -159,25 +159,26 @@ class HyperInterNetwork(nn.Module):
     def set_gradient_checkpointing(self, enabled=True):
         self.gradient_checkpointing = bool(enabled)
 
-    def _run_mutual_layer(self, states, layer_index):
-        next_states = []
-        for expert_index in range(self.expert_count):
-            block = self.experts[expert_index][layer_index]
-            current = states[:, expert_index]
-            if self.gradient_checkpointing and self.training:
-                current = checkpoint(block, current, use_reentrant=False)
-            else:
-                current = block(current)
-            next_states.append(current)
-        states = torch.stack(next_states, dim=1)
-        communication = self.communication[layer_index]
+    def _apply_block(self, block, value):
         if self.gradient_checkpointing and self.training:
-            states = checkpoint(communication, states, use_reentrant=False)
-        else:
-            states = communication(states)
-        return states
+            return checkpoint(block, value, use_reentrant=False)
+        return block(value)
 
-    def forward(self, input_ids, return_aux=False):
+    def encode_expert(self, input_ids, expert_index):
+        if input_ids.ndim != 2:
+            raise ValueError("input_ids must have shape [batch, sequence].")
+        if input_ids.size(1) > self.context_length:
+            raise ValueError("Input sequence exceeds configured context length.")
+        if not 0 <= expert_index < self.expert_count:
+            raise ValueError("expert_index must be between 0 and 6.")
+
+        embedded = self.token_embedding(input_ids) + self.position_embedding[:, :input_ids.size(1)]
+        state = embedded + self.expert_identity[:, expert_index]
+        for block in self.experts[expert_index]:
+            state = self._apply_block(block, state)
+        return self.expert_norms[expert_index](state)
+
+    def encode_all_experts(self, input_ids, use_communication=True):
         if input_ids.ndim != 2:
             raise ValueError("input_ids must have shape [batch, sequence].")
         batch, sequence = input_ids.shape
@@ -188,36 +189,54 @@ class HyperInterNetwork(nn.Module):
         states = embedded.unsqueeze(1) + self.expert_identity
 
         for layer_index in range(len(self.communication)):
-            states = self._run_mutual_layer(states, layer_index)
+            next_states = []
+            for expert_index in range(self.expert_count):
+                block = self.experts[expert_index][layer_index]
+                next_states.append(self._apply_block(block, states[:, expert_index]))
+            states = torch.stack(next_states, dim=1)
+            if use_communication:
+                states = self._apply_block(self.communication[layer_index], states)
 
-        expert_states = torch.stack([
+        return torch.stack([
             self.expert_norms[index](states[:, index])
             for index in range(self.expert_count)
         ], dim=1)
 
+    def forward_from_expert_states(self, expert_states):
+        batch, experts, sequence, width = expert_states.shape
+        if experts != self.expert_count or width != self.expert_width:
+            raise ValueError("expert_states must have shape [batch, 7, sequence, expert_width].")
+        if sequence > self.context_length:
+            raise ValueError("Input sequence exceeds configured context length.")
+        collective_state = expert_states.permute(0, 2, 1, 3).contiguous().view(
+            batch, sequence, self.fusion_width
+        )
+        hidden = collective_state + self.fusion_positions[:, :sequence]
+        for block in self.fusion_blocks:
+            hidden = self._apply_block(block, hidden)
+        hidden = self.fusion_norm(hidden)
+        hidden = self.output_norm(self.output_projection(hidden))
+        return F.linear(hidden, self.token_embedding.weight, self.output_bias)
+
+    def forward(self, input_ids, return_aux=False, use_communication=True):
+        expert_states = self.encode_all_experts(
+            input_ids,
+            use_communication=use_communication,
+        )
         auxiliary_logits = None
         if return_aux:
             auxiliary_logits = torch.stack([
                 self.expert_heads[index](expert_states[:, index])
                 for index in range(self.expert_count)
             ], dim=1)
-
-        collective_state = expert_states.permute(0, 2, 1, 3).contiguous().view(
-            batch, sequence, self.fusion_width
-        )
-        hidden = collective_state + self.fusion_positions[:, :sequence]
-        for block in self.fusion_blocks:
-            if self.gradient_checkpointing and self.training:
-                hidden = checkpoint(block, hidden, use_reentrant=False)
-            else:
-                hidden = block(hidden)
-        hidden = self.fusion_norm(hidden)
-        hidden = self.output_norm(self.output_projection(hidden))
-        logits = F.linear(hidden, self.token_embedding.weight, self.output_bias)
-
+        logits = self.forward_from_expert_states(expert_states)
         if return_aux:
             return logits, auxiliary_logits
         return logits
+
+    def forward_expert(self, input_ids, expert_index):
+        state = self.encode_expert(input_ids, expert_index)
+        return self.expert_heads[expert_index](state)
 
     @torch.no_grad()
     def generate_all(self, input_ids, max_new_tokens=128, temperature=0.0, top_k=40):
