@@ -57,6 +57,15 @@ Fontes recomendadas:
 
 **Compatibilidade:** o importador deste protótipo não executa retargeting automático. O fluxo recomendado é gerar/exportar os personagens com rig pelo Ara 3D Gen, retargetar os clipes da Quaternius UAL2 para esse rig pelo SupaVoxel e importar os clipes compatíveis. Clipes importados separadamente precisam usar nomes de ossos/trilhas compatíveis com o esqueleto do personagem. Quando os rigs forem diferentes, faça retargeting antes de importar. A simulação tenta selecionar clipes por nomes como walk, idle, farm, harvest, chop, fish, build e talk; se não encontrar um clipe adequado, usa uma animação de caminhada/repouso disponível.
 
+## Validação técnica da rede
+
+A verificação sintática do módulo JavaScript passou. Também foram executados dois testes isolados de sanidade neural, com pesos aleatórios e recompensas artificiais:
+
+- Política de ações: em 8.000 atualizações, a probabilidade da ação recompensada passou de 0,074 para 0,9985.
+- Modelo preditivo: em 6.000 atualizações com uma transição-alvo fixa, o erro quadrático médio caiu de 0,09449 para 0,00004.
+
+Esses resultados confirmam que os mecanismos de atualização conseguem aprender nesses testes controlados. Eles não são uma medição de inteligência humana nem substituem um teste prolongado dentro do mundo 3D. O comportamento populacional completo ainda precisa de validação de equilíbrio e desempenho em navegador/celular.
+
 ## Limitações que ainda existem
 
 - O mundo, edifícios, vegetação e animais ainda usam geometria procedural simplificada; não são um cenário fotorealista completo.
