@@ -10,7 +10,7 @@ from torch.nn import functional as F
 
 from model import HyperInterNetwork
 from optimization import build_adamw, wsd_multiplier
-from tokenizer import load_tokenizer, normalize_text
+from tokenizer import load_tokenizer
 
 
 def load_instruction_chunks(path, tokenizer, context_length, seed=2026):
@@ -27,23 +27,20 @@ def load_instruction_chunks(path, tokenizer, context_length, seed=2026):
                 raise ValueError(f"Instruction record {line_number} needs prompt and completion strings.")
             if not prompt.strip() or not completion.strip():
                 continue
-            combined = prompt + completion
-            if hasattr(tokenizer, "encode_with_offsets"):
-                ids, offsets = tokenizer.encode_with_offsets(combined)
-                prompt_boundary = len(normalize_text(prompt))
-                answer_index = next(
-                    (index for index, (start, end) in enumerate(offsets)
-                     if index > 0 and start >= prompt_boundary),
-                    len(ids) - 1,
-                )
-                target_start = answer_index - 1
-            else:
-                ids = tokenizer.encode(
-                    combined,
-                    language=row.get("language"),
-                    code=row.get("kind") == "code",
-                )
-                target_start = len(tokenizer.encode(prompt, add_special_tokens=False))
+            prompt_ids = tokenizer.encode(
+                prompt,
+                language=row.get("language"),
+                code=False,
+                add_special_tokens=False,
+            )
+            completion_ids = tokenizer.encode(
+                completion,
+                language=row.get("language"),
+                code=row.get("kind") == "code",
+                add_special_tokens=False,
+            )
+            ids = [tokenizer.bos_id, *prompt_ids, *completion_ids, tokenizer.eos_id]
+            target_start = len(prompt_ids)
             if len(ids) >= 3:
                 records.append((ids, target_start))
     if len(records) < 2:
