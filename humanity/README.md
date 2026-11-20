@@ -43,7 +43,7 @@ O modelo procedural de pessoa é apenas um substituto visual. Para personagens r
 
 1. Crie ou exporte um personagem humanoide já rigado em GLB ou FBX.
 2. Na simulação, use **Modelo humano 3D** para importar o personagem.
-3. Use **Animações 3D** para selecionar um ou vários arquivos de animação compatíveis.
+3. Use **Animações 3D** para selecionar um ou vários arquivos de animação compatíveis. Prefira clipes sem root motion, pois a simulação controla o deslocamento do personagem.
 4. Use **Elementos da vila 3D** para importar modelos GLB/FBX de árvores, casas, celeiros, muros e objetos. Nomeie os arquivos com termos como `tree`, `house`, `wall`, `fence` ou equivalentes em português para melhorar a distribuição automática.
 
 Fontes recomendadas:
@@ -55,13 +55,14 @@ Fontes recomendadas:
 - [SupaVoxel — Animate 3D Model](https://supavoxel.com/tools/animate-3d-model): ferramenta no navegador que anuncia retargeting de animações CC0 para personagens humanoides e exportação GLB.
 - [SupaVoxel — Animate 3D Model](https://supavoxel.com/tools/animate-3d-model): ferramenta no navegador que anuncia retargeting de animações CC0 para personagens humanoides e exportação GLB.
 
-**Compatibilidade:** o importador deste protótipo não executa retargeting automático. Clipes importados separadamente precisam usar nomes de ossos/trilhas compatíveis com o esqueleto do personagem. Quando os rigs forem diferentes, faça retargeting antes de importar. A simulação tenta selecionar clipes por nomes como walk, idle, farm, harvest, chop, fish, build e talk; se não encontrar um clipe adequado, usa uma animação de caminhada/repouso disponível.
+**Compatibilidade:** o importador deste protótipo não executa retargeting automático. O fluxo recomendado é gerar/exportar os personagens com rig pelo Ara 3D Gen, retargetar os clipes da Quaternius UAL2 para esse rig pelo SupaVoxel e importar os clipes compatíveis. Clipes importados separadamente precisam usar nomes de ossos/trilhas compatíveis com o esqueleto do personagem. Quando os rigs forem diferentes, faça retargeting antes de importar. A simulação tenta selecionar clipes por nomes como walk, idle, farm, harvest, chop, fish, build e talk; se não encontrar um clipe adequado, usa uma animação de caminhada/repouso disponível.
 
 ## Limitações que ainda existem
 
 - O mundo, edifícios, vegetação e animais ainda usam geometria procedural simplificada; não são um cenário fotorealista completo.
 - Os personagens só ficam realistas depois que o utilizador importa um ou mais modelos humanos rigados.
 - O importador de cenário distribui modelos por regras simples de nome e dimensão; ele não reconstrói automaticamente um mapa modular completo nem entende a semântica dos objetos.
+- As ações agora exigem deslocamento até zonas de trabalho (horta, floresta, rio, centro de construção ou outro habitante) e usam cooldowns de tarefa. A escolha de ação ainda é uma abstração diária, não uma simulação física contínua do trabalho.
 - O importador não retargeta esqueletos automaticamente.
 - O vocabulário é simbólico: transmissão de palavras e conceitos, não conversação humana livre com gramática.
 - A cognição é uma aproximação de vida artificial, não uma cópia do cérebro humano.
