@@ -18,6 +18,8 @@ def test_target_dimensions():
     assert config["expert_width"] == 256
     assert config["fusion_layers"] == 20
     assert config["fusion_width"] == 1792
+    assert config["vocab_size"] == 32768
+    assert config["context_length"] == 2048
     assert config["experts"] * config["expert_layers"] * config["expert_width"] == 17920
     assert config["fusion_layers"] * config["fusion_width"] == 35840
     assert 35840 == 2 * 17920
@@ -39,6 +41,8 @@ def test_all_networks_process_same_input_and_produce_outputs():
     assert calls == [1] * 7
     assert final_logits.shape == (2, 24, 260)
     assert expert_logits.shape == (2, 7, 24, 260)
+    assert len(model.expert_head_biases) == 7
+    assert not hasattr(model, "expert_heads")
 
 
 def test_mutual_communication_crosses_between_networks():
@@ -181,10 +185,18 @@ def test_staged_training_freezes_unselected_components():
 
     model = HyperInterNetwork(**smoke_config())
     configure_stage(model, "expert", 4)
+    assert not model.token_embedding.weight.requires_grad
+    assert not model.position_embedding.requires_grad
+    assert model.expert_head_biases[4].requires_grad
     assert any(parameter.requires_grad for parameter in model.experts[4].parameters())
     assert all(not parameter.requires_grad for parameter in model.experts[3].parameters())
     assert all(not parameter.requires_grad for parameter in model.communication.parameters())
     assert all(not parameter.requires_grad for parameter in model.fusion_blocks.parameters())
+
+    configure_stage(model, "expert", 0)
+    assert model.token_embedding.weight.requires_grad
+    assert model.position_embedding.requires_grad
+    assert model.expert_head_biases[0].requires_grad
 
     configure_stage(model, "core")
     assert all(parameter.requires_grad for parameter in model.fusion_blocks.parameters())
@@ -224,3 +236,82 @@ def test_validation_gate_rejects_regression_and_accepts_improvement():
     assert validation_gate_passes(3.0, 3.0005, tolerance=0.001)
     assert not validation_gate_passes(3.0, 3.01)
     assert not validation_gate_passes(3.0, float("nan"))
+
+
+
+def test_wsd_scheduler_warmup_stable_and_linear_decay():
+    from optimization import wsd_multiplier
+
+    assert wsd_multiplier(1, 100, 10, 0.1) == 0.1
+    assert wsd_multiplier(10, 100, 10, 0.1) == 1.0
+    assert wsd_multiplier(50, 100, 10, 0.1) == 1.0
+    assert 0.0 < wsd_multiplier(95, 100, 10, 0.1) < 1.0
+    assert wsd_multiplier(100, 100, 10, 0.1) == 0.0
+    assert wsd_multiplier(1, 1, 2000, 0.1) == 1.0
+
+
+def test_bpe_tokenizer_training_round_trip(tmp_path):
+    import json
+    from train_bpe_tokenizer import train_bpe_tokenizer
+    from tokenizer import load_tokenizer
+
+    corpus = tmp_path / "corpus.jsonl"
+    samples = [
+        "def soma(a, b): return a + b\n",
+        "local function soma(a, b) return a + b end\n",
+        "Crie uma função para somar dois números.\n",
+        "The model learns code and natural language together.\n",
+    ]
+    corpus.write_text(
+        "".join(json.dumps({"text": sample}) + "\n" for sample in samples * 8),
+        encoding="utf-8",
+    )
+    destination = tmp_path / "tokenizer.json"
+    report = train_bpe(corpus, destination, vocab_size=320, min_frequency=1)
+    tokenizer = load_tokenizer(destination)
+    source = "local function soma(a, b) return a + b end"
+    assert report["actual_vocab_size"] == tokenizer.vocab_size
+    assert tokenizer.encode(source)[0] == 1
+    assert tokenizer.encode(source)[-1] == 2
+    assert tokenizer.decode(tokenizer.encode(source)) == source
+
+
+def test_sft_masks_prompt_using_bpe_character_offsets(tmp_path):
+    import json
+    from finetune import load_instruction_chunks, make_batch
+    from train_bpe_tokenizer import train_bpe
+    from tokenizer import load_tokenizer
+
+    prompt = "<|user|>Crie uma função soma.<|assistant|>\n"
+    completion = "def soma(a, b):\n    return a + b\n"
+    corpus = tmp_path / "corpus.jsonl"
+    corpus.write_text(
+        "".join(json.dumps({"text": prompt + completion}) + "\n" for _ in range(8)),
+        encoding="utf-8",
+    )
+    tokenizer_path = tmp_path / "tokenizer.json"
+    train_bpe(corpus, tokenizer_path, vocab_size=320, min_frequency=1)
+    tokenizer = load_tokenizer(tokenizer_path)
+    data = tmp_path / "instructions.jsonl"
+    data.write_text(
+        "".join(json.dumps({"prompt": prompt, "completion": completion}) + "\n" for _ in range(8)),
+        encoding="utf-8",
+    )
+    train_samples, validation_samples = load_instruction_chunks(
+        data, tokenizer, 128, seed=7
+    )
+    assert train_samples and validation_samples
+    inputs, targets = make_batch(train_samples, 1, 128, torch.device("cpu"))
+    assert torch.any(targets[0] == -100)
+    first_unmasked = int(torch.where(targets[0] != -100)[0][0].item())
+    assert first_unmasked < 128
+    assert inputs.shape == (1, 128)
+
+
+def test_weight_tying_uses_shared_vocabulary_projection():
+    model = HyperInterNetwork(**smoke_config())
+    states = torch.randn(2, 7, 5, 32)
+    logits = model.forward_from_expert_states(states)
+    assert logits.shape == (2, 5, 260)
+    assert len(model.expert_head_biases) == 7
+    assert not hasattr(model, "expert_heads")
