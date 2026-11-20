@@ -156,6 +156,7 @@ def train(args):
         "tokenizer_vocab_size": tokenizer.vocab_size,
         "tokenizer_sha256": tokenizer_sha256,
         "effective_batch_size": args.batch_size * args.gradient_accumulation_steps,
+        "tokens_per_optimizer_step": args.batch_size * config["context_length"] * args.gradient_accumulation_steps,
         "gradient_accumulation_steps": args.gradient_accumulation_steps,
         "validation_before": before,
     }
@@ -223,6 +224,7 @@ def train(args):
         "state_dict": model.state_dict(),
         "config": config,
         "training_steps": args.steps,
+        "training_tokens": args.steps * args.batch_size * config["context_length"] * args.gradient_accumulation_steps,
         "objective": "shared_causal_next_token_prediction",
         "expert_count": 7,
         "all_experts_receive_every_sample": True,
@@ -235,6 +237,7 @@ def train(args):
     }, checkpoint_path)
     metadata.update({
         "steps": args.steps,
+        "tokens_seen": args.steps * args.batch_size * config["context_length"] * args.gradient_accumulation_steps,
         "objective": "shared_causal_next_token_prediction",
         "validation_after": after,
         "collective_loss_delta": after["collective_loss"] - before["collective_loss"],
