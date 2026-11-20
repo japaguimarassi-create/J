@@ -215,6 +215,8 @@ def train(args):
         "steps_requested": args.steps,
         "steps_resumed_from": completed_steps,
         "effective_batch_size": args.batch_size * args.gradient_accumulation_steps,
+        "tokens_per_optimizer_step": args.batch_size * config["context_length"] * args.gradient_accumulation_steps,
+        "tokens_seen_before": completed_steps * args.batch_size * config["context_length"] * args.gradient_accumulation_steps,
         "gradient_accumulation_steps": args.gradient_accumulation_steps,
         "tokenizer_vocab_size": tokenizer.vocab_size,
         "tokenizer_sha256": tokenizer_sha256,
@@ -272,11 +274,13 @@ def train(args):
                 "tokenizer_sha256": tokenizer_sha256,
                 "rng_state": capture_rng_state(),
                 "steps_completed": step,
+                "tokens_seen": step * args.batch_size * config["context_length"] * args.gradient_accumulation_steps,
                 "in_progress": True,
                 "training_recipe": "causal_lm_adamw_wsd_bf16_gradient_accumulation",
             }, output_path)
 
     after = evaluate(model, validation_samples, args, device, use_bf16)
+    report["tokens_seen"] = args.steps * args.batch_size * config["context_length"] * args.gradient_accumulation_steps
     report["validation_after"] = after
     report["validation_delta"] = after["loss"] - before["loss"]
     report["validation_gate_passed"] = (
@@ -305,6 +309,7 @@ def train(args):
         "tokenizer_sha256": tokenizer_sha256,
         "rng_state": capture_rng_state(),
         "steps_completed": args.steps,
+        "tokens_seen": report["tokens_seen"],
         "in_progress": False,
         "training_recipe": "causal_lm_adamw_wsd_bf16_gradient_accumulation",
         "report": report,
