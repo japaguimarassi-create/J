@@ -1,5 +1,6 @@
 import argparse
 import gzip
+import hashlib
 import json
 import random
 from pathlib import Path
@@ -165,6 +166,8 @@ def main():
     )
     if is_target and device.type != "cuda":
         raise RuntimeError("The target model requires CUDA for SFT. Refusing to allocate it on CPU.")
+    if is_target and not torch.cuda.is_bf16_supported():
+        raise RuntimeError("Target SFT requires a CUDA GPU with BF16 support.")
     model = HyperInterNetwork(**config).to(device)
     model.load_state_dict(checkpoint["state_dict"])
     model.set_gradient_checkpointing(args.gradient_checkpointing)
@@ -177,6 +180,12 @@ def main():
     tokenizer = load_tokenizer(args.tokenizer_json)
     if tokenizer.vocab_size != config["vocab_size"]:
         raise ValueError("SFT tokenizer vocabulary does not match the pretrained checkpoint.")
+    tokenizer_sha256 = (
+        hashlib.sha256(Path(args.tokenizer_json).read_bytes()).hexdigest()
+        if args.tokenizer_json else "procedural-byte-v1"
+    )
+    if checkpoint.get("tokenizer_sha256", "procedural-byte-v1") != tokenizer_sha256:
+        raise ValueError("SFT tokenizer fingerprint does not match the pretrained checkpoint.")
     train_samples, validation_samples = load_instruction_chunks(
         args.data,
         tokenizer,
@@ -261,6 +270,8 @@ def main():
         "stage": "assistant_completion_supervised_finetuning",
         "base_checkpoint": str(args.checkpoint),
         "optimizer_state_dict": optimizer.state_dict(),
+        "tokenizer_sha256": tokenizer_sha256,
+        "training_recipe": "SFT_completion_mask_AdamW_WSD_gradient_accumulation",
     }, output_checkpoint)
     report = {
         "device": str(device),
@@ -270,6 +281,10 @@ def main():
         "train_chunks": len(train_samples),
         "validation_chunks": len(validation_samples),
         "steps": args.steps,
+        "effective_batch_size": args.batch_size * args.gradient_accumulation_steps,
+        "gradient_accumulation_steps": args.gradient_accumulation_steps,
+        "effective_warmup_steps": effective_warmup_steps,
+        "tokenizer_sha256": tokenizer_sha256,
         "validation_before": before,
         "validation_after": after,
         "collective_loss_delta": after["collective_loss"] - before["collective_loss"],
