@@ -9,7 +9,7 @@ import torch
 from torch.nn import functional as F
 
 from model import HyperInterNetwork
-from tokenizer import load_tokenizer, normalize_text
+from tokenizer import load_tokenizer
 
 
 def answer_loss(logits, targets, first_answer_token):
@@ -133,19 +133,14 @@ def main():
             prompt = task["prompt"]
             reference = task["reference"]
             prompt_ids = tokenizer.encode(prompt, add_special_tokens=False)
-            combined = prompt + reference
-            if hasattr(tokenizer, "encode_with_offsets"):
-                full_ids, offsets = tokenizer.encode_with_offsets(combined)
-                prompt_boundary = len(normalize_text(prompt))
-                answer_token_index = next(
-                    (index for index, (start, end) in enumerate(offsets)
-                     if index > 0 and start >= prompt_boundary),
-                    len(full_ids) - 1,
-                )
-                prompt_token_count = answer_token_index - 1
-            else:
-                full_ids = tokenizer.encode(combined, add_special_tokens=True)
-                prompt_token_count = len(prompt_ids)
+            reference_ids = tokenizer.encode(reference, add_special_tokens=False)
+            full_ids = [
+                tokenizer.bos_id,
+                *prompt_ids,
+                *reference_ids,
+                tokenizer.eos_id,
+            ]
+            prompt_token_count = len(prompt_ids)
             model_input = torch.tensor([full_ids[:-1]], dtype=torch.long, device=device)
             targets = torch.tensor([full_ids[1:]], dtype=torch.long, device=device)
             if model_input.size(1) > model.context_length:
