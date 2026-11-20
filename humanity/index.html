@@ -149,7 +149,7 @@ async function importHumanoid(file){if(!file)return;if(!file.name.toLowerCase().
 async function importAnimationFiles(files){if(!files||!files.length)return;if(!humanoidTemplate){log('Importe primeiro o modelo humano com rig.');return}let added=0;for(const file of files){try{const gltf=await parseCharacterAsset(file);const clips=gltf.animations||[];for(const clip of clips){if(!humanoidClips.some(existing=>existing.name===clip.name)){humanoidClips.push(clip);added++}}}catch(error){log('Falha em '+file.name+': '+error.message)}}rebuildHumans();$('sub').textContent='MODELO: '+modelLabel+' · '+humanoidClips.length+' ANIMAÇÕES';log(added+' animações adicionadas. Requer esqueleto compatível.')}
 
 function birth(){
- const females=population.filter(p=>p.sex==='F'&&p.age>=18&&p.age<43);
+ const females=population.filter(p=>p.sex==='F'&&(p.pregnancy>0||(p.age>=18&&p.age<43)));
  for(const m of females){
   if(m.pregnancy>0){
    m.pregnancy--;
