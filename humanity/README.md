@@ -10,7 +10,7 @@ Abra `humanity/index.html` por um servidor estático ou habilite GitHub Pages pa
 
 - Terreno, rio, floresta, casas, campos, fogueira e animais gerados proceduralmente.
 - 24 habitantes iniciais com idade, saúde, fome, energia, sociabilidade, traços individuais e habilidades.
-- Agentes com uma pequena rede neural MLP individual (10 entradas, 12 unidades ocultas, 8 ações).
+- Agentes com uma pequena rede neural MLP individual (10 entradas, 64 unidades ocultas, 8 ações).
 - Atualização online por gradiente de política com recompensa, baseline e memória episódica curta.
 - Ações de plantar, colher, coletar madeira, buscar água, construir, socializar, descansar e explorar.
 - Envelhecimento, mortalidade, vínculos, reprodução probabilística e nascimentos.
