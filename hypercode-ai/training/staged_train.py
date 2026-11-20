@@ -324,9 +324,12 @@ def train(args):
     }
     print(json.dumps(report, ensure_ascii=False))
 
+    effective_warmup_steps = min(args.warmup_steps, max(1, args.steps // 10))
+    report["effective_warmup_steps"] = effective_warmup_steps
+
     model.train()
     for step in range(already_completed_steps + 1, args.steps + 1):
-        multiplier = wsd_multiplier(step, args.steps, args.warmup_steps, args.decay_ratio)
+        multiplier = wsd_multiplier(step, args.steps, effective_warmup_steps, args.decay_ratio)
         for group in optimizer.param_groups:
             group["lr"] = args.learning_rate * multiplier
 
