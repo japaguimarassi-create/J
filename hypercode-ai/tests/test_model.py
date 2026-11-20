@@ -100,4 +100,3 @@ def test_generate_all_returns_seven_network_candidates_and_one_collective():
     sequences = model.generate_all(prefix, max_new_tokens=3, temperature=0)
     assert len(sequences) == 8
     assert all(sequence.shape == (1, 7) for sequence in sequences)
-}
