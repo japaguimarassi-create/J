@@ -107,7 +107,6 @@ def evaluate(model, samples, batch_size, context_length, device, batches=8, use_
     with torch.no_grad():
         for _ in range(batches):
             inputs, targets = make_batch(samples, batch_size, context_length, device)
-            supervised_tokens_this_step += int((targets != -100).sum().item())
             with torch.autocast(
                 device_type=device.type,
                 dtype=torch.bfloat16 if use_bf16 else torch.float16,
