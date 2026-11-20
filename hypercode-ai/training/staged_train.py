@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -8,7 +9,8 @@ from pathlib import Path
 import torch
 
 from model import HyperInterNetwork, smoke_config, target_config
-from tokenizer import ProceduralTokenizer, VOCAB_SIZE
+from optimization import build_adamw, capture_rng_state, restore_rng_state, wsd_multiplier
+from tokenizer import load_tokenizer
 from train import language_model_loss, make_batch, read_corpus
 
 
@@ -22,15 +24,16 @@ def configure_stage(model, stage, expert_index=None):
     if stage == "expert":
         if expert_index is None or not 0 <= expert_index < 7:
             raise ValueError("The expert stage requires an expert index from 0 to 6.")
-        model.token_embedding.requires_grad_(True)
-        model.position_embedding.requires_grad_(True)
+        if expert_index == 0:
+            model.token_embedding.requires_grad_(True)
+            model.position_embedding.requires_grad_(True)
         for module in (
             model.experts[expert_index],
             model.expert_norms[expert_index],
-            model.expert_heads[expert_index],
         ):
             for parameter in module.parameters():
                 parameter.requires_grad_(True)
+        model.expert_head_biases[expert_index].requires_grad_(True)
     elif stage == "core":
         model.fusion_positions.requires_grad_(True)
         for module in (
@@ -182,12 +185,14 @@ def atomic_save(payload, path):
     os.replace(temporary, path)
 
 
-def checkpoint_payload(model, optimizer, config, completed_experts, completed_stages,
+def checkpoint_payload(model, optimizer, config, tokenizer_sha256, completed_experts, completed_stages,
                        stage, expert_index, current_step, report, in_progress):
     return {
         "state_dict": model.state_dict(),
         "optimizer_state_dict": optimizer.state_dict(),
         "config": config,
+        "tokenizer_sha256": tokenizer_sha256,
+        "rng_state": capture_rng_state(),
         "completed_experts": sorted(completed_experts),
         "completed_stages": sorted(completed_stages),
         "in_progress_stage": stage if in_progress else None,
@@ -216,8 +221,14 @@ def train(args):
     random.seed(args.seed)
     torch.manual_seed(args.seed)
     config = target_config() if args.profile == "target" else smoke_config()
-    config["vocab_size"] = VOCAB_SIZE
-    tokenizer = ProceduralTokenizer()
+    if args.profile == "target" and args.tokenizer_json is None:
+        raise RuntimeError("Target training requires a trained BPE tokenizer. Run train_bpe_tokenizer.py first.")
+    tokenizer = load_tokenizer(args.tokenizer_json)
+    config["vocab_size"] = tokenizer.vocab_size
+    tokenizer_sha256 = (
+        hashlib.sha256(Path(args.tokenizer_json).read_bytes()).hexdigest()
+        if args.tokenizer_json else "procedural-byte-v1"
+    )
     train_samples, validation_samples = read_corpus(
         args.data,
         tokenizer,
@@ -235,6 +246,8 @@ def train(args):
         loaded = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
         if loaded.get("config") != config:
             raise ValueError("Checkpoint architecture does not match the selected profile.")
+        if loaded.get("tokenizer_sha256", "procedural-byte-v1") != tokenizer_sha256:
+            raise ValueError("Checkpoint tokenizer fingerprint does not match the selected tokenizer.")
         model = HyperInterNetwork(**config)
         model.load_state_dict(loaded["state_dict"])
         completed_experts = set(loaded.get("completed_experts", []))
@@ -262,16 +275,17 @@ def train(args):
     trainable = configure_stage(model, args.stage, args.expert_index)
     model = model.to(device)
     model.set_gradient_checkpointing(args.gradient_checkpointing or args.profile == "target")
-    optimizer = torch.optim.AdamW(
-        trainable,
-        lr=args.learning_rate,
-        betas=(0.9, 0.95),
+    optimizer = build_adamw(
+        model,
+        learning_rate=args.learning_rate,
         weight_decay=args.weight_decay,
+        fused=device.type == "cuda",
     )
     already_completed_steps = 0
     if in_progress:
         if loaded.get("optimizer_state_dict"):
             optimizer.load_state_dict(loaded["optimizer_state_dict"])
+        restore_rng_state(loaded.get("rng_state"))
         already_completed_steps = int(loaded.get("steps_completed_in_stage", 0))
         if already_completed_steps >= args.steps:
             raise ValueError("Checkpoint already reached the requested total number of steps.")
@@ -301,52 +315,68 @@ def train(args):
         "steps_resumed_from": already_completed_steps,
         "validation_before": validation_before,
         "same_universal_corpus_for_all_seven": True,
+        "tokenizer_vocab_size": tokenizer.vocab_size,
+        "tokenizer_sha256": tokenizer_sha256,
+        "effective_batch_size": args.batch_size * args.gradient_accumulation_steps,
+        "gradient_accumulation_steps": args.gradient_accumulation_steps,
+        "scheduler": "warmup_stable_decay",
+        "decay_ratio": args.decay_ratio,
     }
     print(json.dumps(report, ensure_ascii=False))
 
     model.train()
     for step in range(already_completed_steps + 1, args.steps + 1):
-        inputs, targets = make_batch(
-            train_samples,
-            args.batch_size,
-            model.context_length,
-            device,
-        )
-        warmup = min(1.0, step / max(1, args.warmup_steps))
-        decay = max(0.05, 0.5 * (1.0 + math.cos(math.pi * step / max(1, args.steps))))
+        multiplier = wsd_multiplier(step, args.steps, args.warmup_steps, args.decay_ratio)
         for group in optimizer.param_groups:
-            group["lr"] = args.learning_rate * warmup * decay
+            group["lr"] = args.learning_rate * multiplier
 
         optimizer.zero_grad(set_to_none=True)
-        with torch.autocast(
-            device_type=device.type,
-            dtype=torch.bfloat16 if use_bf16 else torch.float16,
-            enabled=device.type == "cuda",
-        ):
-            loss = stage_loss(
-                model,
-                inputs,
-                targets,
-                args.stage,
-                args.expert_index,
-                args.auxiliary_loss_weight,
+        accumulated_loss = 0.0
+        for _ in range(args.gradient_accumulation_steps):
+            inputs, targets = make_batch(
+                train_samples,
+                args.batch_size,
+                model.context_length,
+                device,
             )
-        if not torch.isfinite(loss):
-            raise FloatingPointError(f"Non-finite loss at {stage_label} step {step}.")
-        scaler.scale(loss).backward()
+            with torch.autocast(
+                device_type=device.type,
+                dtype=torch.bfloat16 if use_bf16 else torch.float16,
+                enabled=device.type == "cuda",
+            ):
+                micro_loss = stage_loss(
+                    model,
+                    inputs,
+                    targets,
+                    args.stage,
+                    args.expert_index,
+                    args.auxiliary_loss_weight,
+                ) / args.gradient_accumulation_steps
+            if not torch.isfinite(micro_loss):
+                raise FloatingPointError(f"Non-finite loss at {stage_label} step {step}.")
+            accumulated_loss += micro_loss.detach().item()
+            scaler.scale(micro_loss).backward()
+
         scaler.unscale_(optimizer)
-        torch.nn.utils.clip_grad_norm_(trainable, args.max_grad_norm)
+        gradient_norm = torch.nn.utils.clip_grad_norm_(trainable, args.max_grad_norm)
+        if not torch.isfinite(gradient_norm):
+            raise FloatingPointError(f"Non-finite gradient norm at {stage_label} step {step}.")
         scaler.step(optimizer)
         scaler.update()
 
         if step == 1 or step % args.log_every == 0 or step == args.steps:
-            print(f"stage={stage_label} step={step}/{args.steps} loss={loss.item():.6f}")
+            print(
+                f"stage={stage_label} step={step}/{args.steps} "
+                f"loss={accumulated_loss:.6f} lr={optimizer.param_groups[0]['lr']:.8g} "
+                f"grad_norm={float(gradient_norm):.5f}"
+            )
 
         if step % args.save_every == 0 and step < args.steps:
             payload = checkpoint_payload(
                 model,
                 optimizer,
                 config,
+                tokenizer_sha256,
                 completed_experts,
                 completed_stages,
                 args.stage,
@@ -393,6 +423,7 @@ def train(args):
             model,
             optimizer,
             config,
+            tokenizer_sha256,
             completed_experts,
             completed_stages,
             args.stage,
@@ -428,6 +459,7 @@ def train(args):
         model,
         optimizer,
         config,
+        tokenizer_sha256,
         completed_experts,
         completed_stages,
         args.stage,
@@ -449,12 +481,15 @@ def main():
     parser.add_argument("--stage", choices=STAGES, required=True)
     parser.add_argument("--expert-index", type=int)
     parser.add_argument("--data", type=Path, required=True)
+    parser.add_argument("--tokenizer-json", type=Path)
     parser.add_argument("--checkpoint", type=Path)
     parser.add_argument("--output", type=Path, default=Path("artifacts/staged"))
     parser.add_argument("--steps", type=int, default=1000)
     parser.add_argument("--batch-size", type=int, default=1)
     parser.add_argument("--learning-rate", type=float, default=2e-4)
-    parser.add_argument("--warmup-steps", type=int, default=50)
+    parser.add_argument("--warmup-steps", type=int, default=2000)
+    parser.add_argument("--decay-ratio", type=float, default=0.1)
+    parser.add_argument("--gradient-accumulation-steps", type=int, default=1)
     parser.add_argument("--weight-decay", type=float, default=0.1)
     parser.add_argument("--auxiliary-loss-weight", type=float, default=0.2)
     parser.add_argument("--max-grad-norm", type=float, default=1.0)
@@ -468,6 +503,10 @@ def main():
     args = parser.parse_args()
     if args.expert_index is not None and not 0 <= args.expert_index < 7:
         parser.error("expert-index must be between 0 and 6")
+    if args.gradient_accumulation_steps < 1:
+        parser.error("gradient-accumulation-steps must be positive")
+    if not 0.0 < args.decay_ratio <= 1.0:
+        parser.error("decay-ratio must be in (0, 1]")
     train(args)
 
 
