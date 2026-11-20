@@ -1,5 +1,6 @@
 import argparse
 import ast
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -99,7 +100,27 @@ def main():
     tokenizer = load_tokenizer(args.tokenizer_json)
     if tokenizer.vocab_size != config["vocab_size"]:
         raise ValueError("Evaluation tokenizer vocabulary does not match the checkpoint.")
-    model = HyperInterNetwork(**config)
+    tokenizer_sha256 = (
+        hashlib.sha256(Path(args.tokenizer_json).read_bytes()).hexdigest()
+        if args.tokenizer_json else "procedural-byte-v1"
+    )
+    if checkpoint.get("tokenizer_sha256", "procedural-byte-v1") != tokenizer_sha256:
+        raise ValueError("Evaluation tokenizer fingerprint does not match the checkpoint.")
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    is_target = (
+        config.get("experts") == 7
+        and config.get("expert_layers") == 10
+        and config.get("expert_width") == 256
+        and config.get("fusion_layers") == 20
+        and config.get("fusion_width") == 1792
+    )
+    if is_target and device.type != "cuda":
+        raise RuntimeError("Target evaluation requires CUDA; refusing a CPU substitute.")
+    if is_target and not torch.cuda.is_bf16_supported():
+        raise RuntimeError("Target evaluation requires CUDA BF16 support.")
+    use_bf16 = device.type == "cuda" and torch.cuda.is_bf16_supported()
+    model = HyperInterNetwork(**config).to(device)
     model.load_state_dict(checkpoint["state_dict"])
     model.eval()
     tasks = load_tasks(args.tasks)
@@ -125,12 +146,16 @@ def main():
             else:
                 full_ids = tokenizer.encode(combined, add_special_tokens=True)
                 prompt_token_count = len(prompt_ids)
-            model_input = torch.tensor([full_ids[:-1]], dtype=torch.long)
-            targets = torch.tensor([full_ids[1:]], dtype=torch.long)
+            model_input = torch.tensor([full_ids[:-1]], dtype=torch.long, device=device)
+            targets = torch.tensor([full_ids[1:]], dtype=torch.long, device=device)
             if model_input.size(1) > model.context_length:
                 raise ValueError(f"Benchmark task {task_index} exceeds model context length.")
             answer_start = 1 + max(0, prompt_token_count)
-            with torch.no_grad():
+            with torch.no_grad(), torch.autocast(
+                device_type=device.type,
+                dtype=torch.bfloat16 if use_bf16 else torch.float16,
+                enabled=device.type == "cuda",
+            ):
                 final_logits, auxiliary_logits = model(model_input, return_aux=True)
             collective_score = answer_loss(final_logits, targets, answer_start)
             expert_scores = [
@@ -149,12 +174,17 @@ def main():
                 "expert_reference_nll": expert_scores,
             }
             if args.generate:
-                prefix = torch.tensor([[1, *prompt_ids]], dtype=torch.long)
-                generated = model.generate_all(
-                    prefix,
-                    max_new_tokens=args.max_new_tokens,
-                    temperature=0.0,
-                )
+                prefix = torch.tensor([[1, *prompt_ids]], dtype=torch.long, device=device)
+                with torch.no_grad(), torch.autocast(
+                    device_type=device.type,
+                    dtype=torch.bfloat16 if use_bf16 else torch.float16,
+                    enabled=device.type == "cuda",
+                ):
+                    generated = model.generate_all(
+                        prefix,
+                        max_new_tokens=args.max_new_tokens,
+                        temperature=0.0,
+                    )
                 decoded = [
                     tokenizer.decode(sequence[0, prefix.size(1):].tolist())
                     for sequence in generated
@@ -177,6 +207,9 @@ def main():
     count = totals["count"]
     report = {
         "checkpoint": str(args.checkpoint),
+        "device": str(device),
+        "bf16": use_bf16,
+        "tokenizer_sha256": tokenizer_sha256,
         "tasks": count,
         "collective_mean_nll": totals["collective_nll"] / count,
         "expert_mean_nll": [value / count for value in totals["expert_nll"]],
