@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import random
+import re
 import sqlite3
 import tempfile
 from pathlib import Path
@@ -21,6 +22,8 @@ def parse_assignments(values, kind):
         raw = raw.strip()
         if not name or not raw:
             raise ValueError(f"Invalid {kind} entry: {value}")
+        if kind == "source" and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}", name):
+            raise ValueError("Source names must contain only letters, numbers, underscore or hyphen.")
         if name in parsed:
             raise ValueError(f"Duplicate {kind} name: {name}")
         parsed[name] = raw
