@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>HUMANITY — Evolução de uma civilização</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1110;--panel:#121c19;--line:#263b32;--text:#e5eee8;--muted:#9aada2;--accent:#a9d18e}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);font:14px system-ui, sans-serif;color:var(--text)}
+#view{position:fixed;inset:0}canvas{display:block}
+#top{position:fixed;top:10px;left:10px;right:10px;display:flex;gap:8px;align-items:flex-start;justify-content:space-between;pointer-events:none}
+.panel{background:#101a17eF;border:1px solid var(--line);border-radius:12px;padding:10px 12px;backdrop-filter:blur(10px);box-shadow:0 8px 24px #0005;pointer-events:auto}
+#brand{font-weight:800;letter-spacing:.12em;font-size:13px}#sub{font-size:11px;color:var(--muted);margin-top:3px}
+#stats{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}#stats b{color:var(--text);font-variant-numeric:tabular-nums}
+#controls{position:fixed;left:10px;right:10px;bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+button,select{background:#1b2a24;color:var(--text);border:1px solid #385044;border-radius:9px;padding:9px 12px;font-weight:650}
+button:active{transform:scale(.98)}button.primary{background:#526f45;border-color:#78975e}
+#feed{position:fixed;right:10px;top:88px;width:min(310px,45vw);max-height:42vh;overflow:auto;font-size:11px;line-height:1.4}
+#feed div{padding:5px 0;border-bottom:1px solid #ffffff12;color:#b9c9bf}
+#inspect{position:fixed;left:10px;top:88px;width:min(250px,44vw);font-size:12px;display:none}
+.muted{color:var(--muted)}.metric{display:flex;justify-content:space-between;gap:10px;margin:4px 0}
+#hint{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#101a17dd;padding:12px 16px;border:1px solid var(--line);border-radius:12px;color:var(--muted);pointer-events:none;text-align:center}
+@media(max-width:650px){#stats{gap:7px;font-size:11px}#feed{top:auto;bottom:74px;max-height:22vh;width:45vw}#inspect{top:88px}#top{align-items:flex-start}#brandPanel{max-width:42vw}}
+</style>
+</head>
+<body>
+<div id="view"></div>
+<div id="top">
+ <div class="panel" id="brandPanel"><div id="brand">HUMANITY</div><div id="sub">SIMULAÇÃO DE CIVILIZAÇÃO · ERA DA VILA</div></div>
+ <div class="panel"><div id="stats"><span>População <b id="pop">24</b></span><span>Idade <b id="year">0</b></span><span>Alimento <b id="food">180</b></span><span>Tecnologias <b id="tech">0</b></span></div></div>
+</div>
+<div class="panel" id="inspect"></div>
+<div class="panel" id="feed"></div>
+<div id="hint">Carregando o mundo 3D…</div>
+<div id="controls">
+ <button class="primary" id="toggle">Pausar</button><button id="step">+ 1 dia</button>
+ <select id="speed"><option value="1">1×</option><option value="3" selected>3×</option><option value="8">8×</option><option value="20">20×</option></select>
+ <button id="camera">Câmera livre</button><button id="reset">Reiniciar</button>
+</div>
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js';
+import {OrbitControls} from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/controls/OrbitControls.js';
+const $=id=>document.getElementById(id);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x9bb8b0);scene.fog=new THREE.Fog(0x9bb8b0,45,125);
+const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.1,300);camera.position.set(30,29,38);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.setSize(innerWidth,innerHeight);renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;$('view').appendChild(renderer.domElement);
+const controls=new OrbitControls(camera,renderer.domElement);controls.target.set(0,0,0);controls.enableDamping=true;controls.maxPolarAngle=Math.PI*.48;controls.minDistance=8;controls.maxDistance=100;
+scene.add(new THREE.HemisphereLight(0xe5f1e8,0x53614b,2));
+const sun=new THREE.DirectionalLight(0xffe5bd,2.1);sun.position.set(-25,40,20);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);scene.add(sun);
+const mat=(c,r=.9)=>new THREE.MeshStandardMaterial({color:c,roughness:r});
+const mats={grass:mat(0x718d54),darkGrass:mat(0x597847),soil:mat(0x76583b),wood:mat(0x795336),roof:mat(0x8b6043),stone:mat(0x858b83),water:mat(0x438d9a,.35),leaf:mat(0x385f35),skin:[mat(0xb77d5a),mat(0x8d5d43),mat(0xd3a17d),mat(0x704832),mat(0xc38a65)],cloth:[mat(0x9b7653),mat(0x657e70),mat(0x8d5545),mat(0xc0a16c),mat(0x6b7182)],animal:mat(0x9a8064),fire:mat(0xff9d32)};
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(150,150),mats.grass);ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+const world=new THREE.Group();scene.add(world);
+function box(parent,x,y,z,sx,sy,sz,material){const o=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),material);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o}
+function cylinder(parent,x,y,z,rt,rb,h,material,n=8){const o=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,n),material);o.position.set(x,y,z);o.castShadow=true;parent.add(o);return o}
+function tree(x,z,scale=1){const g=new THREE.Group();g.position.set(x,0,z);cylinder(g,0,1.1*scale,0,.16*scale,.22*scale,2.2*scale,mats.wood);const crown=new THREE.Mesh(new THREE.IcosahedronGeometry(1.05*scale,1),mats.leaf);crown.position.y=2.45*scale;crown.castShadow=true;g.add(crown);world.add(g)}
+function house(x,z){const g=new THREE.Group();g.position.set(x,0,z);box(g,0,.85,0,3.4,1.7,2.8,mat(0xb69a6d));const roof=new THREE.Mesh(new THREE.ConeGeometry(2.55,1.6,4),mats.roof);roof.position.set(0,2.45,0);roof.rotation.y=Math.PI/4;roof.castShadow=true;g.add(roof);box(g,0,.65,1.42,.8,1.3,.08,mat(0x463326));world.add(g)}
+function createWorld(){world.clear();for(let i=0;i<100;i++){const x=(Math.random()-.5)*110,z=(Math.random()-.5)*100;if(Math.hypot(x,z)>23&&Math.abs(x+25)>7)tree(x,z,.7+Math.random()*.7)}
+const river=new THREE.Mesh(new THREE.PlaneGeometry(16,150),mats.water);river.rotation.x=-Math.PI/2;river.position.set(-26,.035,0);river.rotation.z=-.08;world.add(river);
+for(let i=0;i<6;i++)house(-7+(i%3)*7,-9+Math.floor(i/3)*8);
+for(let i=0;i<5;i++){box(world,10+i%3*3,.08,9+Math.floor(i/3)*3,2.4,.16,2.4,mats.soil)}
+cylinder(world,0,.45,0,.65,.65,.9,mats.stone,12);const flame=new THREE.Mesh(new THREE.ConeGeometry(.35,.9,7),mats.fire);flame.position.set(0,1.25,0);world.add(flame);
+for(let i=0;i<7;i++){const a=new THREE.Group();cylinder(a,0,.55,0,.36,.42,.65,mats.animal);const head= new THREE.Mesh(new THREE.SphereGeometry(.26,8,6),mats.animal);head.position.set(.42,.8,0);a.add(head);a.position.set(15+Math.random()*8,0,-8+Math.random()*16);world.add(a);animals.push({mesh:a,hunger:0})}
+}
+const animals=[];
+const rand=(a,b)=>a+Math.random()*(b-a);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+class Brain{
+ constructor(){this.w1=Array.from({length:12},()=>Array.from({length:10},()=>rand(-.5,.5)));this.w2=Array.from({length:8},()=>Array.from({length:12},()=>rand(-.5,.5)));this.lr=.025;this.last=null;this.memory=[]}
+ forward(input){const h=this.w1.map(row=>Math.tanh(row.reduce((s,w,i)=>s+w*input[i],0)));return this.w2.map(row=>row.reduce((s,w,i)=>s+w*h[i],0))}
+ learn(input,action,reward){const target=clamp(reward,-1,1);for(let j=0;j<this.w2.length;j++)for(let i=0;i<this.w2[j].length;i++)this.w2[j][i]+=this.lr*target*.02*(Math.random()-.45);this.memory.push({input:[...input],action,reward});if(this.memory.length>40)this.memory.shift()}
+}
+const actionNames=['plantar','colher','coletar madeira','buscar água','construir','socializar','descansar','explorar'];
+class Person{
+ constructor(id,age=rand(18,38),sex=Math.random()<.5?'F':'M',parents=[]){this.id=id;this.age=age;this.sex=sex;this.parents=parents;this.health=rand(.78,1);this.hunger=rand(.05,.35);this.energy=rand(.65,1);this.social=rand(.35,.85);this.skill={farm:rand(.05,.3),craft:rand(.02,.2),care:rand(.05,.25)};this.traits={curiosity:rand(.2,1),sociability:rand(.2,1),risk:rand(.1,.8),discipline:rand(.2,1)};this.brain=new Brain();this.partner=null;this.children=0;this.x=rand(-8,8);this.z=rand(-8,8);this.goal=null;this.action='descansar';this.cooldown=0;this.mesh=makeHuman(this);this.mesh.position.set(this.x,0,this.z);world.add(this.mesh);this.color=this.mesh.userData.cloth}
+ observe(){return [this.hunger,this.energy,this.health,this.social,this.skill.farm,this.skill.craft,this.traits.curiosity,this.traits.sociability,Math.min(this.age/80,1),food/300]}
+ decide(){const obs=this.observe(),scores=this.brain.forward(obs);let best=0;for(let i=1;i<scores.length;i++)if(scores[i]>scores[best])best=i;
+ const needs=[this.hunger*1.7,food<45?1.2:0,this.skill.farm<.5?.25:0,waterNeed,.25,this.social<.35?this.traits.sociability:0,this.energy<.35?1.1:0,this.traits.curiosity*.55];
+ const weighted=scores.map((v,i)=>v+needs[i]);best=weighted.indexOf(Math.max(...weighted));this.action=actionNames[best];this.goal=best;return best}
+ update(){this.age+=1/365;this.hunger=clamp(this.hunger+.0015,0,1);this.energy=clamp(this.energy-.001,0,1);this.social=clamp(this.social-.0007,0,1);this.cooldown=Math.max(0,this.cooldown-1);if(this.age>65)this.health-=.00025;if(this.hunger>.78)this.health-=.001;if(this.health<.45)this.health-=.0004;
+ const a=this.decide();let tx=this.x,tz=this.z,reward=0;
+ if(a===0){tx=rand(8,16);tz=rand(7,14);this.skill.farm=clamp(this.skill.farm+.0007,0,1);if(Math.random()<.04){food+=.15+this.skill.farm*.25;reward=.2}}
+ if(a===1){tx=rand(8,16);tz=rand(7,14);if(Math.random()<.12){food+=.5+this.skill.farm;this.hunger=Math.max(0,this.hunger-.12);reward=.5}}
+ if(a===2){tx=rand(22,35);tz=rand(-18,18);if(Math.random()<.06){wood+=1;reward=.2}}
+ if(a===3){tx=-24+rand(-3,3);tz=rand(-15,15);this.hunger=Math.max(0,this.hunger-.01);this.health=clamp(this.health+.0002,0,1)}
+ if(a===4){tx=rand(-10,10);tz=rand(-12,10);if(wood>12&&Math.random()<.012){wood-=3;houses++;reward=.4;house(rand(-12,12),rand(-14,10))}}
+ if(a===5){const other=population.find(p=>p!==this&&Math.hypot(p.x-this.x,p.z-this.z)<5);if(other){tx=other.x;tz=other.z;this.social=clamp(this.social+.035,0,1);other.social=clamp(other.social+.02,0,1);reward=.12;if(!this.partner&&this.age>18&&other.age>18&&other.sex!==this.sex&&Math.random()<.003&&this.cooldown===0){this.partner=other.id;other.partner=this.id;log('Vínculo formado entre habitantes '+this.id+' e '+other.id)}}}
+ if(a===6){this.energy=clamp(this.energy+.045,0,1);this.hunger=Math.max(0,this.hunger-.004);tx=this.x;tz=this.z;reward=.08}
+ if(a===7){tx=rand(-38,38);tz=rand(-35,35);if(Math.random()<.01){this.traits.curiosity=clamp(this.traits.curiosity+.001,0,1)}}
+ const dx=tx-this.x,dz=tz-this.z,d=Math.hypot(dx,dz);if(d>.15){const speed=.045+this.energy*.025;this.x+=dx/d*speed;this.z+=dz/d*speed;this.mesh.rotation.y=Math.atan2(dx,dz)}
+ this.mesh.position.set(this.x,0,this.z);animateHuman(this, d>.15);
+ if(Math.random()<.03){food=Math.max(0,food-.08);this.hunger=Math.max(0,this.hunger-.015)}
+ this.brain.learn(this.observe(),a,reward);
+ if(this.health<=0||this.age>95){this.die()}
+ }
+ die(){if(!this.alive)return;this.alive=false;world.remove(this.mesh);population=population.filter(p=>p!==this);log('Habitante '+this.id+' morreu aos '+Math.floor(this.age)+' anos')}
+}
+function makeHuman(p){const g=new THREE.Group();const skin=mats.skin[Math.floor(rand(0,mats.skin.length))],cloth=mats.cloth[Math.floor(rand(0,mats.cloth.length))];p.skin=skin;p.cloth=cloth;
+ const torso=new THREE.Mesh(new THREE.CapsuleGeometry(.25,.55,3,6),cloth);torso.position.y=1.05;torso.castShadow=true;g.add(torso);
+ const head=new THREE.Mesh(new THREE.SphereGeometry(.19,10,8),skin);head.position.y=1.62;head.castShadow=true;g.add(head);
+ const legGeo=new THREE.CapsuleGeometry(.09,.43,2,5),armGeo=new THREE.CapsuleGeometry(.065,.4,2,5);
+ const limbs=[];for(let s of [-1,1]){const leg=new THREE.Mesh(legGeo,cloth);leg.position.set(s*.12,.42,0);g.add(leg);limbs.push(leg);const arm=new THREE.Mesh(armGeo,skin);arm.position.set(s*.3,1.05,0);arm.rotation.z=s*.12;g.add(arm);limbs.push(arm)}
+ g.userData={limbs,cloth};return g}
+function animateHuman(p,moving){const t=performance.now()*.006+p.id;const l=p.mesh.userData.limbs;l[0].rotation.x=moving?Math.sin(t)*.55:0;l[1].rotation.x=moving?-Math.sin(t)*.55:0;l[2].rotation.x=moving?-Math.sin(t)*.4:0;l[3].rotation.x=moving?Math.sin(t)*.4:0}
+let population=[],nextId=1,food=180,wood=50,waterNeed=.1,houses=6,day=0,techs=[],running=true,selected=null;
+function log(s){const d=document.createElement('div');d.textContent='D'+day+' · '+s;$('feed').prepend(d);while($('feed').children.length>14)$('feed').lastChild.remove()}
+function init(){createWorld();population=[];nextId=1;food=180;wood=50;day=0;techs=[];for(let i=0;i<24;i++)population.push(new Person(nextId++,rand(16,48),Math.random()<.5?'F':'M'));log('A vila foi fundada por 24 pessoas.')}
+function birth(){const females=population.filter(p=>p.sex==='F'&&p.age>=18&&p.age<40&&p.partner!==null&&p.cooldown===0);for(const m of females){const father=population.find(p=>p.id===m.partner);if(father&&father.age<55&&Math.random()<.00022&&food>35&&population.length<120){const child=new Person(nextId++,0,Math.random()<.5?'F':'M',[m.id,father.id]);child.health=rand(.8,1);child.hunger=.1;child.energy=.8;child.x=m.x+rand(-1,1);child.z=m.z+rand(-1,1);child.mesh.position.set(child.x,0,child.z);population.push(child);m.children++;m.cooldown=3000;father.cooldown=1200;food-=8;log('Nasceu uma criança. População: '+population.length)}}}
+function technology(){const thresholds=[['Agricultura organizada',food>260&&population.length>28],['Cerâmica',wood>90&&population.length>32],['Tecelagem',population.length>38&&food>180],['Metalurgia inicial',wood>150&&population.length>48],['Irrigação',food>400&&population.length>55],['Escrita',population.length>70&&techs.includes('Cerâmica')&&techs.includes('Agricultura organizada')],['Roda',techs.includes('Metalurgia inicial')&&population.length>80]];for(const [name,ok] of thresholds)if(ok&&!techs.includes(name)){techs.push(name);log('Conhecimento desenvolvido: '+name)}}
+function tick(){day++;waterNeed=.1+Math.random()*.1;for(const p of [...population])p.update();birth();food=Math.max(0,food-.025*population.length);if(day%30===0){for(const a of animals){if(Math.random()<.4)food+=1}log('Passou um mês. Estoque de alimento: '+Math.floor(food))}technology();if(day%365===0)log('Ano '+Math.floor(day/365)+' concluído.');if(food<1&&Math.random()<.1){const p=population[Math.floor(Math.random()*population.length)];if(p)p.health-=.04}updateUI()}
+function updateUI(){$('pop').textContent=population.length;$('year').textContent=(day/365).toFixed(1);$('food').textContent=Math.floor(food);$('tech').textContent=techs.length;if(selected&&population.includes(selected)){$('inspect').style.display='block';$('inspect').innerHTML='<b>Habitante #'+selected.id+'</b><div class="metric"><span>Idade</span><b>'+selected.age.toFixed(1)+'</b></div><div class="metric"><span>Saúde</span><b>'+Math.round(selected.health*100)+'%</b></div><div class="metric"><span>Fome</span><b>'+Math.round(selected.hunger*100)+'%</b></div><div class="metric"><span>Energia</span><b>'+Math.round(selected.energy*100)+'%</b></div><div class="metric"><span>Social</span><b>'+Math.round(selected.social*100)+'%</b></div><div class="metric"><span>Ação</span><b>'+selected.action+'</b></div><div class="muted">Memórias: '+selected.brain.memory.length+' · Filhos: '+selected.children+'</div>'}}
+const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2();renderer.domElement.addEventListener('pointerdown',e=>{pointer.x=e.clientX/innerWidth*2-1;pointer.y=-(e.clientY/innerHeight)*2+1;raycaster.setFromCamera(pointer,camera);const meshes=population.flatMap(p=>p.mesh.children);const hit=raycaster.intersectObjects(meshes);if(hit.length){selected=population.find(p=>p.mesh===hit[0].object.parent||p.mesh.children.includes(hit[0].object))||null;updateUI()}});
+$('toggle').onclick=()=>{running=!running;$('toggle').textContent=running?'Pausar':'Continuar'};
+$('step').onclick=()=>tick();$('speed').onchange=()=>{};$('camera').onclick=()=>{controls.reset();camera.position.set(30,29,38)};$('reset').onclick=()=>{selected=null;$('inspect').style.display='none';$('feed').innerHTML='';init();updateUI()};
+init();$('hint').style.display='none';updateUI();
+let last=0,acc=0;function frame(t){requestAnimationFrame(frame);const dt=Math.min((t-last)/1000,.05);last=t;if(running){acc+=dt*Number($('speed').value)*5;while(acc>=1){tick();acc-=1}}for(const a of animals){a.mesh.position.x+=Math.sin(t*.0003+a.mesh.position.z)*.001}controls.update();renderer.render(scene,camera)}requestAnimationFrame(frame);
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+</script>
+</body>
+</html>
