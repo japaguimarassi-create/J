@@ -370,3 +370,73 @@ def test_foundation_checkpoint_rejects_wrong_tokenizer_and_incomplete_state():
     payload["in_progress"] = True
     with pytest.raises(ValueError):
         initialize_hyper_from_foundation(model, payload, "expected", config)
+
+
+
+def test_corpus_mixer_respects_weighted_quotas_and_preserves_provenance(tmp_path):
+    import json
+    from mix_corpus import mix_corpora
+
+    sources = {}
+    for name, count in (("code", 20), ("web", 20), ("math", 20), ("docs", 20)):
+        path = tmp_path / f"{name}.jsonl"
+        path.write_text(
+            "".join(
+                json.dumps({
+                    "text": f"{name} unique sample {index}",
+                    "repository": f"org/{name}-{index}",
+                    "license": "MIT",
+                    "language": "en",
+                }) + "\n"
+                for index in range(count)
+            ),
+            encoding="utf-8",
+        )
+        sources[name] = path
+
+    output = tmp_path / "mixed.jsonl"
+    report = mix_corpora(
+        sources,
+        {"code": 4, "web": 3, "math": 2, "docs": 1},
+        output,
+        max_records=20,
+        seed=13,
+    )
+    records = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
+    assert report["records_written"] == 20
+    assert report["source_counts"] == {"code": 8, "web": 6, "math": 4, "docs": 2}
+    assert all(record["sha256"] and record["source"] in sources for record in records)
+    assert all(record["license"] == "MIT" for record in records)
+
+
+def test_corpus_mixer_exact_deduplication_and_license_filter(tmp_path):
+    import json
+    from mix_corpus import mix_corpora, parse_assignments
+    import pytest
+
+    code = tmp_path / "code.jsonl"
+    web = tmp_path / "web.jsonl"
+    code.write_text(
+        json.dumps({"text": "same snippet", "license": "MIT"}) + "\n"
+        + json.dumps({"text": "code only", "license": "MIT"}) + "\n",
+        encoding="utf-8",
+    )
+    web.write_text(
+        json.dumps({"text": "same snippet", "license": "MIT"}) + "\n"
+        + json.dumps({"text": "no license"}) + "\n",
+        encoding="utf-8",
+    )
+    output = tmp_path / "licensed.jsonl"
+    report = mix_corpora(
+        {"code": code, "web": web},
+        {"code": 1, "web": 1},
+        output,
+        require_license=True,
+    )
+    rows = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
+    assert report["records_written"] == 2
+    assert sum(report["duplicates"].values()) == 1
+    assert sum(report["missing_license"].values()) == 1
+    assert len({row["sha256"] for row in rows}) == 2
+    with pytest.raises(ValueError):
+        parse_assignments(["../unsafe=/tmp/file.jsonl"], "source")
