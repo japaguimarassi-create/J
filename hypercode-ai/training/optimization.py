@@ -6,6 +6,8 @@ import torch
 def wsd_multiplier(step, total_steps, warmup_steps, decay_ratio=0.1):
     if total_steps < 1 or step < 1 or step > total_steps:
         raise ValueError("step must be inside the training range.")
+    if total_steps == 1:
+        return 1.0
     if not 0.0 < decay_ratio <= 1.0:
         raise ValueError("decay_ratio must be in (0, 1].")
 
