@@ -1,17 +1,19 @@
 name: HyperCode Android APK
 
 on:
-  push:
-    paths:
-      - "hypercode-ai/**"
-      - ".github/workflows/hypercode-android.yml"
   workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type exactly: agora compile"
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
   build:
+    if: github.event.inputs.confirmation == 'agora compile'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
