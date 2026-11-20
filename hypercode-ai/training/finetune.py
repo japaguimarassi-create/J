@@ -107,6 +107,7 @@ def evaluate(model, samples, batch_size, context_length, device, batches=8, use_
     with torch.no_grad():
         for _ in range(batches):
             inputs, targets = make_batch(samples, batch_size, context_length, device)
+            supervised_tokens_this_step += int((targets != -100).sum().item())
             with torch.autocast(
                 device_type=device.type,
                 dtype=torch.bfloat16 if use_bf16 else torch.float16,
@@ -205,6 +206,7 @@ def main():
         use_bf16=use_bf16,
     )
     effective_warmup_steps = min(args.warmup_steps, max(1, args.steps // 10))
+    total_supervised_tokens = 0
     model.train()
     for step in range(1, args.steps + 1):
         for group in optimizer.param_groups:
@@ -214,6 +216,7 @@ def main():
         optimizer.zero_grad(set_to_none=True)
         accumulated_loss = 0.0
         collective_loss_value = 0.0
+        supervised_tokens_this_step = 0
         for _ in range(args.gradient_accumulation_steps):
             inputs, targets = make_batch(
                 train_samples,
@@ -245,6 +248,7 @@ def main():
             raise FloatingPointError(f"Non-finite SFT gradient norm at step {step}.")
         scaler.step(optimizer)
         scaler.update()
+        total_supervised_tokens += supervised_tokens_this_step
         if step == 1 or step % args.log_every == 0 or step == args.steps:
             print(
                 f"sft_step={step}/{args.steps} total={accumulated_loss:.5f} "
@@ -269,6 +273,7 @@ def main():
         "optimizer_state_dict": optimizer.state_dict(),
         "tokenizer_sha256": tokenizer_sha256,
         "training_recipe": "SFT_completion_mask_AdamW_WSD_gradient_accumulation",
+        "supervised_completion_tokens_seen": total_supervised_tokens,
     }, output_checkpoint)
     report = {
         "device": str(device),
@@ -278,6 +283,7 @@ def main():
         "train_chunks": len(train_samples),
         "validation_chunks": len(validation_samples),
         "steps": args.steps,
+        "supervised_completion_tokens_seen": total_supervised_tokens,
         "effective_batch_size": args.batch_size * args.gradient_accumulation_steps,
         "gradient_accumulation_steps": args.gradient_accumulation_steps,
         "effective_warmup_steps": effective_warmup_steps,
