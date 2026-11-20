@@ -213,3 +213,14 @@ def test_stage_order_requires_seven_networks_then_core_then_communication():
     validate_stage_prerequisites("core", None, set(range(7)), set())
     validate_stage_prerequisites("communication", None, set(range(7)), {"core"})
     validate_stage_prerequisites("joint", None, set(range(7)), {"core", "communication"})
+
+
+
+def test_validation_gate_rejects_regression_and_accepts_improvement():
+    from staged_train import validation_gate_passes
+
+    assert validation_gate_passes(3.0, 2.9)
+    assert validation_gate_passes(3.0, 3.0)
+    assert validation_gate_passes(3.0, 3.0005, tolerance=0.001)
+    assert not validation_gate_passes(3.0, 3.01)
+    assert not validation_gate_passes(3.0, float("nan"))

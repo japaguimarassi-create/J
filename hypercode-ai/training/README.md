@@ -108,7 +108,7 @@ A sequência obrigatória é:
 3. \`communication\`: congela as redes e o núcleo, desbloqueia as dez camadas de comunicação e treina a troca de informações usando a perda da resposta coletiva.
 4. \`joint\`: desbloqueia toda a arquitetura e faz o ajuste conjunto, com perda do núcleo e perdas auxiliares das sete saídas.
 
-O programa impede avançar fora dessa ordem, salva um checkpoint separado por etapa, registra a perda de validação antes/depois e salva checkpoints intermediários com estado do otimizador para retomar uma etapa interrompida. A validação usa os mesmos lotes determinísticos antes e depois. Uma regressão de validação aparece no relatório e precisa ser resolvida antes de aceitar o checkpoint.
+O programa impede avançar fora dessa ordem, salva um checkpoint separado por etapa, registra a perda de validação antes/depois e salva checkpoints intermediários com estado do otimizador para retomar uma etapa interrompida. A validação usa os mesmos lotes determinísticos antes e depois. Por padrão, uma regressão de validação reprova a etapa, mantém o checkpoint como pendente e bloqueia a próxima fase. Para retomar, carregue o checkpoint pendente e aumente o total de `--steps`. A opção `--allow-validation-regression` existe apenas para smoke tests curtos e CI.
 
 ### Comandos de execução
 
@@ -158,7 +158,7 @@ smoke_evidence.json registra um treino de prova executado em CPU. Ele confirma a
 
 ## Testes estruturais
 
-Os treze testes verificam dimensões-alvo, passagem do mesmo contexto pelos sete ramos, comunicação entre redes, gradientes em todos os ramos e no núcleo, máscara causal, geração de sete saídas individuais mais a resposta coletiva, pipelines de doze estágios, máscara SFT, campos/licenças do The Stack v1.3 e separação por repositório.
+Os quatorze testes verificam dimensões-alvo, passagem do mesmo contexto pelos sete ramos, comunicação entre redes, gradientes em todos os ramos e no núcleo, máscara causal, geração de sete saídas individuais mais a resposta coletiva, pipelines de doze estágios, máscara SFT, campos/licenças do The Stack v1.3 e separação por repositório.
 
 ~~~bash
 python -m pytest tests -q

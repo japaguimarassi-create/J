@@ -135,6 +135,46 @@ def evaluate_stage(model, samples, args, device, use_bf16):
     return {"loss": mean_loss, "batches": len(losses)}
 
 
+
+def evaluate_all_experts(model, samples, args, device, use_bf16):
+    model.eval()
+    losses = [0.0] * 7
+    random_state = random.getstate()
+    random.seed(args.seed + 200003)
+    with torch.no_grad():
+        for _ in range(args.validation_batches):
+            inputs, targets = make_batch(
+                samples,
+                args.batch_size,
+                model.context_length,
+                device,
+            )
+            for expert_index in range(7):
+                with torch.autocast(
+                    device_type=device.type,
+                    dtype=torch.bfloat16 if use_bf16 else torch.float16,
+                    enabled=device.type == "cuda",
+                ):
+                    logits = model.forward_expert(inputs, expert_index)
+                    loss = language_model_loss(logits, targets)
+                losses[expert_index] += loss.item()
+    random.setstate(random_state)
+    model.train()
+    per_network = [value / args.validation_batches for value in losses]
+    return {
+        "per_network_loss": per_network,
+        "mean_loss": sum(per_network) / len(per_network),
+    }
+
+
+def validation_gate_passes(before, after, tolerance=0.0):
+    return (
+        math.isfinite(before)
+        and math.isfinite(after)
+        and after <= before + tolerance
+    )
+
+
 def atomic_save(payload, path):
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(path.suffix + ".tmp")
@@ -327,15 +367,55 @@ def train(args):
     if not math.isfinite(validation_after["loss"]):
         raise FloatingPointError(f"Non-finite validation loss after {stage_label}.")
 
+    report.update({
+        "validation_after": validation_after,
+        "validation_delta": validation_after["loss"] - validation_before["loss"],
+        "validation_gate_passed": validation_gate_passes(
+            validation_before["loss"],
+            validation_after["loss"],
+            args.validation_tolerance,
+        ),
+    })
+
+    if args.stage == "expert" and args.expert_index == 6:
+        report["all_seven_independent_outputs"] = evaluate_all_experts(
+            model,
+            validation_samples,
+            args,
+            device,
+            use_bf16,
+        )
+
+    if not report["validation_gate_passed"] and not args.allow_validation_regression:
+        report["status"] = "validation_gate_failed"
+        report["next_required_step"] = f"continue_{stage_label}"
+        payload = checkpoint_payload(
+            model,
+            optimizer,
+            config,
+            completed_experts,
+            completed_stages,
+            args.stage,
+            args.expert_index,
+            args.steps,
+            report,
+            True,
+        )
+        atomic_save(payload, output_path)
+        report_path = output_path.with_suffix(".report.json")
+        report_path.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+        raise RuntimeError(
+            f"{stage_label} failed the validation gate. The in-progress checkpoint was saved; "
+            "increase --steps and resume the same stage, or explicitly allow the regression for a smoke test."
+        )
+
     if args.stage == "expert":
         completed_experts.add(args.expert_index)
     else:
         completed_stages.add(args.stage)
 
     report.update({
-        "validation_after": validation_after,
-        "validation_delta": validation_after["loss"] - validation_before["loss"],
-        "status": "completed" if validation_after["loss"] <= validation_before["loss"] else "completed_with_validation_regression",
+        "status": "completed",
         "next_required_step": (
             f"expert_{args.expert_index + 2:02d}" if args.stage == "expert" and args.expert_index < 6
             else "core" if args.stage == "expert"
@@ -381,6 +461,8 @@ def main():
     parser.add_argument("--log-every", type=int, default=50)
     parser.add_argument("--save-every", type=int, default=250)
     parser.add_argument("--validation-batches", type=int, default=4)
+    parser.add_argument("--validation-tolerance", type=float, default=0.0)
+    parser.add_argument("--allow-validation-regression", action="store_true")
     parser.add_argument("--gradient-checkpointing", action="store_true")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
