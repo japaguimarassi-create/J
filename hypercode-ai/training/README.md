@@ -173,14 +173,26 @@ A calibração final deve medir temperatura/top-k, limite de geração, contexto
 
 ### Receita de treinamento ampliada
 
-- BPE byte-level treinado exclusivamente no corpus de treino e armazenado como tokenizer.json; o SHA-256 do arquivo acompanha todos os checkpoints.
+- BPE byte-level treinado no corpus universal curado e armazenado como tokenizer.json; o SHA-256 do arquivo acompanha todos os checkpoints. Mantenha benchmarks de avaliação/teste totalmente fora desse corpus.
 - Embeddings e posições compartilhados são atualizados somente na fase da rede 1 e congelados nas fases 2–7.
 - As sete projeções individuais reutilizam os mesmos pesos de vocabulário (weight tying), com bias independente por rede.
 - AdamW usa betas 0.9/0.95, weight decay seletivo, fused optimizer quando suportado, BF16 em CUDA, clipping global e acumulação de gradientes.
-- O scheduler WSD aplica warmup, taxa estável e decaimento linear nos 10% finais. Checkpoints salvam estado do otimizador e RNG Python/Torch/CUDA para retomada mais fiel.
+- O scheduler WSD aplica warmup, taxa estável e decaimento linear nos 10% finais. Checkpoints salvam estado do otimizador e RNG Python/Torch/CUDA para retomada mais fiel. Os relatórios registram tokens processados por etapa, não apenas passos.
 - Contexto-alvo de 2.048 tokens; subir para 4.096/8.192 deve ocorrer numa fase de mid-training separada, com validação de memória e estabilidade.
 
 Essas escolhas são inspiradas em receitas públicas de treinamento de modelos de linguagem. A receita não substitui ablações no corpus e arquitetura reais, nem transforma os dados de demonstração em treinamento de escala.
+
+
+## Referências de engenharia e treinamento
+
+A receita foi comparada com documentação e pesquisas públicas. As fontes não provam que seus hiperparâmetros sejam ótimos para esta arquitetura; elas orientam escolhas iniciais e a metodologia de ablação.
+
+- [Smol Training Guide (Hugging Face, 2025)](https://huggingface.co/spaces/HuggingFaceTB/smol-training-playbook): recomenda baselines, ablações pequenas, mudar uma variável por vez e avaliar capacidade além da perda de pré-treino.
+- [SmolLM3 — configuração de pré-treino](https://github.com/huggingface/smollm/blob/main/text/pretraining/README.md): referência para AdamW, betas 0.9/0.95, clipping, WSD e ausência de weight decay em embeddings; inclui também embeddings compartilhados.
+- [FineWeb (NeurIPS 2024)](https://proceedings.neurips.cc/paper_files/paper/2024/hash/370df50ccfdf8bde18f8f9c2d9151bda-Abstract-Datasets_and_Benchmarks_Track.html): sustenta a importância de filtragem, qualidade e deduplicação de dados.
+- [Chinchilla / compute-optimal training (NeurIPS 2022)](https://proceedings.neurips.cc/paper_files/paper/2022/hash/c1e2faff6f588870935f114ebe04a3e5-Abstract-Conference.html): mostra que tamanho do modelo e quantidade de tokens precisam crescer em conjunto; contagem de passos sozinha é uma métrica insuficiente.
+- [Scaling Laws for Mixture Pretraining Under Data Constraints (Apple, agosto de 2026)](https://machinelearning.apple.com/research/scaling-laws-mixture-pretraining): analisa mais de 2.000 treinos e mostra que misturas dependem do volume de cada domínio, repetição e orçamento; por isso 40/30/20/10 é só o ponto inicial de ablação usado neste projeto.
+- [Stanford CS336 — Language Modeling from Scratch](https://cs336.stanford.edu/): referência de formação sobre dados, arquiteturas, otimização e avaliação de modelos de linguagem.
 
 ## Evidência de teste realizada
 
