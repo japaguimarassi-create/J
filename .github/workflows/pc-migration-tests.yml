@@ -5,6 +5,7 @@ on:
     branches:
       - pc-linux-migration/aoc-preservation-v1
       - pc-linux-migration/aoc-center-aes256-v1
+      - pc-linux-migration/aoc-mint-desktop-v1
   pull_request:
     paths:
       - "pc-linux-migration/**"
@@ -24,3 +25,6 @@ jobs:
       - run: bash -n pc-linux-migration/keyboard/install.sh
       - run: bash -n pc-linux-migration/keyboard/rollback.sh
       - run: bash -n pc-linux-migration/keyboard/identify.sh
+      - run: bash -n pc-linux-migration/center/launch_window.sh
+      - run: bash -n pc-linux-migration/os-layer/install_aoc_mint.sh
+      - run: bash -n pc-linux-migration/os-layer/uninstall_aoc_mint.sh
