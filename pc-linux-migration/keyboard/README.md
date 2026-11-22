@@ -2,24 +2,15 @@
 
 Este módulo usa **keyd** para criar um mapa artificial de teclas no nível do sistema. O remapeamento funciona independentemente do aplicativo e pode funcionar em sessões gráficas e terminais virtuais. Consulte a documentação oficial: https://github.com/rvaiya/keyd
 
-## Importante: direção do mapeamento
+## Mapeamento recebido e interpretação
 
-O perfil de exemplo interpreta cada linha como:
+Você confirmou que a primeira interpretação é a correta: por exemplo, ao pressionar a tecla física Q, o computador recebe/apresenta `'`; o objetivo é fazer o sistema receber Q novamente.
 
-`tecla física pressionada = tecla que o sistema deve receber`
+O perfil foi atualizado com o **mapa inverso**: cada sinal atualmente recebido é convertido na tecla que deveria ter sido pressionada. Exemplos: `apostrophe = q`, `comma = w`, `p = r`, `g = u`.
 
-O exemplo fornecido foi registrado literalmente:
+Foi incluída a tentativa `s = rightbrace` para recuperar a tecla Ç em layout ABNT2. **Essa tecla precisa ser confirmada com `keyd monitor` antes da ativação**, pois o código físico da tecla Ç varia conforme o teclado e o firmware. Se o monitor mostrar outro nome, ajuste o lado esquerdo dessa linha para o nome observado.
 
-| Tecla física | Saída emitida |
-|---|---|
-| q | ' |
-| w | , |
-| e | . |
-| r | p |
-| t | y |
-| y | f |
-
-**Isso é um perfil de substituição personalizado, não o layout QWERTY padrão.** Confirme se essa é realmente a direção desejada antes de aplicar. Para mudar o mapa, edite `profile-example.conf`. Os nomes válidos podem ser consultados com `keyd list-keys`.
+O perfil também contém as conversões inversas para todas as demais teclas informadas. A e M já estão corretas e não precisam de remapeamento.
 
 ## Instalação
 
