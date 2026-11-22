@@ -16,6 +16,12 @@ O programa copia a pasta do usuário por padrão, incluindo arquivos ocultos e d
 - Para criar USB pelo script Bash: um ambiente Linux, lsblk, findmnt, blockdev, sha256sum e privilégios administrativos.
 - Um pendrive separado para o instalador Linux. Ele será apagado durante a criação.
 
+## Reconfiguração do teclado
+
+O módulo `keyboard/` permite identificar teclas e aplicar um mapa artificial com keyd. Ele inclui perfil de exemplo, instalador com backup da configuração anterior e script de reversão. **Confira o mapa antes de ativar**, pois as substituições alteram o que o teclado digita.
+
+Manual: [pc-linux-migration/keyboard/README.md](keyboard/README.md).
+
 ## 1. Descobrir o hardware
 
 No computador antigo:
