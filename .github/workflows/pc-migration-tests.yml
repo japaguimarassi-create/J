@@ -28,3 +28,4 @@ jobs:
       - run: bash -n pc-linux-migration/center/launch_window.sh
       - run: bash -n pc-linux-migration/os-layer/install_aoc_mint.sh
       - run: bash -n pc-linux-migration/os-layer/uninstall_aoc_mint.sh
+      - run: bash -n pc-linux-migration/center/start_linux.sh
