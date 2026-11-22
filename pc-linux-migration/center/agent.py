@@ -197,8 +197,8 @@ def vault_open(vault: Path, password: str):
 
 def do_backup(sources_input: list[str], destination_input: str, password: str):
     destination = Path(destination_input).expanduser().resolve(strict=False)
-    destination.parent.mkdir(parents=True, exist_ok=True)
     sources, entries, scan_errors, total = collect(sources_input, destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
     destination_device = os.stat(destination.parent).st_dev
     same_disk = [str(source) for source in sources if os.stat(source).st_dev == destination_device]
     if same_disk:
@@ -256,8 +256,34 @@ def do_backup(sources_input: list[str], destination_input: str, password: str):
     expected_set = {(root, rel) for root, _, rel, _, _ in entries}
     final_set = {(root, rel) for root, _, rel, _, _ in final_entries}
     if final_errors or expected_set != final_set:
-        manifest["errors"].append({"path": "source-rescan", "error": "A lista de arquivos mudou ou a nova varredura falhou."})
-        encrypt_manifest(manifest, key, destination / "manifest.enc")
+        errors.append({"path": "source-rescan", "error": "A lista de arquivos mudou ou a nova varredura falhou."})
+    final_map = {(root, rel): (path, size, modified) for root, path, rel, size, modified in final_entries}
+    for record in records:
+        current = final_map.get((record["root"], record["path"]))
+        if current is None:
+            errors.append({"path": record["path"], "error": "Arquivo desapareceu na segunda varredura."})
+            continue
+        source_file, _, current_mtime = current
+        try:
+            current_hash, current_size = digest_file(source_file)
+            if current_hash != record["sha256"] or current_size != record["size"]:
+                object_path = destination / "objects" / record["id"]
+                aad = ("AOC-MIGRATION-FILE-v1:" + record["id"]).encode()
+                repaired = False
+                for attempt in range(3):
+                    before_hash, before_size = digest_file(source_file)
+                    encrypt_stream(source_file, object_path, key, aad)
+                    verify_stream(object_path, key, aad, before_hash, before_size)
+                    after_hash, after_size = digest_file(source_file)
+                    if before_hash == after_hash and before_size == after_size:
+                        record["sha256"], record["size"] = before_hash, before_size
+                        record["modified_ns"] = current_mtime
+                        repaired = True
+                        break
+                if not repaired:
+                    raise ValueError("Arquivo continuou mudando durante as tentativas de correção.")
+        except Exception as exc:
+            errors.append({"path": record["path"], "error": "Falha na auditoria/repetição: " + str(exc)})
     verified = 0
     for record in records:
         try:
@@ -267,7 +293,7 @@ def do_backup(sources_input: list[str], destination_input: str, password: str):
             verified += 1
         except Exception as exc:
             errors.append({"path": record["path"], "error": str(exc)})
-    manifest["errors"] = errors + manifest["errors"]
+    manifest["errors"] = errors
     manifest["verified_files"] = verified
     manifest["success"] = (not manifest["errors"] and verified == len(entries) and len(records) == len(entries)
                            and expected_set == final_set and not final_errors)
