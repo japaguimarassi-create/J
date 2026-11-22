@@ -4,6 +4,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import secrets
 import shutil
 import sys
@@ -31,6 +32,11 @@ SCRYPT_N = 2**15
 SCRYPT_R = 8
 SCRYPT_P = 1
 LOCK = threading.Lock()
+
+
+def safe_name(value: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", str(value).strip())
+    return cleaned.strip("._") or "origem"
 
 
 def derive_key(password: str, salt: bytes) -> bytes:
