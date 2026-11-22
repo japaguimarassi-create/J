@@ -18,3 +18,4 @@ jobs:
           python-version: "3.12"
       - run: python -m unittest discover -s pc-linux-migration/tests -v
       - run: python -m py_compile pc-linux-migration/migrate.py
+      - run: bash -n pc-linux-migration/usb/make_boot_usb.sh
