@@ -93,8 +93,18 @@ def validate_source(source, destination):
     return source
 
 
-def iter_regular_files(root):
-    for current, directories, filenames in os.walk(root, topdown=True, followlinks=False):
+def iter_regular_files(root, scan_errors=None):
+    def record(error, fallback):
+        if scan_errors is not None:
+            scan_errors.append({
+                "path": str(getattr(error, "filename", None) or fallback),
+                "error": str(error),
+            })
+
+    def onerror(error):
+        record(error, root)
+
+    for current, directories, filenames in os.walk(root, topdown=True, followlinks=False, onerror=onerror):
         current_path = Path(current)
         kept = []
         for name in directories:
@@ -103,8 +113,8 @@ def iter_regular_files(root):
                 mode = item.lstat().st_mode
                 if stat.S_ISDIR(mode) and not item.is_symlink():
                     kept.append(name)
-            except OSError:
-                continue
+            except OSError as error:
+                record(error, item)
         directories[:] = kept
         for name in filenames:
             item = current_path / name
@@ -112,8 +122,8 @@ def iter_regular_files(root):
                 mode = item.lstat().st_mode
                 if stat.S_ISREG(mode):
                     yield item
-            except OSError:
-                continue
+            except OSError as error:
+                record(error, item)
 
 
 def load_manifest(backup_root):
@@ -167,20 +177,23 @@ def backup(args):
         total_files = 0
         total_bytes = 0
         print("SIMULAÇÃO — nenhum arquivo será copiado.")
+        scan_failures = 0
         for source in checked_sources:
             count = 0
             size = 0
-            for item in iter_regular_files(source):
+            scan_errors = []
+            for item in iter_regular_files(source, scan_errors):
                 try:
                     size += item.stat().st_size
                     count += 1
-                except OSError:
-                    pass
+                except OSError as error:
+                    scan_errors.append({"path": str(item), "error": str(error)})
+            scan_failures += len(scan_errors)
             total_files += count
             total_bytes += size
-            print(str(source) + ": " + str(count) + " arquivos, " + str(size) + " bytes")
+            print(str(source) + ": " + str(count) + " arquivos, " + str(size) + " bytes, " + str(len(scan_errors)) + " falhas de leitura")
         print("Total: " + str(total_files) + " arquivos, " + str(total_bytes) + " bytes")
-        return 0
+        return 2 if scan_failures else 0
 
     manifest_path = destination / MANIFEST_NAME
     if destination.exists() and any(destination.iterdir()) and not manifest_path.exists():
@@ -205,7 +218,8 @@ def backup(args):
             manifest["roots"].append(root_info)
             root_map[root_key] = root_info
 
-        for source_file in iter_regular_files(source):
+        scan_errors = []
+        for source_file in iter_regular_files(source, scan_errors):
             processed += 1
             relative = source_file.relative_to(source).as_posix()
             backup_relative = (PurePosixPath("files") / root_key / PurePosixPath(relative)).as_posix()
@@ -255,6 +269,14 @@ def backup(args):
                 atomic_json(manifest_path, manifest)
                 print("Processados: " + str(processed) + " | novos: " + str(copied) + " | já existentes: " + str(unchanged) + " | falhas: " + str(failed))
 
+        for scan_error in scan_errors:
+            failed += 1
+            manifest["errors"].append({
+                "source_path": scan_error["path"],
+                "error": "Falha ao percorrer a pasta: " + scan_error["error"],
+                "recorded_at": now_utc(),
+            })
+
     manifest["files"] = sorted(file_map.values(), key=lambda item: (item["root_key"], item["relative_path"]))
     manifest["updated_at"] = now_utc()
     atomic_json(manifest_path, manifest)
@@ -284,6 +306,8 @@ def verify(args):
             good += 1
         except Exception as error:
             bad.append((record.get("backup_path", "?"), str(error)))
+    for recorded_error in manifest.get("errors", []):
+        bad.append((recorded_error.get("source_path", "?"), "falha registrada durante o backup: " + recorded_error.get("error", "erro desconhecido")))
     print("Verificados: " + str(good) + "/" + str(len(manifest["files"])))
     for path, error in bad:
         print("FALHA: " + path + " — " + error)
@@ -341,11 +365,12 @@ def restore(args):
         "unchanged": unchanged,
         "conflicts": conflicts,
         "failed": failed,
+        "backup_scan_or_copy_errors": len(manifest.get("errors", [])),
     }
     atomic_json(target_root / "RESTORE_REPORT.json", report)
     print("Restauração: " + str(target_root))
     print(json.dumps(report, ensure_ascii=False, indent=2))
-    return 2 if failed else 0
+    return 2 if failed or manifest.get("errors") else 0
 
 
 def system_info(_args):
