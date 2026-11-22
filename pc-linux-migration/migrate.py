@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import ctypes
 import getpass
 import hashlib
 import json
@@ -387,7 +388,26 @@ def system_info(_args):
             for line in meminfo.read_text(encoding="utf-8", errors="replace").splitlines():
                 if line.startswith("MemTotal:"):
                     data["memory_kib"] = int(line.split()[1])
+                    data["memory_bytes"] = data["memory_kib"] * 1024
                     break
+    elif os.name == "nt":
+        class MemoryStatus(ctypes.Structure):
+            _fields_ = [
+                ("dwLength", ctypes.c_ulong),
+                ("dwMemoryLoad", ctypes.c_ulong),
+                ("ullTotalPhys", ctypes.c_ulonglong),
+                ("ullAvailPhys", ctypes.c_ulonglong),
+                ("ullTotalPageFile", ctypes.c_ulonglong),
+                ("ullAvailPageFile", ctypes.c_ulonglong),
+                ("ullTotalVirtual", ctypes.c_ulonglong),
+                ("ullAvailVirtual", ctypes.c_ulonglong),
+                ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+            ]
+
+        memory = MemoryStatus()
+        memory.dwLength = ctypes.sizeof(MemoryStatus)
+        if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(memory)):
+            data["memory_bytes"] = int(memory.ullTotalPhys)
     print(json.dumps(data, ensure_ascii=False, indent=2))
     return 0
 
