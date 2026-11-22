@@ -52,8 +52,7 @@ def digest_file(path: Path) -> tuple[str, int]:
     return digest.hexdigest(), size
 
 
-def walk_files(source: Path):
-    errors = []
+def walk_files(source: Path, errors: list):
     for current, dirs, names in os.walk(source, topdown=True, followlinks=False,
                                          onerror=lambda e: errors.append({"path": str(e.filename or source), "error": str(e)})):
         base = Path(current)
@@ -65,7 +64,6 @@ def walk_files(source: Path):
                     yield item
             except OSError as exc:
                 errors.append({"path": str(item), "error": str(exc)})
-    return errors
 
 
 def collect(source_strings: list[str], destination: Path | None = None):
@@ -82,7 +80,8 @@ def collect(source_strings: list[str], destination: Path | None = None):
             sources.append(path)
     entries, errors, total = [], [], 0
     for index, source in enumerate(sources):
-        for item in walk_files(source):
+        root_errors = []
+        for item in walk_files(source, root_errors):
             try:
                 stat = item.stat()
                 rel = item.relative_to(source).as_posix()
@@ -90,6 +89,7 @@ def collect(source_strings: list[str], destination: Path | None = None):
                 total += stat.st_size
             except OSError as exc:
                 errors.append({"path": str(item), "error": str(exc)})
+        errors.extend(root_errors)
     return sources, entries, errors, total
 
 
@@ -193,7 +193,8 @@ def do_backup(sources_input: list[str], destination_input: str, password: str):
         raise ValueError("A varredura inicial encontrou erros. Corrija as permissões antes do backup: " + str(scan_errors[:5]))
     if destination.exists() and any(destination.iterdir()):
         raise ValueError("A pasta de destino não está vazia. Escolha uma pasta nova.")
-    if shutil.disk_usage(destination.parent if destination.parent.exists() else Path.home()).free < total + max(64 * 1024 * 1024, total // 20):
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if shutil.disk_usage(destination.parent).free < total + max(64 * 1024 * 1024, total // 20):
         raise ValueError("Espaço livre insuficiente para o backup e a margem de segurança.")
     destination.mkdir(parents=True, exist_ok=True)
     (destination / "objects").mkdir()
