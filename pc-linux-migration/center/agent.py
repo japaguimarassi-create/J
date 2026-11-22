@@ -303,6 +303,105 @@ def do_backup(sources_input: list[str], destination_input: str, password: str):
             "vault": str(destination), "message": "Backup íntegro." if manifest["success"] else "Backup incompleto: não prossiga para a instalação."}
 
 
+
+def decrypt_stream_to_path(vault: Path, record: dict, key: bytes, output: Path):
+    object_id = record.get("id")
+    if not isinstance(object_id, str) or not object_id.endswith(".bin") or not object_id[:-4].isdigit():
+        raise ValueError("Identificador de objeto inválido.")
+    encrypted_path = vault / "objects" / object_id
+    with encrypted_path.open("rb") as src:
+        nonce = src.read(12)
+        src.seek(0, os.SEEK_END)
+        length = src.tell()
+        if len(nonce) != 12 or length < 28:
+            raise ValueError("Objeto criptografado truncado.")
+        src.seek(length - 16)
+        tag = src.read(16)
+        src.seek(12)
+        remaining = length - 28
+        decryptor = Cipher(algorithms.AES(key), modes.GCM(nonce, tag)).decryptor()
+        aad = ("AOC-MIGRATION-FILE-v1:" + object_id).encode()
+        decryptor.authenticate_additional_data(aad)
+        digest = hashlib.sha256()
+        size = 0
+        output.parent.mkdir(parents=True, exist_ok=True)
+        temporary = output.with_name(output.name + ".aoc-partial")
+        try:
+            with temporary.open("wb") as dst:
+                while remaining:
+                    block = src.read(min(CHUNK, remaining))
+                    if not block:
+                        raise ValueError("Objeto criptografado incompleto.")
+                    remaining -= len(block)
+                    plain = decryptor.update(block)
+                    if plain:
+                        dst.write(plain)
+                        digest.update(plain)
+                        size += len(plain)
+                tail = decryptor.finalize()
+                if tail:
+                    dst.write(tail)
+                    digest.update(tail)
+                    size += len(tail)
+                dst.flush()
+                os.fsync(dst.fileno())
+            if size != record["size"] or digest.hexdigest() != record["sha256"]:
+                raise ValueError("SHA-256 ou tamanho não corresponde após descriptografia.")
+            os.replace(temporary, output)
+        except Exception:
+            temporary.unlink(missing_ok=True)
+            raise
+
+
+def safe_restore_relative(raw: str) -> Path:
+    if not isinstance(raw, str) or not raw or "\\\\" in raw:
+        raise ValueError("Caminho de arquivo inválido no manifesto.")
+    relative = PurePosixPath(raw)
+    if relative.is_absolute() or any(part in ("", ".", "..") or ":" in part for part in relative.parts):
+        raise ValueError("Caminho inseguro no manifesto.")
+    return Path(*relative.parts)
+
+
+def do_restore(vault_input: str, destination_input: str, password: str):
+    vault = Path(vault_input).expanduser().resolve(strict=True)
+    destination = Path(destination_input).expanduser().resolve(strict=False)
+    if destination == vault or destination in vault.parents or vault in destination.parents:
+        raise ValueError("A pasta de restauração não pode ser a pasta do cofre nem conter/estar dentro dela.")
+    if destination.exists() and any(destination.iterdir()):
+        raise ValueError("A pasta de restauração precisa ser nova ou estar vazia. Não sobrescrevemos dados existentes.")
+    key, manifest = vault_open(vault, password)
+    roots = manifest.get("roots")
+    records = manifest.get("files")
+    if not isinstance(roots, list) or not isinstance(records, list):
+        raise ValueError("Manifesto inválido.")
+    destination.mkdir(parents=True, exist_ok=True)
+    restored, bad = 0, []
+    for record in records:
+        try:
+            root_index = record.get("root")
+            if not isinstance(root_index, int) or root_index < 0 or root_index >= len(roots):
+                raise ValueError("Origem inválida no manifesto.")
+            relative = safe_restore_relative(record.get("path"))
+            source_root = str(roots[root_index]).replace("\\\\", "/")
+            root_label = safe_name(PurePosixPath(source_root).name or ("origem_" + str(root_index + 1)))
+            output = (destination / root_label / relative).resolve(strict=False)
+            if destination.resolve(strict=False) not in output.parents:
+                raise ValueError("Caminho de restauração escapou da pasta de destino.")
+            if output.exists():
+                raise FileExistsError("Arquivo já existe; nenhum arquivo existente foi sobrescrito.")
+            decrypt_stream_to_path(vault, record, key, output)
+            restored += 1
+        except Exception as exc:
+            bad.append({"path": str(record.get("path", "?")), "error": str(exc)})
+    success = not bad and not manifest.get("errors") and restored == len(records)
+    report = {"success": success, "files_restored": restored, "files_expected": len(records),
+              "manifest_errors": len(manifest.get("errors", [])), "errors": (manifest.get("errors", []) + bad)[:30],
+              "destination": str(destination),
+              "message": "Arquivos restaurados e verificados." if success else "Restauração incompleta. O computador original e o cofre devem ser preservados."}
+    (destination / "AOC_RESTORE_REPORT.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    return report
+
+
 def do_verify(vault_input: str, password: str):
     vault = Path(vault_input).expanduser().resolve(strict=True)
     key, manifest = vault_open(vault, password)
@@ -390,6 +489,14 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(200, result)
             elif self.path == "/api/verify":
                 result = do_verify(data["vault"], data["password"])
+                self._json(200, result)
+            elif self.path == "/api/restore":
+                if not LOCK.acquire(blocking=False):
+                    raise ValueError("Outra operação já está em andamento.")
+                try:
+                    result = do_restore(data["vault"], data["destination"], data["password"])
+                finally:
+                    LOCK.release()
                 self._json(200, result)
             else:
                 self._json(404, {"error": "Operação desconhecida."})
