@@ -8,6 +8,18 @@ O projeto cria uma pasta MIGRACAO_AOC em um HD externo, pendrive com espaço suf
 
 O programa copia a pasta do usuário por padrão, incluindo arquivos ocultos e dados de aplicativos que estejam dentro desse perfil. Isso pode preservar imagens, gravações, documentos, arquivos locais de e-mail, saves e dados de jogos. Ele não transforma automaticamente programas Windows em programas Linux e não garante que um jogo antigo rode no Linux.
 
+## AOC Migration Center (backup criptografado)
+
+O painel local está em [center/README.md](center/README.md). Ele usa um agente Python local e navegador, cria um cofre AES-256-GCM, criptografa também o manifesto e verifica os arquivos antes de aprovar o backup.
+
+- Windows: execute `center/start_windows.bat`.
+- Linux: execute `bash center/start_linux.sh`.
+- Abra `http://127.0.0.1:8765`.
+- Escolha as pastas de origem, destino em outro disco e senha forte.
+- Faça a análise, o backup e uma verificação posterior do cofre.
+
+A aprovação não instala o Linux nem garante que pastas não selecionadas foram descobertas. Mantenha o computador original intacto e faça uma segunda cópia dos dados insubstituíveis.
+
 ## Requisitos
 
 - Python 3.10 ou mais recente.
