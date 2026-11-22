@@ -72,22 +72,18 @@ def validate_source(source, destination):
         raise ValueError("A origem precisa ser uma pasta: " + str(source))
     if source == Path(source.anchor):
         raise ValueError("Não copie uma unidade ou a raiz inteira. Escolha a pasta do usuário.")
-    blocked = {
-        "/etc", "/usr", "/var", "/proc", "/sys", "/dev", "/boot", "/run", "/bin", "/sbin", "/lib", "/lib64",
-    }
-    normalized = str(source).replace("\\", "/").rstrip("/").lower()
-    if normalized in blocked:
+    blocked_roots = [
+        Path(item) for item in (
+            "/etc", "/usr", "/var", "/proc", "/sys", "/dev", "/boot", "/run",
+            "/bin", "/sbin", "/lib", "/lib64", "/root",
+        )
+    ]
+    if any(source == item or is_relative_to(source, item) for item in blocked_roots):
         raise ValueError("A origem selecionada parece ser uma pasta do sistema: " + str(source))
     if os.name == "nt":
         system_root = Path(os.environ.get("SystemRoot", r"C:\Windows")).resolve(strict=False)
-        program_files = [
-            Path(os.environ.get("ProgramFiles", r"C:\Program Files")).resolve(strict=False),
-            Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")).resolve(strict=False),
-            Path(os.environ.get("ProgramData", r"C:\ProgramData")).resolve(strict=False),
-        ]
-        forbidden = [system_root, *program_files]
-        if any(source == item or is_relative_to(source, item) for item in forbidden):
-            raise ValueError("A origem selecionada é uma pasta do Windows, não um perfil de usuário.")
+        if source == system_root or is_relative_to(source, system_root):
+            raise ValueError("Não selecione a pasta do Windows como origem.")
     if destination == source or is_relative_to(destination, source):
         raise ValueError("O destino do backup não pode ficar dentro da pasta de origem.")
     return source
