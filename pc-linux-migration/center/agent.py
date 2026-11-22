@@ -269,7 +269,10 @@ def do_verify(vault_input: str, password: str):
     good, bad = 0, []
     for record in manifest["files"]:
         try:
-            verify_stream(vault / "objects" / record["id"], key,
+            object_id = record["id"]
+            if not isinstance(object_id, str) or not object_id.endswith(".bin") or not object_id[:-4].isdigit():
+                raise ValueError("Identificador de objeto inválido.")
+            verify_stream(vault / "objects" / object_id, key,
                           ("AOC-MIGRATION-FILE-v1:" + record["id"]).encode(),
                           record["sha256"], record["size"])
             good += 1
@@ -304,7 +307,16 @@ class Handler(BaseHTTPRequestHandler):
             raise ValueError("Requisição muito grande.")
         return json.loads(self.rfile.read(length) or b"{}")
 
+    def _check_host(self):
+        if self.headers.get("Host") not in (f"127.0.0.1:{PORT}", f"localhost:{PORT}"):
+            raise ValueError("Host local não permitido.")
+
     def do_GET(self):
+        try:
+            self._check_host()
+        except ValueError:
+            self.send_error(403)
+            return
         if self.path == "/api/status":
             self._json(200, {"ready": True, "platform": sys.platform, "home": str(Path.home())})
             return
@@ -322,6 +334,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         try:
+            self._check_host()
             data = self._body()
             if self.path == "/api/scan":
                 destination = Path(data.get("destination", "")).expanduser().resolve(strict=False) if data.get("destination") else None
