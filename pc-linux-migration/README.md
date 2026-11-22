@@ -11,6 +11,7 @@ O programa copia a pasta do usuário por padrão, incluindo arquivos ocultos e d
 ## Requisitos
 
 - Python 3.10 ou mais recente.
+- Depois de baixar/clonar o repositório, entre na pasta `pc-linux-migration` antes de executar os comandos abaixo.
 - Um disco externo com espaço livre maior que os dados a preservar.
 - Para criar USB pelo script Bash: um ambiente Linux, lsblk, findmnt, blockdev, sha256sum e privilégios administrativos.
 - Um pendrive separado para o instalador Linux. Ele será apagado durante a criação.
@@ -41,7 +42,11 @@ Sem --source, o programa usa a pasta do usuário atual. Para adicionar outra pas
 
 py -3 migrate.py backup --source "C:\Users\NOME" --source "D:\Jogos" --destination E:\MIGRACAO_AOC --label AOC
 
-Não escolha C:\, C:\Windows, / ou pastas do próprio sistema como origem. Para arquivos em outras unidades, indique apenas as pastas que realmente contêm dados pessoais.
+Não escolha C:\, C:\Windows, / ou pastas do próprio sistema como origem. Para preservar o jogo se ele estiver instalado fora do perfil do usuário, informe a pasta exata dele com outro --source, por exemplo:
+
+py -3 migrate.py backup --source "C:\Users\NOME" --source "C:\Program Files (x86)\PASTA_DO_JOGO" --destination E:\MIGRACAO_AOC --label AOC
+
+Não selecione toda a pasta Program Files sem necessidade. Saves e configurações podem estar em AppData, Documentos ou Saved Games e já serão incluídos quando estiverem dentro do perfil. Programas Windows copiados não se tornam automaticamente executáveis no Linux.
 
 ## 3. Fazer e verificar a cópia
 
@@ -103,7 +108,7 @@ Por padrão, arquivos existentes com conteúdo diferente não são sobrescritos.
 ## Limitações importantes
 
 - O backup lê o perfil do usuário; ele não copia automaticamente o sistema operacional, drivers, partições de boot ou todos os programas instalados.
-- Dados de e-mail podem estar em nuvem ou em arquivos locais. Arquivos locais presentes no perfil são copiados, mas contas e senhas precisam ser configuradas novamente no novo sistema.
+- Arquivos locais de clientes de e-mail dentro do perfil são copiados. Webmail (por exemplo, uma caixa acessada só pelo navegador) permanece no provedor e não é exportado como arquivo completo por este programa; confirme o acesso à conta e faça uma exportação própria quando necessário. Não publique o backup no GitHub: ele pode conter mensagens privadas, cookies e outros dados sensíveis.
 - Saves e recursos de jogos são copiados quando estão dentro das pastas selecionadas. Compatibilidade depende do jogo, da arquitetura e de suas dependências.
 - Arquivos protegidos, danificados, criptografados ou bloqueados podem gerar falhas. Leia o relatório e repita a cópia com o aplicativo de origem fechado.
 - O SHA-256 confirma que os bytes copiados correspondem ao arquivo lido; não garante que o arquivo original não estivesse corrompido.
