@@ -20,6 +20,18 @@ O painel local está em [center/README.md](center/README.md). Ele usa um agente 
 
 A aprovação não instala o Linux nem garante que pastas não selecionadas foram descobertas. Mantenha o computador original intacto e faça uma segunda cópia dos dados insubstituíveis.
 
+## AOC Mint Edition — janela integrada ao Linux Mint XFCE
+
+A camada de desktop está em [os-layer/README.md](os-layer/README.md). Ela adiciona o AOC Migration Center como uma janela de aplicativo no menu do Linux Mint. A janela possui duas ações: fazer backup criptografado do sistema atual e restaurar um cofre depois de verificar todos os arquivos.
+
+O painel pode fazer a migração de dados de ida e volta entre Windows e Linux, mas **não clona o sistema operacional inteiro**. Aplicativos, drivers, boot e configurações incompatíveis precisam de reinstalação ou adaptação. A restauração nunca sobrescreve uma pasta existente.
+
+Instalação da camada no Linux Mint:
+
+```bash
+bash pc-linux-migration/os-layer/install_aoc_mint.sh
+```
+
 ## Requisitos
 
 - Python 3.10 ou mais recente.
