@@ -19,7 +19,7 @@ fi
 command -v python3 >/dev/null 2>&1 || { echo "Python 3 não encontrado." >&2; exit 1; }
 mkdir -p "$APP_DIR" "$DESKTOP_DIR"
 cp -a "$CENTER_SRC/." "$APP_DIR/"
-cp "$SCRIPT_DIR/launch_window.sh" "$APP_DIR/launch_window.sh"
+cp "$CENTER_SRC/launch_window.sh" "$APP_DIR/launch_window.sh"
 chmod 700 "$APP_DIR/launch_window.sh"
 if ! python3 -m venv "$APP_DIR/.venv" 2>/dev/null; then
     echo "Instalando suporte a ambientes virtuais do Python…"
