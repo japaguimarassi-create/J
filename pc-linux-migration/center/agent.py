@@ -60,7 +60,9 @@ def walk_files(source: Path, errors: list):
         for name in names:
             item = base / name
             try:
-                if item.is_file() and not item.is_symlink():
+                if item.is_symlink():
+                    errors.append({"path": str(item), "error": "Link simbólico ignorado; confira manualmente o destino dos dados."})
+                elif item.is_file():
                     yield item
             except OSError as exc:
                 errors.append({"path": str(item), "error": str(exc)})
@@ -188,7 +190,12 @@ def vault_open(vault: Path, password: str):
 
 def do_backup(sources_input: list[str], destination_input: str, password: str):
     destination = Path(destination_input).expanduser().resolve(strict=False)
+    destination.parent.mkdir(parents=True, exist_ok=True)
     sources, entries, scan_errors, total = collect(sources_input, destination)
+    destination_device = os.stat(destination.parent).st_dev
+    same_disk = [str(source) for source in sources if os.stat(source).st_dev == destination_device]
+    if same_disk:
+        raise ValueError("O destino precisa estar em outro disco físico/unidade. Origem e destino estão na mesma unidade: " + ", ".join(same_disk))
     if scan_errors:
         raise ValueError("A varredura inicial encontrou erros. Corrija as permissões antes do backup: " + str(scan_errors[:5]))
     if destination.exists() and any(destination.iterdir()):
