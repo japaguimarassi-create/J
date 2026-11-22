@@ -367,39 +367,42 @@ def do_restore(vault_input: str, destination_input: str, password: str):
     destination = Path(destination_input).expanduser().resolve(strict=False)
     if destination == vault or destination in vault.parents or vault in destination.parents:
         raise ValueError("A pasta de restauração não pode ser a pasta do cofre nem conter/estar dentro dela.")
-    if destination.exists() and any(destination.iterdir()):
-        raise ValueError("A pasta de restauração precisa ser nova ou estar vazia. Não sobrescrevemos dados existentes.")
+    if destination.exists():
+        raise ValueError("Escolha uma pasta de destino que ainda não exista. Nenhum arquivo será sobrescrito.")
     key, manifest = vault_open(vault, password)
+    verification = do_verify(str(vault), password)
+    if not verification["success"]:
+        raise ValueError("O cofre não passou na verificação completa. Restauração bloqueada: " + verification["message"])
     roots = manifest.get("roots")
     records = manifest.get("files")
     if not isinstance(roots, list) or not isinstance(records, list):
         raise ValueError("Manifesto inválido.")
-    destination.mkdir(parents=True, exist_ok=True)
-    restored, bad = 0, []
-    for record in records:
-        try:
+    staging = destination.with_name(destination.name + ".aoc-staging-" + secrets.token_hex(5))
+    staging.mkdir(parents=True, exist_ok=False)
+    restored = 0
+    try:
+        for record in records:
             root_index = record.get("root")
             if not isinstance(root_index, int) or root_index < 0 or root_index >= len(roots):
                 raise ValueError("Origem inválida no manifesto.")
             relative = safe_restore_relative(record.get("path"))
             source_root = str(roots[root_index]).replace("\\\\", "/")
-            root_label = safe_name(PurePosixPath(source_root).name or ("origem_" + str(root_index + 1)))
-            output = (destination / root_label / relative).resolve(strict=False)
-            if destination.resolve(strict=False) not in output.parents:
+            root_label = f"{root_index + 1:02d}_" + safe_name(PurePosixPath(source_root).name or ("origem_" + str(root_index + 1)))
+            output = (staging / root_label / relative).resolve(strict=False)
+            if staging.resolve(strict=False) not in output.parents:
                 raise ValueError("Caminho de restauração escapou da pasta de destino.")
-            if output.exists():
-                raise FileExistsError("Arquivo já existe; nenhum arquivo existente foi sobrescrito.")
             decrypt_stream_to_path(vault, record, key, output)
             restored += 1
-        except Exception as exc:
-            bad.append({"path": str(record.get("path", "?")), "error": str(exc)})
-    success = not bad and not manifest.get("errors") and restored == len(records)
-    report = {"success": success, "files_restored": restored, "files_expected": len(records),
-              "manifest_errors": len(manifest.get("errors", [])), "errors": (manifest.get("errors", []) + bad)[:30],
-              "destination": str(destination),
-              "message": "Arquivos restaurados e verificados." if success else "Restauração incompleta. O computador original e o cofre devem ser preservados."}
-    (destination / "AOC_RESTORE_REPORT.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    return report
+        report = {"success": True, "files_restored": restored, "files_expected": len(records),
+                  "errors": [], "destination": str(destination),
+                  "message": "Todos os arquivos foram autenticados, verificados e restaurados."}
+        (staging / "AOC_RESTORE_REPORT.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(staging, destination)
+        return report
+    except Exception:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise
 
 
 def do_verify(vault_input: str, password: str):
