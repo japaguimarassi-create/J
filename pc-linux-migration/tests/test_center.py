@@ -59,7 +59,7 @@ class EncryptedVaultTests(unittest.TestCase):
         manifest = {"format": agent.FORMAT, "roots": ["/home/old-user"],
                     "files": [{"id": object_id, "root": 0, "path": "Documents/test.txt",
                                "size": size, "sha256": digest, "modified_ns": 0}],
-                    "errors": [], "source_file_count": 1, "source_bytes": size}
+                    "errors": [], "source_file_count": 1, "source_bytes": size, "success": True}
         agent.encrypt_manifest(manifest, key, vault / "manifest.enc")
         return vault, source
 
