@@ -54,6 +54,8 @@ O comando mostra os nomes das teclas e os identificadores dos dispositivos. Para
 
 Se uma configuração incorreta bloquear a digitação, a sequência de emergência do keyd é **Backspace + Esc + Enter**. Um teclado USB externo também pode ajudar a recuperar o acesso.
 
+Os scripts Bash deste módulo são verificados automaticamente pelo GitHub Actions junto com os testes do migrador.
+
 ## Limites
 
 - O programa corrige o sinal lógico enviado pelo teclado; não conserta teclas fisicamente quebradas, contatos intermitentes ou falhas no cabo/controlador.
