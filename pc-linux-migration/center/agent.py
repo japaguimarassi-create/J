@@ -214,7 +214,8 @@ def do_backup(sources_input: list[str], destination_input: str, password: str):
     if destination.exists() and any(destination.iterdir()):
         raise ValueError("A pasta de destino não está vazia. Escolha uma pasta nova.")
     destination.parent.mkdir(parents=True, exist_ok=True)
-    if shutil.disk_usage(destination.parent).free < total + max(64 * 1024 * 1024, total // 20):
+    required_space = total + len(entries) * 256 + max(64 * 1024 * 1024, total // 20)
+    if shutil.disk_usage(destination.parent).free < required_space:
         raise ValueError("Espaço livre insuficiente para o backup e a margem de segurança.")
     destination.mkdir(parents=True, exist_ok=True)
     (destination / "objects").mkdir()
@@ -426,7 +427,8 @@ def do_verify(vault_input: str, password: str):
             good += 1
         except Exception as exc:
             bad.append({"path": record["path"], "error": str(exc)})
-    success = not bad and not manifest.get("errors") and good == manifest.get("source_file_count")
+    success = (manifest.get("success") is True and not bad and not manifest.get("errors")
+               and good == manifest.get("source_file_count"))
     return {"success": success, "files_verified": good, "files_expected": manifest.get("source_file_count", 0),
             "errors": (manifest.get("errors", []) + bad)[:30],
             "message": "Cofre íntegro." if success else "Verificação reprovada. Não instale o novo sistema."}
