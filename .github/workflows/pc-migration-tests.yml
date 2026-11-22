@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - pc-linux-migration/aoc-preservation-v1
+      - pc-linux-migration/aoc-center-aes256-v1
   pull_request:
     paths:
       - "pc-linux-migration/**"
@@ -16,8 +17,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - run: python -m pip install -r pc-linux-migration/center/requirements.txt
       - run: python -m unittest discover -s pc-linux-migration/tests -v
-      - run: python -m py_compile pc-linux-migration/migrate.py
+      - run: python -m py_compile pc-linux-migration/migrate.py pc-linux-migration/center/agent.py
       - run: bash -n pc-linux-migration/usb/make_boot_usb.sh
       - run: bash -n pc-linux-migration/keyboard/install.sh
       - run: bash -n pc-linux-migration/keyboard/rollback.sh
