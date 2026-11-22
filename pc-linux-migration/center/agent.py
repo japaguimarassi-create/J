@@ -56,7 +56,14 @@ def walk_files(source: Path, errors: list):
     for current, dirs, names in os.walk(source, topdown=True, followlinks=False,
                                          onerror=lambda e: errors.append({"path": str(e.filename or source), "error": str(e)})):
         base = Path(current)
-        dirs[:] = [d for d in dirs if not (base / d).is_symlink()]
+        kept = []
+        for dirname in dirs:
+            candidate = base / dirname
+            if candidate.is_symlink():
+                errors.append({"path": str(candidate), "error": "Link simbólico ignorado; confira manualmente o destino dos dados."})
+            else:
+                kept.append(dirname)
+        dirs[:] = kept
         for name in names:
             item = base / name
             try:
