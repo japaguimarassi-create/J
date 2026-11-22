@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101827">
+<title>AOC Migration Center</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1220;--panel:#121d2e;--line:#26364d;--text:#e8eef7;--muted:#9aabc1;--blue:#64a9ff;--green:#49c995;--red:#ff7777}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px system-ui,-apple-system,Segoe UI,sans-serif}main{max-width:850px;margin:auto;padding:24px 16px 48px}.top{display:flex;align-items:center;gap:12px;margin-bottom:20px}.mark{width:42px;height:42px;border-radius:12px;background:#19365a;display:grid;place-items:center;color:var(--blue);font-weight:800}.sub,.hint{color:var(--muted);font-size:13px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;margin:14px 0}.panel h2{font-size:17px;margin:0 0 14px}.field{display:grid;gap:6px;margin:12px 0}label{font-size:13px;color:#c8d5e6}input{width:100%;padding:12px;border:1px solid var(--line);border-radius:9px;background:#0b1525;color:var(--text);font:inherit}button{border:0;border-radius:10px;padding:12px 16px;background:var(--blue);color:#071426;font-weight:700;font-size:14px;cursor:pointer}button.secondary{background:#263b56;color:var(--text)}button:disabled{opacity:.5;cursor:wait}.actions{display:flex;flex-wrap:wrap;gap:9px;margin-top:14px}.status{padding:12px;border-radius:10px;background:#0b1525;border:1px solid var(--line);white-space:pre-wrap;overflow-wrap:anywhere}.ok{color:var(--green)}.bad{color:var(--red)}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#0b1525;border:1px solid var(--line);padding:12px;border-radius:10px}.stat b{display:block;font-size:20px}.stat span{font-size:12px;color:var(--muted)}.warning{border-left:3px solid #e3b45d;padding:10px 12px;background:#2a2519;color:#f3d99f;border-radius:5px;font-size:13px}.hidden{display:none}footer{color:var(--muted);font-size:12px;margin-top:24px}@media(max-width:520px){.stats{grid-template-columns:1fr}.actions button{width:100%}}
+</style>
+</head>
+<body><main>
+<header class="top"><div class="mark">AOC</div><div><strong>AOC Migration Center</strong><div class="sub">Backup local criptografado · AES-256-GCM</div></div></header>
+<div class="warning">O painel não envia arquivos para a internet. O agente funciona apenas em 127.0.0.1 neste computador. Não formate o disco original após o backup sem uma segunda cópia segura.</div>
+<section class="panel">
+<h2>1 · Pastas de origem</h2>
+<div class="field"><label for="sources">Uma pasta por linha (padrão: pasta do usuário)</label><textarea id="sources" rows="3" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:9px;background:#0b1525;color:var(--text);font:inherit" placeholder="C:\Users\SeuUsuario&#10;D:\Jogos"></textarea><div class="hint">Inclua explicitamente pastas de jogos que estejam fora do seu perfil. Pastas do sistema não são aceitas.</div></div>
+<div class="field"><label for="destination">Destino em outro disco (pasta nova e vazia)</label><input id="destination" placeholder="E:\AOC_VAULT ou /media/usuario/HD/AOC_VAULT"></div>
+<div class="actions"><button id="scan" class="secondary">Analisar computador</button></div>
+<div id="scanResult" class="hidden" style="margin-top:14px"><div class="stats"><div class="stat"><b id="files">—</b><span>Arquivos encontrados</span></div><div class="stat"><b id="bytes">—</b><span>Volume estimado</span></div><div class="stat"><b id="errors">—</b><span>Falhas de leitura</span></div></div></div>
+</section>
+<section class="panel">
+<h2>2 · Criar cofre criptografado</h2>
+<div class="field"><label for="password">Senha do cofre (mínimo 12 caracteres)</label><input id="password" type="password" autocomplete="new-password" placeholder="Crie uma senha forte"></div>
+<div class="field"><label for="confirm">Confirme a senha</label><input id="confirm" type="password" autocomplete="new-password" placeholder="Digite novamente"></div>
+<div class="hint">A senha não é armazenada. Se for perdida, não será possível recuperar os dados. Guarde-a em local seguro, separado do HD.</div>
+<div class="actions"><button id="backup">Criar backup e auditar</button></div>
+</section>
+<section class="panel">
+<h2>3 · Verificar um cofre existente</h2>
+<div class="field"><label for="vault">Caminho da pasta do cofre</label><input id="vault" placeholder="E:\AOC_VAULT"></div>
+<div class="field"><label for="verifyPassword">Senha do cofre</label><input id="verifyPassword" type="password" autocomplete="current-password"></div>
+<div class="actions"><button id="verify" class="secondary">Verificar todos os arquivos</button></div>
+</section>
+<section class="panel"><h2>Resultado</h2><div id="result" class="status" aria-live="polite">Aguardando conexão com o agente local…</div></section>
+<footer>Agente local · Sem telemetria · Não feche o agente durante uma operação. A instalação do Linux permanece uma etapa manual com confirmação do disco.</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const fmt=n=>{if(n<1024)return n+" B";const u=["KB","MB","GB","TB"];let i=-1;do{n/=1024;i++}while(n>=1024&&i<u.length-1);return n.toFixed(2)+" "+u[i]};
+const paths=()=> $("sources").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+function show(text,kind=""){ $("result").textContent=text;$("result").className="status "+kind; }
+async function api(path,data){const r=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(data)});const j=await r.json();if(!r.ok||j.error)throw Error(j.error||"Falha na operação");return j}
+async function busy(button,fn){button.disabled=true;try{await fn()}catch(e){show("ERRO: "+e.message,"bad")}finally{button.disabled=false}}
+fetch("/api/status").then(r=>r.json()).then(x=>show("Agente conectado · "+x.platform+" · "+x.home,"ok")).catch(()=>show("Agente local não encontrado. Inicie start_windows.bat ou start_linux.sh.","bad"));
+$("scan").onclick=()=>busy($("scan"),async()=>{show("Analisando pastas…");const d=await api("/api/scan",{sources:paths(),destination:$("destination").value.trim()||null});$("scanResult").classList.remove("hidden");$("files").textContent=d.files.toLocaleString("pt-BR");$("bytes").textContent=fmt(d.bytes);$("errors").textContent=d.errors.length;show(d.errors.length?"Análise encontrou falhas. Corrija-as antes do backup.":"Análise concluída sem falhas de leitura.",d.errors.length?"bad":"ok");});
+$("backup").onclick=()=>busy($("backup"),async()=>{const password=$("password").value;if(password.length<12)throw Error("A senha precisa ter pelo menos 12 caracteres.");if(password!==$("confirm").value)throw Error("As senhas não correspondem.");if(!$("destination").value.trim())throw Error("Informe o destino do backup.");if(!confirm("Criar um novo cofre na pasta indicada? Ela precisa estar vazia e em outro disco. Continue somente se o destino estiver correto."))return;show("Backup em andamento. Arquivos grandes podem levar tempo. Não feche esta página nem o agente.");const d=await api("/api/backup",{sources:paths(),destination:$("destination").value.trim(),password});$("vault").value=d.vault;show(JSON.stringify(d,null,2),d.success?"ok":"bad");});
+$("verify").onclick=()=>busy($("verify"),async()=>{if(!$("vault").value.trim()||!$("verifyPassword").value)throw Error("Informe o caminho do cofre e a senha.");show("Verificando autenticação e SHA-256 de todos os arquivos…");const d=await api("/api/verify",{vault:$("vault").value.trim(),password:$("verifyPassword").value});show(JSON.stringify(d,null,2),d.success?"ok":"bad");});
+</script></body></html>
