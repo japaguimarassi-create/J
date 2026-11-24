@@ -37,6 +37,22 @@ class NeuralMatrixTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             graph.add_edge(0, 1, 0.2)
 
+    def test_sparse_graph_rejects_non_finite_edge_weights(self):
+        graph = SparseGraph(4, 2, seed=1)
+        with self.assertRaises(ValueError):
+            graph.add_edge(0, 1, float("nan"))
+
+    def test_virtual_matrix_rejects_non_integer_dimensions(self):
+        with self.assertRaises(ValueError):
+            VirtualMatrix(rows=True)
+        with self.assertRaises(ValueError):
+            VirtualMatrix(rows=1.5)
+
+    def test_virtual_matrix_rejects_non_integer_addresses(self):
+        matrix = VirtualMatrix(10, 20)
+        with self.assertRaises(ValueError):
+            matrix.address_id(1.0, 0)
+
     def test_virtual_matrix_addressing(self):
         matrix = VirtualMatrix()
         self.assertEqual(matrix.logical_connections, 2_000_000_000_000_000_000)
