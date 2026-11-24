@@ -1,0 +1,11 @@
+{
+  "logical_units": 1000000000,
+  "logical_connections": 2000000000,
+  "active_units": 256,
+  "active_edges": 2048,
+  "expert_count": 8,
+  "expert_width": 32,
+  "top_k_experts": 2,
+  "learning_rate": 0.001,
+  "seed": 17
+}
