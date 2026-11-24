@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 from neural_matrix.config import MatrixConfig
-from neural_matrix.experts import Expert
+from neural_matrix.experts import Expert, ExpertRouter
 from neural_matrix.model import NeuralMatrixModel
 from neural_matrix.training import CombinedTrainer
 
@@ -27,6 +27,17 @@ def small_config(top_k=1):
 
 
 class ModelTests(unittest.TestCase):
+    def test_router_uses_expert_specific_input_projection(self):
+        first = Expert(2, seed=1)
+        second = Expert(2, seed=2)
+        first.weights[0] = [1.0, 0.0]
+        second.weights[0] = [-1.0, 0.0]
+        router = ExpertRouter([first, second], top_k=1)
+        self.assertEqual(router.route([1.0, 0.0]), [0])
+        first.weights[0] = [-1.0, 0.0]
+        second.weights[0] = [1.0, 0.0]
+        self.assertEqual(router.route([1.0, 0.0]), [1])
+
     def test_prediction_is_deterministic_for_equal_seeds(self):
         first = NeuralMatrixModel(small_config())
         second = NeuralMatrixModel(small_config())
