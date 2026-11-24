@@ -3,7 +3,10 @@ import unittest
 from pathlib import Path
 
 from neural_matrix.config import MatrixConfig
+from neural_matrix.distributed import DistributedTrainer
 from neural_matrix.experts import Expert, ExpertRouter
+from neural_matrix.memory import MemoryBudget, MemoryBudgetExceeded, VirtualWeightCache
+from neural_matrix.scaling import CapacityPlan, ProgressiveScaler
 from neural_matrix.sparse import SparseGraph
 from neural_matrix.training import CombinedTrainer
 from neural_matrix.virtual import VirtualMatrix
@@ -53,6 +56,56 @@ class NeuralMatrixTests(unittest.TestCase):
             self.assertTrue(restored.load_checkpoint(path))
             self.assertEqual(restored.stats.samples, 1)
             self.assertEqual(restored.experts[0].weights, trainer.experts[0].weights)
+
+    def test_memory_budget_evicts_oldest_cache_entry(self):
+        budget = MemoryBudget(128)
+        budget.put("a", 1.0, 64)
+        budget.put("b", 2.0, 64)
+        self.assertEqual(budget.get("a"), 1.0)
+        budget.put("c", 3.0, 64)
+        self.assertIsNone(budget.get("b"))
+        self.assertEqual(budget.get("a"), 1.0)
+        self.assertEqual(budget.snapshot()["used_bytes"], 128)
+        with self.assertRaises(MemoryBudgetExceeded):
+            budget.put("large", 0.0, 129)
+
+    def test_virtual_weight_cache_uses_budget(self):
+        budget = MemoryBudget(128)
+        cache = VirtualWeightCache(VirtualMatrix(10, 10), budget)
+        expected = cache.get(2, 3)
+        self.assertEqual(cache.get(2, 3), expected)
+        self.assertEqual(budget.cached_items, 1)
+
+    def test_progressive_capacity_stays_inside_memory_limit(self):
+        config = MatrixConfig()
+        plan = CapacityPlan.from_config(config)
+        self.assertGreater(len(plan.stages), 1)
+        self.assertEqual(plan.stages[0].active_units, config.active_units)
+        self.assertEqual(plan.stages[-1].active_units, config.max_active_units)
+        self.assertEqual(plan.stages[-1].active_edges, config.max_active_edges)
+        self.assertTrue(all(stage.estimated_bytes <= plan.memory_limit_bytes for stage in plan.stages))
+        scaler = ProgressiveScaler(plan)
+        self.assertTrue(scaler.has_next)
+        self.assertEqual(scaler.advance(), plan.stages[1])
+
+    def test_distributed_training_updates_expert_shards(self):
+        experts = [Expert(2, 11), Expert(2, 12)]
+        trainer = DistributedTrainer(experts, workers=2)
+        dataset = [
+            ([0.2, -0.1], [0.0, 0.1]),
+            ([0.1, 0.4], [0.2, -0.2]),
+            ([-0.2, 0.3], [0.1, 0.0]),
+        ]
+        loss = trainer.train(dataset)
+        self.assertGreaterEqual(loss, 0.0)
+        self.assertEqual(trainer.stats.samples, 3)
+        self.assertEqual(trainer.stats.updates, 3)
+        self.assertEqual(sum(expert.steps for expert in experts), 3)
+
+    def test_invalid_progressive_capacity_is_rejected(self):
+        config = MatrixConfig(active_units=10, max_active_units=9)
+        with self.assertRaises(ValueError):
+            CapacityPlan.from_config(config)
 
 
 if __name__ == "__main__":
