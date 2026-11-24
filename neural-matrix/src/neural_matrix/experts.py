@@ -61,14 +61,14 @@ class ExpertRouter:
 
     def route(self, inputs: list[float]) -> list[int]:
         values = validate_vector(inputs, self.width, "Input")
-        ranked = sorted(
-            range(len(self.experts)),
-            key=lambda index: (
-                sum(value * bias for value, bias in zip(values, self.experts[index].bias)),
-                -index,
-            ),
-            reverse=True,
-        )
+
+        def score(index: int) -> tuple[float, int]:
+            expert = self.experts[index]
+            projection = sum(value * weight for value, weight in zip(values, expert.weights[0]))
+            bias_signal = sum(value * bias for value, bias in zip(values, expert.bias))
+            return projection + bias_signal, -index
+
+        ranked = sorted(range(len(self.experts)), key=score, reverse=True)
         return ranked[:self.top_k]
 
     def forward(self, inputs: list[float]) -> list[float]:
