@@ -1,3 +1,8 @@
-"""Neural Matrix 1B × 2B research prototype."""
+"""Neural Matrix hybrid sparse and virtual neural network toolkit."""
 
-__version__ = "0.2.0"
+from .config import MatrixConfig
+from .model import NeuralMatrixModel
+
+__version__ = "0.3.0"
+
+__all__ = ["MatrixConfig", "NeuralMatrixModel", "__version__"]
