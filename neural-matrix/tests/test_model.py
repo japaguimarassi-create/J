@@ -9,7 +9,7 @@ from neural_matrix.model import NeuralMatrixModel
 from neural_matrix.training import CombinedTrainer
 
 
-def small_config():
+def small_config(top_k=1):
     return MatrixConfig(
         logical_units=100,
         logical_connections=200,
@@ -17,7 +17,7 @@ def small_config():
         active_edges=16,
         expert_count=2,
         expert_width=2,
-        top_k_experts=1,
+        top_k_experts=top_k,
         max_active_units=16,
         max_active_edges=32,
         memory_limit_mb=4,
@@ -37,12 +37,40 @@ class ModelTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             model.predict([0.1])
 
+    def test_model_encodes_inputs_through_virtual_sparse_graph(self):
+        model = NeuralMatrixModel(small_config())
+        encoded = model.encode_inputs([0.25, -0.5])
+        self.assertEqual(len(encoded), 2)
+        self.assertNotEqual(encoded, [0.25, -0.5])
+        self.assertGreater(model.memory_budget.cached_items, 0)
+
     def test_training_updates_selected_experts(self):
         model = NeuralMatrixModel(small_config())
         before = sum(expert.steps for expert in model.experts)
         loss = model.train_sample(([0.2, -0.1], [0.0, 0.1]))
         self.assertGreaterEqual(loss, 0.0)
         self.assertGreater(sum(expert.steps for expert in model.experts), before)
+
+    def test_batch_validation_prevents_partial_training(self):
+        model = NeuralMatrixModel(small_config())
+        before = [expert.steps for expert in model.experts]
+        with self.assertRaises(ValueError):
+            model.train_batch([
+                ([0.2, -0.1], [0.0, 0.1]),
+                ([0.1, 0.3], [0.2]),
+            ], mode="incremental")
+        self.assertEqual([expert.steps for expert in model.experts], before)
+
+    def test_distributed_batch_updates_each_selected_expert(self):
+        model = NeuralMatrixModel(small_config(top_k=2))
+        samples = [
+            ([0.2, -0.1], [0.0, 0.1]),
+            ([0.1, 0.4], [0.2, -0.2]),
+        ]
+        model.train_batch(samples, mode="distributed", workers=2)
+        self.assertEqual(model.stats.samples, 2)
+        self.assertEqual(model.stats.updates, 4)
+        self.assertEqual(sum(expert.steps for expert in model.experts), 4)
 
     def test_model_checkpoint_round_trip_preserves_predictions(self):
         model = NeuralMatrixModel(small_config())
