@@ -11,5 +11,6 @@
   "max_active_units": 4096,
   "max_active_edges": 32768,
   "memory_limit_mb": 256,
+  "virtual_cache_mb": 1,
   "max_workers": 4
 }
