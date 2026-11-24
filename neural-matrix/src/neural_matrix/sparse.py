@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 import random
-from typing import Iterable
+from typing import Callable, Iterable
+
+from .virtual import VirtualMatrix
 
 
 @dataclass(frozen=True)
@@ -38,6 +40,26 @@ class SparseGraph:
                 self._rng.randrange(self.unit_count),
                 self._rng.randrange(self.unit_count),
                 self._rng.uniform(-0.1, 0.1),
+            )
+
+    def initialize_virtual(
+        self,
+        matrix: VirtualMatrix,
+        count: int,
+        seed: int = 17,
+        weight_getter: Callable[[int, int], float] | None = None,
+    ) -> None:
+        if self._edges:
+            raise RuntimeError("Sparse graph is already initialized")
+        if count < 0 or count > self.max_edges:
+            raise ValueError("Requested edge count exceeds graph budget")
+        addresses = matrix.sample_addresses(count, seed)
+        get_weight = weight_getter or matrix.deterministic_weight
+        for row, column in addresses:
+            self.add_edge(
+                row % self.unit_count,
+                column % self.unit_count,
+                get_weight(row, column),
             )
 
     def aggregate(self, values: Iterable[float]) -> list[float]:
