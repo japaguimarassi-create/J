@@ -1,11 +1,12 @@
 from dataclasses import asdict
 from pathlib import Path
+import math
 import random
 
 from .checkpoint import read_checkpoint, write_checkpoint
 from .config import MatrixConfig
 from .distributed import DistributedTrainer
-from .experts import Expert
+from .experts import Expert, validate_vector
 from .memory import MemoryBudget, VirtualWeightCache
 from .scaling import CapacityPlan
 from .sparse import SparseGraph
@@ -31,29 +32,49 @@ class NeuralMatrixModel:
             workers=self.config.max_workers,
         )
         self.router = self.trainer.router
-        self.sparse_graph = SparseGraph(
-            self.config.active_units, self.config.active_edges, self.config.seed
-        )
-        self.sparse_graph.initialize(
-            min(self.config.active_edges, self.config.active_units * 4)
-        )
         self.virtual_matrix = VirtualMatrix(
             self.config.logical_units, self.config.logical_connections
         )
         self.memory_budget = MemoryBudget(self.config.virtual_cache_mb * 1024 * 1024)
         self.virtual_weights = VirtualWeightCache(self.virtual_matrix, self.memory_budget)
+        self.sparse_graph = SparseGraph(
+            self.config.active_units, self.config.active_edges, self.config.seed
+        )
+        self.sparse_graph.initialize_virtual(
+            self.virtual_matrix,
+            min(self.config.active_edges, self.config.active_units * 4),
+            seed=self.config.seed,
+            weight_getter=self.virtual_weights.get,
+        )
 
     @property
     def stats(self):
         return self.trainer.stats
 
+    def encode_inputs(self, inputs: list[float]) -> list[float]:
+        values = validate_vector(inputs, self.config.expert_width, "Input")
+        expanded = [
+            values[index % self.config.expert_width]
+            for index in range(self.config.active_units)
+        ]
+        signals = self.sparse_graph.aggregate(expanded)
+        pooled = [[] for _ in range(self.config.expert_width)]
+        for index, signal in enumerate(signals):
+            pooled[index % self.config.expert_width].append(signal)
+        return [
+            math.tanh(values[index] + sum(bucket) / max(1, len(bucket)))
+            for index, bucket in enumerate(pooled)
+        ]
+
     def predict(self, inputs: list[float]) -> list[float]:
-        return self.router.forward(inputs)
+        return self.router.forward(self.encode_inputs(inputs))
 
     def train_sample(self, sample: tuple[list[float], list[float]]) -> float:
         if not isinstance(sample, (tuple, list)) or len(sample) != 2:
             raise ValueError("A sample must contain input and target vectors")
-        return self.trainer.train_incremental((sample[0], sample[1]))
+        encoded = self.encode_inputs(sample[0])
+        expected = validate_vector(sample[1], self.config.expert_width, "Target")
+        return self.trainer.train_incremental((encoded, expected))
 
     def train_batch(
         self,
@@ -67,19 +88,10 @@ class NeuralMatrixModel:
         for sample in samples:
             if not isinstance(sample, (tuple, list)) or len(sample) != 2:
                 raise ValueError("Each sample must contain input and target vectors")
-            inputs, target = sample
-            self.router.route(inputs)
-            if not isinstance(target, list) or len(target) != self.config.expert_width:
-                raise ValueError(f"Target width must be {self.config.expert_width}")
-            normalized_target = []
-            for value in target:
-                if isinstance(value, bool) or not isinstance(value, (int, float)):
-                    raise ValueError("Target values must be finite numbers")
-                number = float(value)
-                if number != number or number in (float("inf"), float("-inf")):
-                    raise ValueError("Target values must be finite numbers")
-                normalized_target.append(number)
-            validated.append((list(map(float, inputs)), normalized_target))
+            encoded = self.encode_inputs(sample[0])
+            target = validate_vector(sample[1], self.config.expert_width, "Target")
+            self.router.route(encoded)
+            validated.append((encoded, target))
         if not validated:
             return 0.0
 
@@ -139,14 +151,15 @@ class NeuralMatrixModel:
                 raise ValueError("Checkpoint config must be an object")
             try:
                 config = MatrixConfig(**saved_config)
-            except TypeError as error:
+                config.validate()
+            except (TypeError, ValueError) as error:
                 raise ValueError(f"Checkpoint configuration is invalid: {error}") from error
         else:
             saved_experts = payload.get("experts")
             if not isinstance(saved_experts, list) or not saved_experts:
                 raise ValueError("Legacy checkpoint has no expert state")
             width = payload.get("expert_width")
-            if not isinstance(width, int) or width <= 0:
+            if not isinstance(width, int) or isinstance(width, bool) or width <= 0:
                 weights = saved_experts[0].get("weights")
                 width = len(weights) if isinstance(weights, list) else 0
             config = MatrixConfig(
