@@ -19,7 +19,7 @@ The default runtime is deliberately small: 256 active graph units, up to 2,048 a
 - **Progressive scaler:** produces verified capacity stages from the configured active baseline to configured maxima, refusing a stage that exceeds the memory limit.
 - **Checkpointing:** writes checkpoints atomically and validates dimensions and numeric values when loading.
 
-The memory estimator is conservative planning guidance, not an operating-system guarantee; Python versions and allocator overhead vary. Leave memory headroom for the OS and other applications.
+The memory estimator includes the configured virtual-cache allocation and uses a conservative per-edge allowance. It is planning guidance, not an operating-system guarantee; Python versions and allocator overhead vary. Leave memory headroom for the OS and other applications. Set `virtual_cache_mb` no higher than `memory_limit_mb`.
 
 ## Quick start
 
@@ -40,7 +40,7 @@ neural-matrix train --data neural-matrix/examples/sample.jsonl --mode parallel
 neural-matrix train --data neural-matrix/examples/sample.jsonl --mode distributed --workers 2
 ```
 
-Use `--config neural-matrix/config.example.json` to select explicit budgets. Reduce `max_workers`, `max_active_units`, `max_active_edges`, and `memory_limit_mb` on memory- or battery-constrained devices. The distributed mode has process-startup overhead and may be slower for tiny datasets.
+Use `--config neural-matrix/config.example.json` to select explicit budgets. Reduce `max_workers`, `max_active_units`, `max_active_edges`, `virtual_cache_mb`, and `memory_limit_mb` on memory- or battery-constrained devices. The distributed mode has process-startup overhead and may be slower for tiny datasets.
 
 ## Capacity roadmap
 
