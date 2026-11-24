@@ -10,6 +10,7 @@ from .memory import MemoryBudget, VirtualWeightCache
 from .model import NeuralMatrixModel
 from .scaling import CapacityPlan, estimate_runtime_bytes
 from .sparse import SparseGraph
+from .synthetic import write_synthetic_jsonl
 from .virtual import VirtualMatrix
 
 
@@ -19,6 +20,12 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("inspect")
     sub.add_parser("plan")
+
+    generate = sub.add_parser("generate")
+    generate.add_argument("--output", type=Path, required=True)
+    generate.add_argument("--samples", type=int, default=256)
+    generate.add_argument("--width", type=int, default=32)
+    generate.add_argument("--seed", type=int, default=17)
 
     train = sub.add_parser("train")
     train.add_argument("--data", type=Path, required=True)
@@ -63,6 +70,25 @@ def _model_for_training(args) -> tuple[NeuralMatrixModel, bool]:
     return model, resumed
 
 
+def _run_generate(args) -> dict:
+    if args.samples <= 0:
+        raise ValueError("samples must be positive")
+    if args.width <= 0:
+        raise ValueError("width must be positive")
+    count = write_synthetic_jsonl(
+        args.output,
+        samples=args.samples,
+        width=args.width,
+        seed=args.seed,
+    )
+    return {
+        "output": str(args.output),
+        "samples": count,
+        "width": args.width,
+        "seed": args.seed,
+    }
+
+
 def _run_train(args) -> dict:
     if args.epochs <= 0:
         raise ValueError("epochs must be positive")
@@ -76,7 +102,7 @@ def _run_train(args) -> dict:
     model, resumed = _model_for_training(args)
     samples_seen = 0
     weighted_loss = 0.0
-    for epoch in range(args.epochs):
+    for _ in range(args.epochs):
         epoch_samples = 0
         epoch_loss = 0.0
         stream = iter_jsonl(
@@ -133,12 +159,15 @@ def _run_evaluate(args) -> dict:
 
 def _run_inspect(config: MatrixConfig) -> dict:
     virtual = VirtualMatrix(config.logical_units, config.logical_connections)
-    graph = SparseGraph(config.active_units, config.active_edges, config.seed)
-    graph.initialize(min(config.active_edges, config.active_units * 4))
     memory = MemoryBudget(config.virtual_cache_mb * 1024 * 1024)
     cache = VirtualWeightCache(virtual, memory)
-    for row, column in virtual.sample_addresses(8, config.seed):
-        cache.get(row, column)
+    graph = SparseGraph(config.active_units, config.active_edges, config.seed)
+    graph.initialize_virtual(
+        virtual,
+        min(config.active_edges, config.active_units * 4),
+        seed=config.seed,
+        weight_getter=cache.get,
+    )
     return {
         "version": "0.3.0",
         "logical_rows": config.logical_units,
@@ -168,6 +197,8 @@ def run(args) -> dict:
         if args.command == "inspect":
             return _run_inspect(config)
         return CapacityPlan.from_config(config).to_dict()
+    if args.command == "generate":
+        return _run_generate(args)
     if args.command == "train":
         return _run_train(args)
     if args.command == "predict":
