@@ -51,7 +51,7 @@ class ModelTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "model.json"
             model.save(path)
-            restored = NeuralMatrixModel.load(path)
+            restored = NeuralMatrixModel.from_checkpoint(path)
             self.assertEqual(restored.config, model.config)
             self.assertEqual(restored.predict([0.3, 0.4]), expected)
 
@@ -60,6 +60,7 @@ class ModelTests(unittest.TestCase):
         before = [[row[:] for row in expert.weights] for expert in model.experts]
         payload = {
             "format_version": 2,
+            "format": "neural-matrix",
             "architecture": "expert-mlp-tanh-v1",
             "config": small_config().__dict__,
             "expert_width": 2,
@@ -93,6 +94,7 @@ class ModelTests(unittest.TestCase):
         incompatible["expert_width"] = 3
         payload = {
             "format_version": 2,
+            "format": "neural-matrix",
             "architecture": "expert-mlp-tanh-v1",
             "config": incompatible,
             "expert_width": 3,
