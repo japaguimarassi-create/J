@@ -7,7 +7,7 @@ def estimate_runtime_bytes(active_units: int, active_edges: int, expert_count: i
     if min(active_units, expert_count, expert_width) <= 0 or active_edges < 0:
         raise ValueError("Invalid capacity dimensions")
     unit_bytes = active_units * 64
-    edge_bytes = active_edges * 48
+    edge_bytes = active_edges * 256
     expert_bytes = expert_count * (expert_width * expert_width * 32 + expert_width * 32)
     return unit_bytes + edge_bytes + expert_bytes
 
