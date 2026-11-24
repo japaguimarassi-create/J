@@ -87,7 +87,7 @@ class MemoryBudget:
 
 
 class VirtualWeightCache:
-    def __init__(self, matrix: VirtualMatrix, budget: MemoryBudget, item_bytes: int = 64):
+    def __init__(self, matrix: VirtualMatrix, budget: MemoryBudget, item_bytes: int = 128):
         if item_bytes <= 0:
             raise ValueError("item_bytes must be positive")
         self.matrix = matrix
