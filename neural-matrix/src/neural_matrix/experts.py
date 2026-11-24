@@ -2,32 +2,48 @@ import math
 import random
 
 
+def validate_vector(values: list[float], width: int, label: str) -> list[float]:
+    if not isinstance(values, list) or len(values) != width:
+        raise ValueError(f"{label} width must be {width}")
+    normalized = []
+    for value in values:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"{label} values must be finite numbers")
+        number = float(value)
+        if not math.isfinite(number):
+            raise ValueError(f"{label} values must be finite numbers")
+        normalized.append(number)
+    return normalized
+
+
 class Expert:
     def __init__(self, width: int, seed: int, learning_rate: float = 1e-3):
-        if width <= 0 or learning_rate <= 0:
+        if width <= 0 or not math.isfinite(learning_rate) or learning_rate <= 0:
             raise ValueError("Invalid expert configuration.")
         rng = random.Random(seed)
         self.width = width
-        self.learning_rate = learning_rate
+        self.learning_rate = float(learning_rate)
         self.weights = [[rng.uniform(-0.1, 0.1) for _ in range(width)] for _ in range(width)]
         self.bias = [0.0] * width
         self.steps = 0
 
     def forward(self, inputs: list[float]) -> list[float]:
-        if len(inputs) != self.width:
-            raise ValueError("Input width does not match expert width.")
-        return [math.tanh(sum(w * x for w, x in zip(row, inputs)) + b) for row, b in zip(self.weights, self.bias)]
+        values = validate_vector(inputs, self.width, "Input")
+        return [
+            math.tanh(sum(weight * value for weight, value in zip(row, values)) + bias)
+            for row, bias in zip(self.weights, self.bias)
+        ]
 
     def train_one(self, inputs: list[float], target: list[float]) -> float:
-        if len(target) != self.width:
-            raise ValueError("Target width does not match expert width.")
-        output = self.forward(inputs)
-        loss = sum((o - t) ** 2 for o, t in zip(output, target)) / self.width
-        for i, (o, t) in enumerate(zip(output, target)):
-            delta = 2.0 * (o - t) * (1.0 - o * o) / self.width
-            for j, value in enumerate(inputs):
-                self.weights[i][j] -= self.learning_rate * delta * value
-            self.bias[i] -= self.learning_rate * delta
+        values = validate_vector(inputs, self.width, "Input")
+        expected = validate_vector(target, self.width, "Target")
+        output = self.forward(values)
+        loss = sum((actual - desired) ** 2 for actual, desired in zip(output, expected)) / self.width
+        for row_index, (actual, desired) in enumerate(zip(output, expected)):
+            delta = 2.0 * (actual - desired) * (1.0 - actual * actual) / self.width
+            for column_index, value in enumerate(values):
+                self.weights[row_index][column_index] -= self.learning_rate * delta * value
+            self.bias[row_index] -= self.learning_rate * delta
         self.steps += 1
         return loss
 
@@ -36,18 +52,29 @@ class ExpertRouter:
     def __init__(self, experts: list[Expert], top_k: int = 2):
         if not experts or not 1 <= top_k <= len(experts):
             raise ValueError("Invalid expert router configuration.")
+        widths = {expert.width for expert in experts}
+        if len(widths) != 1:
+            raise ValueError("All experts must have the same width")
         self.experts = experts
         self.top_k = top_k
+        self.width = experts[0].width
 
     def route(self, inputs: list[float]) -> list[int]:
+        values = validate_vector(inputs, self.width, "Input")
         ranked = sorted(
             range(len(self.experts)),
-            key=lambda i: (sum(a * b for a, b in zip(inputs, self.experts[i].bias)), -i),
+            key=lambda index: (
+                sum(value * bias for value, bias in zip(values, self.experts[index].bias)),
+                -index,
+            ),
             reverse=True,
         )
         return ranked[:self.top_k]
 
     def forward(self, inputs: list[float]) -> list[float]:
         selected = self.route(inputs)
-        outputs = [self.experts[i].forward(inputs) for i in selected]
-        return [sum(row[j] for row in outputs) / len(outputs) for j in range(len(outputs[0]))]
+        outputs = [self.experts[index].forward(inputs) for index in selected]
+        return [
+            sum(output[index] for output in outputs) / len(outputs)
+            for index in range(self.width)
+        ]
