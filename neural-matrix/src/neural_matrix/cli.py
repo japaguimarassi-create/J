@@ -72,7 +72,7 @@ def main(argv: list[str] | None = None) -> int:
         virtual = VirtualMatrix(config.logical_units, config.logical_connections)
         graph = SparseGraph(config.active_units, config.active_edges, config.seed)
         graph.initialize(min(config.active_edges, config.active_units * 4))
-        memory = MemoryBudget(min(config.memory_limit_mb * 1024 * 1024, 1024 * 1024))
+        memory = MemoryBudget(config.virtual_cache_mb * 1024 * 1024)
         cache = VirtualWeightCache(virtual, memory)
         for row, column in virtual.sample_addresses(8, config.seed):
             cache.get(row, column)
@@ -86,9 +86,11 @@ def main(argv: list[str] | None = None) -> int:
             "experts": config.expert_count,
             "top_k": config.top_k_experts,
             "estimated_runtime_bytes": estimate_runtime_bytes(
-                config.active_units, config.active_edges, config.expert_count, config.expert_width
+                config.active_units, config.active_edges, config.expert_count, config.expert_width,
+                config.virtual_cache_mb * 1024 * 1024,
             ),
             "memory_limit_bytes": config.memory_limit_mb * 1024 * 1024,
+            "virtual_cache_limit_bytes": config.virtual_cache_mb * 1024 * 1024,
             "virtual_weight_cache": memory.snapshot(),
             "workers_limit": config.max_workers,
         }, indent=2))
