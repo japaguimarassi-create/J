@@ -35,6 +35,16 @@ class NeuralMatrixTests(unittest.TestCase):
         with self.assertRaises(IndexError):
             matrix.address_id(matrix.rows, 0)
 
+    def test_expert_rejects_overflowing_update_without_mutating_weights(self):
+        expert = Expert(2, seed=3)
+        weights_before = [row[:] for row in expert.weights]
+        bias_before = expert.bias[:]
+        with self.assertRaises(ValueError):
+            expert.train_one([0.1, 0.2], [1e308, -1e308])
+        self.assertEqual(expert.weights, weights_before)
+        self.assertEqual(expert.bias, bias_before)
+        self.assertEqual(expert.steps, 0)
+
     def test_expert_forward_and_training(self):
         expert = Expert(3, seed=2)
         inputs = [0.1, 0.2, 0.3]
