@@ -26,3 +26,13 @@ jobs:
       - run: python -m unittest discover -s neural-matrix/tests -v
       - run: neural-matrix inspect
       - run: neural-matrix plan
+      - name: Generate deterministic training data
+        run: neural-matrix generate --output "$RUNNER_TEMP/neural-matrix-ci.jsonl" --samples 32 --width 32 --seed 17
+      - name: Train a demo checkpoint
+        run: neural-matrix --config neural-matrix/config.example.json train --data "$RUNNER_TEMP/neural-matrix-ci.jsonl" --checkpoint "$RUNNER_TEMP/neural-matrix-ci.json" --epochs 1 --batch-size 8 --mode incremental
+      - name: Predict with the generated checkpoint
+        run: |
+          INPUT=$(python -c 'import json; print(json.dumps(json.loads(open("'"$RUNNER_TEMP"'/neural-matrix-ci.jsonl").readline())["x"]))')
+          neural-matrix predict --checkpoint "$RUNNER_TEMP/neural-matrix-ci.json" --input "$INPUT"
+      - name: Evaluate the generated checkpoint
+        run: neural-matrix evaluate --checkpoint "$RUNNER_TEMP/neural-matrix-ci.json" --data "$RUNNER_TEMP/neural-matrix-ci.jsonl"
