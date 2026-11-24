@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from neural_matrix.cli import main
+from neural_matrix.data import iter_jsonl
 
 
 class CLITests(unittest.TestCase):
@@ -45,6 +46,16 @@ class CLITests(unittest.TestCase):
         with contextlib.redirect_stdout(output):
             code = main(args)
         return code, output.getvalue()
+
+    def test_generate_command_creates_dataset_compatible_with_training(self):
+        generated = self.root / "generated.jsonl"
+        code, output = self.run_cli([
+            "generate", "--output", str(generated), "--samples", "3",
+            "--width", "2", "--seed", "7"
+        ])
+        self.assertEqual(code, 0, output)
+        self.assertEqual(json.loads(output)["samples"], 3)
+        self.assertEqual(len(list(iter_jsonl(generated, 2, 2))), 3)
 
     def test_train_predict_resume_and_evaluate_work_end_to_end(self):
         base = ["--config", str(self.config)]
