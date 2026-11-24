@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neural-matrix-1b2b"
-version = "0.1.0"
-description = "Hybrid sparse and virtual neural architecture research prototype"
+version = "0.2.0"
+description = "Hybrid sparse, virtual, and bounded distributed neural architecture prototype"
 requires-python = ">=3.10"
 dependencies = []
 
