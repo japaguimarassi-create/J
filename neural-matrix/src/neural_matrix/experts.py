@@ -9,7 +9,10 @@ def validate_vector(values: list[float], width: int, label: str) -> list[float]:
     for value in values:
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ValueError(f"{label} values must be finite numbers")
-        number = float(value)
+        try:
+            number = float(value)
+        except OverflowError as error:
+            raise ValueError(f"{label} values must be finite numbers") from error
         if not math.isfinite(number):
             raise ValueError(f"{label} values must be finite numbers")
         normalized.append(number)
@@ -38,12 +41,38 @@ class Expert:
         values = validate_vector(inputs, self.width, "Input")
         expected = validate_vector(target, self.width, "Target")
         output = self.forward(values)
-        loss = sum((actual - desired) ** 2 for actual, desired in zip(output, expected)) / self.width
+
+        squared_errors = []
+        for actual, desired in zip(output, expected):
+            difference = actual - desired
+            squared_error = difference * difference
+            if not math.isfinite(difference) or not math.isfinite(squared_error):
+                raise ValueError("Training loss overflowed for the supplied sample")
+            squared_errors.append(squared_error)
+        loss = sum(squared_errors) / self.width
+        if not math.isfinite(loss):
+            raise ValueError("Training loss overflowed for the supplied sample")
+
+        new_weights = []
+        new_bias = []
         for row_index, (actual, desired) in enumerate(zip(output, expected)):
             delta = 2.0 * (actual - desired) * (1.0 - actual * actual) / self.width
+            if not math.isfinite(delta):
+                raise ValueError("Training gradient overflowed for the supplied sample")
+            row = []
             for column_index, value in enumerate(values):
-                self.weights[row_index][column_index] -= self.learning_rate * delta * value
-            self.bias[row_index] -= self.learning_rate * delta
+                updated = self.weights[row_index][column_index] - self.learning_rate * delta * value
+                if not math.isfinite(updated):
+                    raise ValueError("Training weight update overflowed for the supplied sample")
+                row.append(updated)
+            updated_bias = self.bias[row_index] - self.learning_rate * delta
+            if not math.isfinite(updated_bias):
+                raise ValueError("Training bias update overflowed for the supplied sample")
+            new_weights.append(row)
+            new_bias.append(updated_bias)
+
+        self.weights = new_weights
+        self.bias = new_bias
         self.steps += 1
         return loss
 
