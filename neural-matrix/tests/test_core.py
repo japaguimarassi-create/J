@@ -20,6 +20,16 @@ class NeuralMatrixTests(unittest.TestCase):
         self.assertEqual(config.logical_connections, 2_000_000_000)
         self.assertLess(config.active_edges, config.logical_connections)
 
+    def test_config_rejects_non_finite_learning_rate(self):
+        config = MatrixConfig(learning_rate=float("nan"))
+        with self.assertRaises(ValueError):
+            config.validate()
+
+    def test_config_rejects_boolean_dimension_values(self):
+        config = MatrixConfig(active_units=True)
+        with self.assertRaises(ValueError):
+            config.validate()
+
     def test_sparse_graph_respects_budget(self):
         graph = SparseGraph(4, 2, seed=1)
         graph.initialize(2)
