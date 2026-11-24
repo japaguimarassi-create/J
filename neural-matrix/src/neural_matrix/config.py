@@ -12,6 +12,10 @@ class MatrixConfig:
     top_k_experts: int = 2
     learning_rate: float = 1e-3
     seed: int = 17
+    max_active_units: int = 4_096
+    max_active_edges: int = 32_768
+    memory_limit_mb: int = 256
+    max_workers: int = 4
 
     def validate(self) -> None:
         if self.logical_units <= 0 or self.logical_connections <= 0:
@@ -28,3 +32,9 @@ class MatrixConfig:
             raise ValueError("top_k_experts must be within expert_count.")
         if self.learning_rate <= 0:
             raise ValueError("learning_rate must be positive.")
+        if self.max_active_units < self.active_units:
+            raise ValueError("max_active_units cannot be below active_units.")
+        if self.max_active_edges < self.active_edges:
+            raise ValueError("max_active_edges cannot be below active_edges.")
+        if self.memory_limit_mb <= 0 or self.max_workers <= 0:
+            raise ValueError("Memory and worker limits must be positive.")
