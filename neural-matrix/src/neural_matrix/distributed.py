@@ -45,7 +45,7 @@ class DistributedTrainer:
                 continue
             payloads.append((expert.width, expert.learning_rate, expert.weights, expert.bias, expert.steps, samples))
             indices.append(index)
-        if self.workers == 1 or len(payloads) == 1:
+        if self.workers == 1:
             results = [_train_expert_shard(payload) for payload in payloads]
         else:
             with ProcessPoolExecutor(max_workers=self.workers, mp_context=get_context("spawn")) as pool:
