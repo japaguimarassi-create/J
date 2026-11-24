@@ -1,91 +1,64 @@
-# Neural Matrix Complete Runtime Implementation Plan
+# Neural Matrix Complete Runtime — Delivery Record
 
-> For agentic workers: use the executing-plans workflow. Steps use checkbox syntax for tracking.
+**Status:** Implementation completed on branch `neural-matrix/07-complete-core`.
 
-**Goal:** Make Neural Matrix an installable vector-learning toolkit with streaming data, a high-level inference/training API, evaluation, reliable checkpoints, a complete CLI, and automated verification.
+**Goal:** Deliver an installable, dependency-free Python toolkit for bounded vector-to-vector learning, including streaming datasets, an inference/training API, evaluation, checkpoints, a complete CLI, and repeatable verification.
 
-**Architecture:** Keep the current sparse/virtual/expert engine and wrap it with focused modules for data, model lifecycle, metrics, evaluation, and checkpoint I/O. The CLI streams bounded minibatches and calls the public model API; the standard library remains the only runtime dependency.
+**Architecture:** Retain the existing sparse graph, virtual matrix, and routed-expert design. Wrap the engine with dataset streaming, a public model facade, atomic checkpoint helpers, metrics, evaluation, synthetic data generation, and CLI operations.
 
-**Tech Stack:** Python 3.10+, standard library, unittest, setuptools, GitHub Actions.
+**Tech stack:** Python 3.10+, standard library, setuptools for packaging, unittest, GitHub Actions.
 
-**Spec:** docs/superpowers/specs/2026-11-24-neural-matrix-complete-design.md
+**Design:** `docs/superpowers/specs/2026-11-24-neural-matrix-complete-design.md`.
 
-## Global Constraints
+## Constraints preserved
 
-- Python 3.10+.
-- Zero third-party runtime dependencies.
-- Logical dimensions: 1,000,000,000 rows × 2,000,000,000 columns; virtual address space only.
-- Active memory, cache, dataset batches, and workers remain explicitly bounded.
-- Existing compatible trainer checkpoints remain readable.
-- Do not modify main or merge any branch automatically.
+- The logical address space is 1,000,000,000 rows × 2,000,000,000 columns = 2 × 10¹⁸ virtual positions; it is not a physical dense network.
+- Active graph size, virtual cache, dataset batches, and local worker counts have explicit limits.
+- There are no third-party runtime dependencies.
+- Local multiprocessing is not advertised as multi-machine distributed computing.
+- The `main` branch and previous milestone branches are not modified by this feature branch.
 
-## Review Focus
+## Delivered tasks
 
-- Empty JSONL and malformed or non-object records return line-numbered errors, not tracebacks.
-- NaN, Infinity, booleans, and mismatched input/target widths are rejected before training or inference.
-- A large dataset is streamed in bounded batches and can be replayed for multiple epochs.
-- A partially corrupt or incompatible checkpoint never partially mutates an existing model.
-- Distributed training handles fewer samples than experts and worker counts above available experts.
+### 1. Streaming data and validation — complete
 
----
+- [x] JSONL records are streamed line by line.
+- [x] Numeric vectors are checked for shape, booleans, and non-finite values.
+- [x] Bounded minibatches are generated without loading a full dataset.
+- [x] Deterministic synthetic vector-regression data can be generated locally.
 
-### Task 1: Dataset streaming and validation
+### 2. Model API and checkpoints — complete
 
-Files: create neural-matrix/src/neural_matrix/data.py; modify neural-matrix/tests/test_core.py.
+- [x] Public `NeuralMatrixModel` and `MatrixConfig` API.
+- [x] Input encoding uses active sparse edges with weights addressed by the virtual matrix.
+- [x] Top-k expert routing uses input-dependent expert projections.
+- [x] Incremental, thread-parallel, and local process-based expert training.
+- [x] Atomic checkpoint writes; full validation before model state mutation.
+- [x] Compatible legacy trainer checkpoints remain loadable.
 
-Interfaces: iter_jsonl(path, input_width, target_width, limit=None) yields (list[float], list[float]); iter_batches(samples, batch_size) yields bounded lists.
+### 3. Evaluation — complete
 
-- [ ] Add tests for valid JSONL, malformed lines, non-finite values, boolean values, width mismatch, limits, empty files, and bounded batches.
-- [ ] Run focused tests and confirm missing functions fail.
-- [ ] Implement streaming parsing and validation with line-numbered errors.
-- [ ] Run focused tests and the full suite.
+- [x] Streaming MSE and MAE metrics.
+- [x] Empty datasets, dimension errors, and numeric overflow produce explicit errors without corrupting accumulated metrics.
 
-### Task 2: Checkpoint format and model API
+### 4. CLI — complete
 
-Files: create checkpoint.py and model.py; modify training.py and test_core.py.
+- [x] `generate`, `inspect`, `plan`, `train`, `predict`, and `evaluate` commands.
+- [x] Epochs, bounded batch size, resume support, and JSON success/error output.
+- [x] `python -m neural_matrix` entry point.
 
-Interfaces: NeuralMatrixModel(config=None), predict(inputs), train_sample(sample), train_batch(samples, mode, workers=None), save(path), load(path), and load_model(path). load_model reconstructs saved configuration; checkpoint read validates the entire payload before changing model state.
+### 5. Packaging, docs, and CI — complete
 
-- [ ] Add tests for prediction, finite inputs, learning updates, save/load round-trip, metadata mismatch, corrupt checkpoint rejection, and old trainer-checkpoint compatibility.
-- [ ] Run focused tests and confirm missing model/checkpoint APIs fail.
-- [ ] Implement the model facade and atomic checkpoint helpers.
-- [ ] Run focused tests and the full suite.
+- [x] Python package version 0.3.0 with an installable CLI entry point.
+- [x] Termux/mobile guidance and end-to-end demo documented.
+- [x] Git ignore rules for builds, environments, caches, and checkpoints.
+- [x] CI runs unit tests and a generated-data train/predict/evaluate smoke flow on Python 3.10 and 3.12.
+- [x] Final branch compared against its previous milestone base and key files verified.
 
-### Task 3: Evaluation metrics
+## Verification snapshot
 
-Files: create metrics.py and evaluation.py; modify test_core.py.
+GitHub Actions passed on Python 3.10 and Python 3.12. At the latest verified implementation before final configuration hardening, the suite contained 48 tests; the most recent commit adds two config-validation tests, so verify the current head's CI before treating that count as final.
 
-Interfaces: RegressionMetrics.update(prediction, target), RegressionMetrics.to_dict(), and evaluate(model, samples, limit=None) returning sample count, MSE, and MAE.
+## Licensing
 
-- [ ] Add tests for hand-calculated MSE/MAE, multiple samples, empty input, and dimension mismatch.
-- [ ] Run focused tests and confirm they fail for missing metrics.
-- [ ] Implement streaming metrics and evaluation.
-- [ ] Run focused tests and the full suite.
-
-### Task 4: Complete command-line workflow
-
-Files: modify cli.py and test_core.py.
-
-Interfaces: add train --epochs --batch-size, predict --checkpoint --input, and evaluate --checkpoint --data; preserve inspect and plan. All success output is JSON; invalid input returns non-zero with an actionable message.
-
-- [ ] Add command tests using real temporary JSONL and checkpoints for train, resume, predict, and evaluate.
-- [ ] Run focused tests and confirm new command behavior is absent.
-- [ ] Implement bounded epoch/batch training and prediction/evaluation.
-- [ ] Run all tests and smoke-test every command.
-
-### Task 5: Packaging, docs, and CI closure
-
-Files: modify pyproject.toml, README.md, config.example.json, and .github/workflows/neural-matrix.yml; create LICENSE and .gitignore.
-
-- [ ] Add exact install/use examples and resource-limit warnings.
-- [ ] Add CI steps for unit tests and CLI smoke tests on Python 3.10 and 3.12.
-- [ ] Validate package metadata and example configuration.
-- [ ] Compare the final branch against its base and inspect all modified files.
-
-## Commit boundaries
-
-- Task 1: feat: stream and validate training datasets
-- Task 2: feat: expose model API and robust checkpoints
-- Task 3: feat: add streaming regression evaluation
-- Task 4: feat: complete train predict evaluate CLI
-- Task 5: docs: finalize packaging and automated validation
+No license file was added because the repository owner has not selected a license. Choose one deliberately before granting external reuse rights.
