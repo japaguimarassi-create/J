@@ -3,13 +3,13 @@ from dataclasses import asdict, dataclass
 from .config import MatrixConfig
 
 
-def estimate_runtime_bytes(active_units: int, active_edges: int, expert_count: int, expert_width: int) -> int:
-    if min(active_units, expert_count, expert_width) <= 0 or active_edges < 0:
+def estimate_runtime_bytes(active_units: int, active_edges: int, expert_count: int, expert_width: int, cache_bytes: int = 0) -> int:
+    if min(active_units, expert_count, expert_width) <= 0 or active_edges < 0 or cache_bytes < 0:
         raise ValueError("Invalid capacity dimensions")
     unit_bytes = active_units * 64
     edge_bytes = active_edges * 256
     expert_bytes = expert_count * (expert_width * expert_width * 32 + expert_width * 32)
-    return unit_bytes + edge_bytes + expert_bytes
+    return unit_bytes + edge_bytes + expert_bytes + cache_bytes
 
 
 @dataclass(frozen=True)
@@ -40,7 +40,9 @@ class CapacityPlan:
         limit = config.memory_limit_mb * 1024 * 1024
         stages: list[CapacityStage] = []
         while True:
-            estimate = estimate_runtime_bytes(units, edges, config.expert_count, config.expert_width)
+            estimate = estimate_runtime_bytes(
+                units, edges, config.expert_count, config.expert_width, config.virtual_cache_mb * 1024 * 1024
+            )
             if estimate > limit:
                 raise MemoryError(
                     f"Stage with {units} units and {edges} edges exceeds the {config.memory_limit_mb} MiB budget"
