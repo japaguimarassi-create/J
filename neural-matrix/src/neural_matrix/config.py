@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import math
 
 
 @dataclass(frozen=True)
@@ -19,6 +20,35 @@ class MatrixConfig:
     max_workers: int = 4
 
     def validate(self) -> None:
+        integer_fields = (
+            "logical_units",
+            "logical_connections",
+            "active_units",
+            "active_edges",
+            "expert_count",
+            "expert_width",
+            "top_k_experts",
+            "seed",
+            "max_active_units",
+            "max_active_edges",
+            "memory_limit_mb",
+            "virtual_cache_mb",
+            "max_workers",
+        )
+        for field in integer_fields:
+            value = getattr(self, field)
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise ValueError(f"{field} must be an integer")
+
+        if isinstance(self.learning_rate, bool) or not isinstance(self.learning_rate, (int, float)):
+            raise ValueError("learning_rate must be a finite positive number")
+        try:
+            learning_rate = float(self.learning_rate)
+        except OverflowError as error:
+            raise ValueError("learning_rate must be a finite positive number") from error
+        if not math.isfinite(learning_rate) or learning_rate <= 0:
+            raise ValueError("learning_rate must be a finite positive number")
+
         if self.logical_units <= 0 or self.logical_connections <= 0:
             raise ValueError("Logical dimensions must be positive.")
         if self.active_units <= 0 or self.active_edges < 0:
@@ -31,8 +61,6 @@ class MatrixConfig:
             raise ValueError("Expert dimensions must be positive.")
         if not 1 <= self.top_k_experts <= self.expert_count:
             raise ValueError("top_k_experts must be within expert_count.")
-        if self.learning_rate <= 0:
-            raise ValueError("learning_rate must be positive.")
         if self.max_active_units < self.active_units or self.max_active_units > self.logical_units:
             raise ValueError("max_active_units must be between active_units and logical_units.")
         if self.max_active_edges < self.active_edges or self.max_active_edges > self.logical_connections:
