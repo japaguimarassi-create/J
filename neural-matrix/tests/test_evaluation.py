@@ -30,6 +30,14 @@ class EvaluationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             RegressionMetrics().update([1.0], [1.0, 2.0])
 
+    def test_metric_overflow_does_not_corrupt_previous_results(self):
+        metrics = RegressionMetrics()
+        metrics.update([1.0], [0.0])
+        before = metrics.to_dict()
+        with self.assertRaises(ValueError):
+            metrics.update([1e308], [-1e308])
+        self.assertEqual(metrics.to_dict(), before)
+
     def test_evaluation_streams_and_counts_samples(self):
         samples = [
             ([0.0, 0.0], [0.0, 0.0]),
