@@ -131,6 +131,11 @@ class NeuralMatrixTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             CapacityPlan.from_config(config)
 
+    def test_cache_budget_cannot_exceed_total_memory_limit(self):
+        config = MatrixConfig(memory_limit_mb=1, virtual_cache_mb=2)
+        with self.assertRaises(ValueError):
+            config.validate()
+
 
 if __name__ == "__main__":
     unittest.main()
