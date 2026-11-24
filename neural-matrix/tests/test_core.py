@@ -69,6 +69,16 @@ class NeuralMatrixTests(unittest.TestCase):
         with self.assertRaises(MemoryBudgetExceeded):
             budget.put("large", 0.0, 129)
 
+    def test_memory_reservations_evict_cache_and_release(self):
+        budget = MemoryBudget(128)
+        budget.put("cached", 1.0, 64)
+        with budget.reserve(96):
+            self.assertEqual(budget.snapshot()["reserved_bytes"], 96)
+            self.assertEqual(budget.cached_items, 0)
+            with self.assertRaises(MemoryBudgetExceeded):
+                budget.put("too-large-now", 2.0, 40)
+        self.assertEqual(budget.used_bytes, 0)
+
     def test_virtual_weight_cache_uses_budget(self):
         budget = MemoryBudget(128)
         cache = VirtualWeightCache(VirtualMatrix(10, 10), budget)
@@ -87,6 +97,20 @@ class NeuralMatrixTests(unittest.TestCase):
         scaler = ProgressiveScaler(plan)
         self.assertTrue(scaler.has_next)
         self.assertEqual(scaler.advance(), plan.stages[1])
+
+    def test_capacity_plan_rejects_growth_over_memory_limit(self):
+        config = MatrixConfig(
+            active_units=10_000,
+            active_edges=0,
+            max_active_units=20_000,
+            max_active_edges=0,
+            expert_count=1,
+            expert_width=1,
+            top_k_experts=1,
+            memory_limit_mb=1,
+        )
+        with self.assertRaises(MemoryError):
+            CapacityPlan.from_config(config)
 
     def test_distributed_training_updates_expert_shards(self):
         experts = [Expert(2, 11), Expert(2, 12)]
