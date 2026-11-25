@@ -18,7 +18,7 @@ public class PlayerDataEvents {
     @SubscribeEvent
     public void onPlayerClone(Clone event) {
         DMZDBCData oldData = DMZDBCData.get(event.original);
-        DMZDBCData newData = DMZDBCData.get(event.entity);
+        DMZDBCData newData = DMZDBCData.get((EntityPlayer) event.entity);
         newData.copyFrom(oldData);
     }
 
