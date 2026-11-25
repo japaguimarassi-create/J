@@ -1,0 +1,42 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        maven { url = "https://jitpack.io" }
+        maven { url = "https://maven.minecraftforge.net" }
+    }
+    dependencies {
+        classpath 'com.github.GTNewHorizons:ForgeGradle:1.2.11'
+    }
+}
+apply plugin: 'forge'
+group = 'br.com.japa'
+version = '0.1.0'
+archivesBaseName = 'dragonminez-dbc-addon'
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+minecraft {
+    version = "1.7.10-10.13.4.1614-1.7.10"
+    runDir = "run"
+}
+processResources {
+    inputs.property "version", project.version
+    inputs.property "mcversion", project.minecraft.version
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+        expand 'version': project.version, 'mcversion': project.minecraft.version
+    }
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
+    }
+}
+jar {
+    manifest {
+        attributes(
+            'Specification-Title': 'DragonMine Z DBC Edition',
+            'Specification-Vendor': 'Japa',
+            'Specification-Version': project.version,
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.version
+        )
+    }
+}

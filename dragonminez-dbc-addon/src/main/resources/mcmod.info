@@ -1,0 +1,12 @@
+{
+  "modid": "dmzdbc",
+  "name": "DragonMine Z - DBC Edition",
+  "description": "A lightweight Forge 1.7.10 addon prototype with Angel Lineage progression and Divine Instinct.",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "https://github.com/japaguimarassi-create/J/tree/dmz-dbc-addon-v0.1.0/dragonminez-dbc-addon",
+  "authorList": ["Japa"],
+  "credits": "Inspired by DragonMine Z and Dragon Block C; no third-party code or assets bundled.",
+  "screenshots": [],
+  "dependencies": []
+}
