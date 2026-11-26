@@ -99,7 +99,7 @@ public final class PortalCarvingData extends SavedData {
             if (level != null) {
                 BlockPos pos = BlockPos.of(entry.getLong("Position"));
                 if (level.hasChunkAt(pos) && level.getBlockState(pos).isAir()) {
-                    BlockState original = NbtUtils.readBlockState(level.registryAccess().registryOrThrow(Registries.BLOCK), entry.getCompound("State"));
+                    BlockState original = NbtUtils.readBlockState(level.registryAccess().lookupOrThrow(Registries.BLOCK), entry.getCompound("State"));
                     level.setBlock(pos, original, 3);
                 }
             }
