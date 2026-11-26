@@ -398,7 +398,6 @@ function initScene() {
   environmentTarget = pmrem.fromScene(room, 0.04);
   scene.environment = environmentTarget.texture;
   scene.environmentIntensity = 1;
-  room.dispose();
   pmrem.dispose();
 
   scene.add(modelRoot);
