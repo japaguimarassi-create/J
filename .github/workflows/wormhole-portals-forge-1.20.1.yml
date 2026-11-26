@@ -1,9 +1,8 @@
-name: Wormhole Portals Forge 1.20.1
-
+name: Native Frameless-Style Portals Forge 1.20.1
 on:
   push:
     branches:
-      - frameless-portals-forge-1.20.1
+      - frameless-portals-forge-1.20.1-native
     paths:
       - "mods/wormhole-portals-forge-1.20.1/**"
       - ".github/workflows/wormhole-portals-forge-1.20.1.yml"
@@ -12,14 +11,11 @@ on:
       - "mods/wormhole-portals-forge-1.20.1/**"
       - ".github/workflows/wormhole-portals-forge-1.20.1.yml"
   workflow_dispatch:
-
 permissions:
   contents: read
-
 concurrency:
-  group: wormhole-forge-build-${{ github.ref }}
+  group: frameless-native-forge-build-${{ github.ref }}
   cancel-in-progress: true
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -28,31 +24,24 @@ jobs:
       run:
         working-directory: mods/wormhole-portals-forge-1.20.1
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
           cache: gradle
-
-      - name: Set up Gradle 8.8
-        uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.8"
-
       - name: Compile and package
         run: gradle --no-daemon clean build --stacktrace
-
-      - name: Verify mod JAR
-        run: test -s build/libs/wormhole-portals-forge-1.20.1-0.2.0-alpha.1.jar
-
-      - name: Upload mod JAR
-        uses: actions/upload-artifact@v4
+      - name: Verify independent Forge JAR
+        run: test -s build/libs/frameless-style-portals-forge-1.20.1-0.3.0-alpha.1.jar
+      - name: Verify no Immersive Portals references in runtime metadata
+        run: '! unzip -p build/libs/frameless-style-portals-forge-1.20.1-0.3.0-alpha.1.jar META-INF/mods.toml | grep -qi immersive'
+      - uses: actions/upload-artifact@v4
         with:
-          name: wormhole-portals-forge-1.20.1
-          path: mods/wormhole-portals-forge-1.20.1/build/libs/wormhole-portals-forge-1.20.1-0.2.0-alpha.1.jar
+          name: frameless-style-portals-forge-1.20.1
+          path: mods/wormhole-portals-forge-1.20.1/build/libs/frameless-style-portals-forge-1.20.1-0.3.0-alpha.1.jar
           if-no-files-found: error
           retention-days: 30
