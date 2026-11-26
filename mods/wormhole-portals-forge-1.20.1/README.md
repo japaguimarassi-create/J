@@ -1,78 +1,45 @@
-# Wormhole Portals — Forge 1.20.1
+# Frameless-style Portals — Forge 1.20.1
 
-Independent clean-room implementation of the core Frameless-style bubble portal behavior for Minecraft Forge 1.20.1. This is not a conversion of the uploaded 1.21.1 NeoForge binary and does not contain its source, textures, shaders, sounds or other proprietary assets.
+This is an independent clean-room implementation project for Forge 1.20.1. The supplied Frameless Portals release is a NeoForge 1.21.1 binary and is not loadable on Forge 1.20.1. The original project is All Rights Reserved; no original code or assets are redistributed.
 
-## Build target
+## Loader and dependencies
 
 - Minecraft 1.20.1
 - Forge 47.3.0
 - Java 17
-- Immersive Portals 3.0.7 for Forge 1.20.1 (required runtime and compile API)
-- Gradle 8.8
+- No Immersive Portals dependency
+- No external portal engine dependency
 
-## Architecture
+## Native systems in this branch
 
-The portal aperture is generated as a 20-face icosphere. Each triangle is an actual Immersive Portals view surface, paired with a reverse surface in the destination world. Immersive Portals supplies remote dimension rendering, chunk/view management, portal traversal and cross-portal interaction. The mod controls the spherical grouping, activation, tools and destinations.
+- Own synchronized portal endpoint entity with NBT persistence.
+- Two-sided portal-pair creation between loaded dimensions.
+- Proximity-based opening and closing.
+- Procedural animated spherical shell, forming/glitch accents, center swirl and optional fire border.
+- Portal transit for server entities, including players, mobs, projectiles, dropped items, boats and minecarts.
+- Nether coordinate scaling and destination Y selection.
+- Portal Anchor, Portal Tuner and Creative Portal Gun tools.
+- Placement preview shell and commands for creation, listing, inspection, resizing, range, retargeting, link state and removal.
+- GitHub Actions build with Java 17.
 
-A shared link identifier is written to all portal entities. A server ticker opens or closes both ends for all players based on distance. Closed bubbles receive a client-side wireframe shell. Each bubble consists of 40 portal entities (20 faces at each end); this is a deliberate first implementation and has a higher render cost than the original single-mask renderer.
+## What this is not yet
 
-## Implemented in this source build
+This branch is no longer based on Immersive Portals. However, removing that dependency does not magically provide Frameless's core render engine. The independent live-dimension viewport, destination chunk/entity streaming, off-screen world rendering, portal camera mapping and seamless no-freeze player crossing are not complete. Current entity transit uses Forge's ordinary dimension-transfer API, so it can show the usual transition/loading behavior. The shell is procedural geometry, not a real live view into the destination world.
 
-- Two-way, real-time, no-loading-screen dimensional portals through Immersive Portals.
-- Bubble aperture approximated by a 20-triangle icosphere mesh.
-- Open/close activation range and shared multiplayer state.
-- Nether, End and any currently loaded registered dimension as a destination.
-- Nether 8:1 coordinate scaling and default spawn/End destination selection.
-- Same-dimension links between two selected points.
-- Portal Anchor: click-air to cycle loaded destination dimensions, then use on a block face to place a portal.
-- Portal Tuner: click-air to select a destination; use on a nearby portal to cycle its radius; sneak-use on a portal to retarget it; sneak-use with no target selected removes it.
-- Creative Portal Gun: two right-clicks place the two bubble endpoints; the next shot replaces the active pair; sneak-use on air cycles size; sneak-use on a surface removes the active pair.
-- Commands to list, inspect, place, resize, change activation range, retarget, link/unlink, change scale and remove portals.
-- Portal entity metadata is saved through Immersive Portals entity serialization.
-- Optional border particles and activation sound.
-- GitHub Actions workflow compiles on Java 17 and uploads the mod JAR.
+Also incomplete: the full Anchor configuration panel, obstruction/clearance preview and validation, floor/ceiling/wall placement and reversible terrain carving, Portal Gun projectile/orb workflow and size HUD, entity/leash/AI synchronization, interactions through the aperture, terrain blending, and renderer/shader compatibility hooks. Do not treat these omissions as implemented.
 
-## Feature parity and limits
+## Renderer compatibility
 
-The uploaded JAR contains additional subsystems beyond the portal entity itself: a custom GPU mask/render pipeline, glitch/forming effects, waiting swirl, custom sound/hum layer, live remote entity/chunk synchronization hooks, projectile/leash/mob-pursuit hooks, terrain/block collision hooks, survival placement previews and option panels, Portal Gun orb/resize UI, and renderer compatibility hooks for supported Sodium/Iris versions. The current implementation does **not** claim exact parity for those systems. It delegates remote view, entity transport and cross-portal interaction to Immersive Portals, and replaces the original GPU mask with a 20-face portal mesh. Shader effects, exact forming animation, target-clearance preview, custom orb projectile UX, mob pursuit/leash synchronization, original renderer compatibility and sound/particle replication remain incomplete and require dedicated Forge 1.20.1 implementations and in-game QA.
+No Embeddium/Oculus or shader-pack compatibility is claimed. Frameless's published release declares those renderer replacements incompatible; this native branch still needs its own renderer matrix and in-game validation.
 
-No Embeddium/Oculus or shader-pack compatibility is claimed. The original Frameless Portals license is All Rights Reserved; only independently written code and original documentation are included here.
+## Build and install
 
-## Commands
+GitHub Actions builds the source and uploads a JAR. Put the resulting JAR in the mods folder alongside Forge 47.3.0. Immersive Portals is not required and should not be installed for this mod.
 
-All commands require permission level 2:
+## Testing
 
-```text
-/wormhole place
-/wormhole place <dimension>
-/wormhole list
-/wormhole info <link-id>
-/wormhole target <dimension> <link-id>
-/wormhole rule auto <link-id>
-/wormhole rule identity <link-id>
-/wormhole rule end <link-id>
-/wormhole rule scale <factor> <link-id>
-/wormhole rule fixed <x> <y> <z> <link-id>
-/wormhole size <radius> <link-id>
-/wormhole range <blocks> <link-id>
-/wormhole link <link-id>
-/wormhole unlink <link-id>
-/wormhole remove <link-id|all>
-```
-
-## Install
-
-Put both JARs in the `mods` folder:
-
-1. The `wormhole-portals-forge-1.20.1` JAR produced by this repository's GitHub Actions workflow.
-2. [Immersive Portals 3.0.7 for Forge 1.20.1](https://www.curseforge.com/minecraft/mc-mods/immersive-portals-for-forge/files).
-
-Do not install the Fabric or NeoForge build of Immersive Portals on Forge.
-
-## GitHub build
-
-The root workflow `.github/workflows/wormhole-portals-forge-1.20.1.yml` runs `gradle clean build` on pushes to the `frameless-portals-forge-1.20.1` branch, pull requests and manual dispatch. It uploads the compiled JAR as the `wormhole-portals-forge-1.20.1` artifact. A successful Java compilation is not the same as passing client/server in-game tests.
+Compile/package verification can be run by GitHub Actions. No Minecraft client or dedicated-server gameplay test has been performed. A successful Gradle build is not evidence that rendering, movement, networking or multiplayer behavior works in-game.
 
 ## License
 
-The independent code in this repository is MIT-licensed. Immersive Portals is installed separately under its own Apache-2.0 license. No Frameless Portals source or proprietary assets are redistributed.
+The independent code in this repository is MIT-licensed. Frameless Portals by Sh4de remains All Rights Reserved; its code, textures, models, shaders and audio are not included.
