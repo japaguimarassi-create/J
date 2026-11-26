@@ -84,8 +84,7 @@ public final class RemoteChunkStreamer {
                 CompoundTag data = entity.saveWithoutId(new CompoundTag());
                 snapshots.add(new RemoteEntitiesPacket.EntitySnapshot(
                     entity.getId(), typeId, data,
-                    entity.getVehicle() == null ? -1 : entity.getVehicle().getId(),
-                    entity.getPassengers().stream().limit(16).map(Entity::getId).toList()
+                    entity.getVehicle() == null ? -1 : entity.getVehicle().getId()
                 ));
             } catch (RuntimeException ignored) {
             }

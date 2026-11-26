@@ -1,6 +1,6 @@
 # Frameless-style Portals — Forge 1.20.1
 
-Independent clean-room implementation work for Minecraft Forge 1.20.1. The supplied Frameless Portals release targets NeoForge 1.21.1 and cannot load on Forge 1.20.1. Its license is All Rights Reserved; this repository does not redistribute its classes, source, textures, shaders, models, audio or other proprietary assets.
+Independent clean-room reimplementation for Minecraft Forge 1.20.1. The supplied Frameless Portals release targets NeoForge 1.21.1 and cannot be loaded on Forge 1.20.1. The original project is All Rights Reserved; this repository does not redistribute its code, textures, models, shaders or audio.
 
 ## Loader and dependencies
 
@@ -8,44 +8,41 @@ Independent clean-room implementation work for Minecraft Forge 1.20.1. The suppl
 - Forge 47.3.0
 - Java 17
 - No Immersive Portals dependency
-- No external portal engine dependency
+- No external portal-engine dependency
 
-## Native systems currently implemented
+## Current native systems
 
-- Own synchronized portal endpoint entity with NBT persistence and two-ended links.
-- Proximity activation and closing, configurable size and range, optional border effects, custom procedural sphere/swirl/glitch accents.
-- Server-side sphere-crossing detection and dimension transit for players, mobs, projectiles, dropped items and vehicles, with cooldown protection.
-- Remote destination chunk snapshots, including heightmaps/block entities/lighting, sent to nearby players.
-- Auxiliary client-side ClientLevel for the remote dimension and a separate LevelRenderer.
-- Off-screen TextureTarget rendering of the remote ClientLevel, camera mapping aligned with the player's view, and projection of that image onto the visible spherical aperture.
-- Remote non-player entity snapshots for mobs, items, projectiles and vehicles, updated into the auxiliary ClientLevel.
-- Portal Anchor, Portal Tuner and Creative Portal Gun with an orb projectile, two-shot endpoint placement, radius presets, mouse-wheel sizing and HUD display.
-- Anchor placement modes (bubble/floor/ceiling/wall) with saved block-state records for later restoration.
-- Placement-preview shell with basic entity-obstruction warning.
-- P-key settings panel and server-validated controls for portal radius, activation range, active state and removal.
-- Commands for placement, inspection, resizing, range, retargeting, link state, scaling and removal.
-- GitHub Actions build with Java 17 and a runtime metadata check confirming no Immersive Portals mod dependency.
+- Native synchronized portal endpoint entities with persistent two-ended dimension links.
+- Proximity activation and spherical boundary-crossing detection.
+- Procedural animated shell, inner swirl, border and simple forming/glitch accents.
+- Forge dimension transfer for supported server entities. Cross-dimension player transit still uses Forge's normal dimension-transfer path and may show the normal transition.
+- Portal Anchor, Tuner and Portal Gun with a two-shot orb workflow.
+- Radius presets, mouse-wheel size adjustment, size HUD and a settings panel.
+- Anchor modes for bubble, floor, ceiling and wall apertures, with saved block-state restoration records.
+- Basic placement obstruction preview.
+- On-demand 3x3 destination chunk snapshots, including heightmaps, block entities and light data.
+- Off-screen destination-world rendering into a texture projected onto the spherical aperture.
+- Limited non-player entity snapshots with client-side ticking and vehicle/passenger relationships.
+- Conservative shell-only fallback when Embeddium or Oculus is detected.
 
-## Remaining parity gaps
+## Important limitations — not feature parity
 
-This is a native independent implementation, not a verified exact recreation of the original Frameless engine. Remote view currently sends a bounded 3×3 snapshot of chunks that are already loaded in the destination dimension and updates non-player entity snapshots in a limited region. It does not yet request/load arbitrary remote chunks on demand, mirror other players, simulate remote entities client-side, or synchronize their AI/leashes and passenger graphs.
+This is now independent of Immersive Portals, but it is not a complete port of Frameless Portals.
 
-Cross-dimensional transit still uses Forge's regular dimension-transfer API after detecting a sphere crossing. Therefore it may show the normal dimension transition/loading behavior; seamless no-freeze player crossing with continuous same-session world state is not complete.
+The remote view is a bounded prototype: it streams a 3x3 chunk area and periodically resends whole chunks. It does not stream arbitrary render-distance chunks or chunk deltas. Only a limited number of non-player entities are mirrored; remote players, skins, full mob AI, leash synchronization and robust passenger groups are not complete.
 
-Other gaps: exact original GPU mask/shader pipeline; full forming/waiting animation and sound design; advanced placement clearance/collision preview; full door/terrain shaping and rollback fidelity; through-aperture block/entity interaction, mining and projectile collision; mob pursuit/leash synchronization; the original Portal Gun orb/resize UI parity; terrain blending; and a complete renderer compatibility layer.
+Crossing a portal still uses Forge's normal dimension-transfer API. The remote destination can be visible through the bubble, but this branch does not yet provide the original no-freeze/no-loading-screen transition. Collision and interactions through the aperture (picking, mining, placing, projectiles and entity interactions) are not fully redirected into the remote world.
 
-## Renderer compatibility
-
-No Embeddium/Oculus or shader-pack compatibility is claimed. The original release's declared renderer limitations do not automatically define this independent implementation's behavior. This port still needs its own renderer matrix and in-game validation.
+The visuals are custom procedural effects, not the original GPU mask/shader stack. Exact visual/audio parity and a full renderer compatibility matrix are not implemented. Embeddium/Oculus trigger a conservative shell-only fallback; other shader/render replacements have not been validated.
 
 ## Install
 
-Put the JAR produced by the native branch's GitHub Actions workflow in the mods folder with Forge 47.3.0. Immersive Portals is not required and should not be installed for this project.
+Put the generated JAR in the `mods` folder with Forge 47.3.0. Do not install Immersive Portals for this mod.
 
-## Verification
+## Build and validation
 
-GitHub Actions verifies Java 17 compilation, JAR packaging, and the absence of an Immersive Portals runtime dependency. No Minecraft client or dedicated-server gameplay test has been performed, by request. A successful Gradle build does not prove that the remote view, movement, networking, mod compatibility or multiplayer behavior works in-game.
+The root workflow `.github/workflows/wormhole-portals-forge-1.20.1.yml` compiles with Java 17 and uploads the JAR as an Actions artifact. A successful Gradle build proves compile/package integrity only. No Minecraft client/server gameplay test has been performed.
 
 ## License
 
-The independent code and documentation in this branch are MIT-licensed. Frameless Portals by Sh4de remains All Rights Reserved; its code and assets are not included.
+The independent code and documentation in this repository are MIT-licensed. Frameless Portals by Sh4de remains All Rights Reserved; none of its proprietary classes or assets are included.
