@@ -57,7 +57,7 @@ public final class RemoteDimensionManager {
             minecraft.getBlockEntityRenderDispatcher(), minecraft.renderBuffers());
         ClientLevel.ClientLevelData data = new ClientLevel.ClientLevelData(minecraft.level.getDifficulty(), false, false);
         ClientLevel level = new ClientLevel(minecraft.getConnection(), data, dimensionKey, type, 4, 4,
-            minecraft::getProfiler, renderer, false, minecraft.level.getSeed());
+            minecraft::getProfiler, renderer, false, 0L);
         renderer.setLevel(level);
         renderer.allChanged();
         level.getChunkSource().updateViewRadius(4);

@@ -43,7 +43,7 @@ public final class RemoteChunkStreamer {
                     ClientboundLevelChunkWithLightPacket packet = new ClientboundLevelChunkWithLightPacket(chunk, destination.getLightEngine(), null, null);
                     packet.write(new FriendlyByteBuf(raw));
                     byte[] bytes = ByteBufUtil.getBytes(raw);
-                    PortalControlNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(player), new RemoteChunkPacket(dimensionId, typeId, chunkX, chunkZ, bytes));
+                    PortalControlNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new RemoteChunkPacket(dimensionId, typeId, chunkX, chunkZ, bytes));
                     playerCache.put(key, now);
                 } catch (RuntimeException ignored) {
                 } finally {
