@@ -3,6 +3,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
@@ -25,11 +26,15 @@ public final class BubblePortalTicker {
         List<PortalEndpointEntity> portals = new ArrayList<>();
         for (Entity entity : level.getAllEntities()) if (entity instanceof PortalEndpointEntity portal) portals.add(portal);
         for (PortalEndpointEntity portal : portals) {
-            boolean nearby = portal.isEnabled() && level.players().stream().anyMatch(player -> player.distanceToSqr(portal) <= portal.activationRange() * portal.activationRange());
+            double activationSquared = portal.activationRange() * portal.activationRange();
+            boolean nearby = portal.isEnabled() && level.players().stream().anyMatch(player -> player.distanceToSqr(portal) <= activationSquared);
             boolean changed = portal.isOpen() != nearby;
             portal.setOpen(nearby);
             if (changed) level.playSound(null, portal.getX(), portal.getY(), portal.getZ(), SoundEvents.ENDERMAN_TELEPORT, SoundSource.BLOCKS, 0.28F, nearby ? 1.22F : 0.76F);
             if (!nearby) continue;
+            for (ServerPlayer player : level.players()) {
+                if (player.distanceToSqr(portal) <= activationSquared) RemoteChunkStreamer.sync(level, portal, player);
+            }
             double radius = portal.radius();
             AABB area = AABB.ofSize(portal.position(), radius * 2.0 + 2.0, radius * 2.0 + 2.0, radius * 2.0 + 2.0);
             List<Entity> candidates = level.getEntitiesOfClass(Entity.class, area, e -> e != portal && !(e instanceof PortalEndpointEntity) && e.getVehicle() == null);
@@ -48,8 +53,7 @@ public final class BubblePortalTicker {
         Vec3 movement = end.subtract(start);
         double a = movement.lengthSqr();
         if (a < 1.0E-10) return null;
-        double b = start.dot(movement);
-        double c = start.lengthSqr() - radius * radius;
+        double b = start.dot(movement), c = start.lengthSqr() - radius * radius;
         double discriminant = b * b - a * c;
         if (discriminant < 0.0) return null;
         double t = (-b - Math.sqrt(discriminant)) / a;
@@ -64,23 +68,16 @@ public final class BubblePortalTicker {
         if (destination == null) return;
         Vec3 outward = entryPoint.subtract(portal.position()).normalize();
         Vec3 exit = portal.targetPosition().add(outward.scale(portal.radius() + Math.max(entity.getBbWidth(), entity.getBbHeight()) * 0.5 + 0.35));
-        Vec3 velocity = entity.getDeltaMovement();
-        float yaw = entity.getYRot();
-        float pitch = entity.getXRot();
+        Vec3 velocity = entity.getDeltaMovement(); float yaw = entity.getYRot(), pitch = entity.getXRot();
         entity.getPersistentData().putLong(COOLDOWN, source.getGameTime() + 30);
         if (destination == source) {
-            entity.teleportTo(exit.x, exit.y, exit.z);
-            entity.setDeltaMovement(velocity);
-            entity.getPersistentData().putLong(COOLDOWN, source.getGameTime() + 30);
-            return;
+            entity.teleportTo(exit.x, exit.y, exit.z); entity.setDeltaMovement(velocity);
+            entity.getPersistentData().putLong(COOLDOWN, source.getGameTime() + 30); return;
         }
         ITeleporter teleporter = new ITeleporter() {
             @Override public Entity placeEntity(Entity moved, ServerLevel currentWorld, ServerLevel destinationWorld, float suggestedYaw, Function<Boolean, Entity> repositionEntity) {
-                Entity result = repositionEntity.apply(false);
-                result.moveTo(exit.x, exit.y, exit.z, yaw, pitch);
-                result.setDeltaMovement(velocity);
-                result.getPersistentData().putLong(COOLDOWN, destinationWorld.getGameTime() + 30);
-                return result;
+                Entity result = repositionEntity.apply(false); result.moveTo(exit.x, exit.y, exit.z, yaw, pitch); result.setDeltaMovement(velocity);
+                result.getPersistentData().putLong(COOLDOWN, destinationWorld.getGameTime() + 30); return result;
             }
         };
         entity.changeDimension(destination, teleporter);

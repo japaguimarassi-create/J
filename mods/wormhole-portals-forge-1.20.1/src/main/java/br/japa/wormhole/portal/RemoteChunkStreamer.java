@@ -6,8 +6,10 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraftforge.network.PacketDistributor;
 import java.util.HashMap;
@@ -19,10 +21,9 @@ public final class RemoteChunkStreamer {
     private static final long RESEND_INTERVAL = 40L;
     private RemoteChunkStreamer() {}
     public static void sync(ServerLevel source, PortalEndpointEntity endpoint, ServerPlayer player) {
-        ServerLevel destination = source.getServer().getLevel(net.minecraft.resources.ResourceKey.create(
-            net.minecraft.core.registries.Registries.DIMENSION, endpoint.destinationId()));
+        ServerLevel destination = source.getServer().getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, endpoint.destinationId()));
         if (destination == null) return;
-        net.minecraft.world.phys.Vec3 remotePoint = endpoint.targetPosition().add(player.position().subtract(endpoint.position()));
+        Vec3 remotePoint = endpoint.targetPosition().add(player.position().subtract(endpoint.position()));
         int centerX = net.minecraft.core.BlockPos.containing(remotePoint).getX() >> 4;
         int centerZ = net.minecraft.core.BlockPos.containing(remotePoint).getZ() >> 4;
         long now = source.getGameTime();
@@ -31,24 +32,22 @@ public final class RemoteChunkStreamer {
         ResourceLocation typeId = destination.dimensionTypeId().location();
         for (int dx = -VIEW_RADIUS; dx <= VIEW_RADIUS; dx++) {
             for (int dz = -VIEW_RADIUS; dz <= VIEW_RADIUS; dz++) {
-                int chunkX = centerX + dx;
-                int chunkZ = centerZ + dz;
+                int chunkX = centerX + dx, chunkZ = centerZ + dz;
                 String key = dimensionId + ":" + chunkX + ":" + chunkZ;
                 Long last = playerCache.get(key);
                 if (last != null && now - last < RESEND_INTERVAL) continue;
                 LevelChunk chunk = destination.getChunkSource().getChunkNow(chunkX, chunkZ);
                 if (chunk == null) continue;
+                ByteBuf raw = Unpooled.buffer();
                 try {
                     ClientboundLevelChunkWithLightPacket packet = new ClientboundLevelChunkWithLightPacket(chunk, destination.getLightEngine(), null, null);
-                    ByteBuf raw = Unpooled.buffer();
-                    FriendlyByteBuf output = new FriendlyByteBuf(raw);
-                    packet.write(output);
+                    packet.write(new FriendlyByteBuf(raw));
                     byte[] bytes = ByteBufUtil.getBytes(raw);
-                    raw.release();
-                    PortalControlNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(player),
-                        new RemoteChunkPacket(dimensionId, typeId, chunkX, chunkZ, bytes));
+                    PortalControlNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(player), new RemoteChunkPacket(dimensionId, typeId, chunkX, chunkZ, bytes));
                     playerCache.put(key, now);
                 } catch (RuntimeException ignored) {
+                } finally {
+                    raw.release();
                 }
             }
         }
