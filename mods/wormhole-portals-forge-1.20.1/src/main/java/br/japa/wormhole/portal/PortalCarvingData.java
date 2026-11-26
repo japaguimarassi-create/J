@@ -53,15 +53,22 @@ public final class PortalCarvingData extends SavedData {
             }
             return;
         }
-        int ux = normal.getAxis() == Direction.Axis.X ? 0 : 1;
-        int uy = normal.getAxis() == Direction.Axis.Y ? 0 : normal.getAxis() == Direction.Axis.X ? 1 : 0;
-        int uz = normal.getAxis() == Direction.Axis.Z ? 0 : normal.getAxis() == Direction.Axis.X ? 1 : normal.getAxis() == Direction.Axis.Y ? 0 : 1;
-        if (normal.getAxis() == Direction.Axis.X) { ux = 0; uy = 1; uz = 0; }
-        if (normal.getAxis() == Direction.Axis.Y) { ux = 1; uy = 0; uz = 0; }
-        if (normal.getAxis() == Direction.Axis.Z) { ux = 1; uy = 0; uz = 0; }
-        int vx = normal.getAxis() == Direction.Axis.X ? 0 : 0;
-        int vy = normal.getAxis() == Direction.Axis.X ? 0 : normal.getAxis() == Direction.Axis.Y ? 0 : 1;
-        int vz = normal.getAxis() == Direction.Axis.X ? 1 : 0;
+        int ux;
+        int uy;
+        int uz;
+        int vx;
+        int vy;
+        int vz;
+        if (normal.getAxis() == Direction.Axis.X) {
+            ux = 0; uy = 1; uz = 0;
+            vx = 0; vy = 0; vz = 1;
+        } else if (normal.getAxis() == Direction.Axis.Y) {
+            ux = 1; uy = 0; uz = 0;
+            vx = 0; vy = 0; vz = 1;
+        } else {
+            ux = 1; uy = 0; uz = 0;
+            vx = 0; vy = 1; vz = 0;
+        }
         for (int u = -r; u <= r; u++) for (int v = -r; v <= r; v++) {
             if (u*u + v*v > radius*radius) continue;
             for (int depth = -1; depth <= 1; depth++) {
@@ -96,12 +103,12 @@ public final class PortalCarvingData extends SavedData {
             if (linkId != null && !entry.getString("Link").equals(linkId)) continue;
             ResourceLocation dimension = ResourceLocation.tryParse(entry.getString("Dimension"));
             ServerLevel level = dimension == null ? null : server.getLevel(ResourceKey.create(Registries.DIMENSION, dimension));
-            if (level != null) {
-                BlockPos pos = BlockPos.of(entry.getLong("Position"));
-                if (level.hasChunkAt(pos) && level.getBlockState(pos).isAir()) {
-                    BlockState original = NbtUtils.readBlockState(level.registryAccess().lookupOrThrow(Registries.BLOCK), entry.getCompound("State"));
-                    level.setBlock(pos, original, 3);
-                }
+            if (level == null) continue;
+            BlockPos pos = BlockPos.of(entry.getLong("Position"));
+            if (!level.hasChunkAt(pos)) continue;
+            if (level.getBlockState(pos).isAir()) {
+                BlockState original = NbtUtils.readBlockState(level.registryAccess().lookupOrThrow(Registries.BLOCK), entry.getCompound("State"));
+                level.setBlock(pos, original, 3);
             }
             recorded.remove(entry.getString("Dimension") + "|" + entry.getLong("Position"));
             iterator.remove();
