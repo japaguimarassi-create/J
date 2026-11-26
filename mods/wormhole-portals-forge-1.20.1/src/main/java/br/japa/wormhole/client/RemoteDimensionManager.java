@@ -25,6 +25,7 @@ import br.japa.wormhole.portal.PortalEndpointEntity;
 import br.japa.wormhole.network.RemoteEntitiesPacket.EntitySnapshot;
 import net.minecraft.world.entity.Entity;
 import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.fml.ModList;
 import org.slf4j.Logger;
 import java.util.BitSet;
 import java.util.HashMap;
@@ -38,6 +39,7 @@ public final class RemoteDimensionManager {
     private static long lastPacketTime;
     private static int packetsReceived;
     private static boolean renderingRemote;
+    private static boolean rendererWarningSent;
     private static final Map<Integer, TextureTarget> TARGETS = new HashMap<>();
     private static final Map<Integer, Entity> REMOTE_ENTITIES = new HashMap<>();
     private static final PortalCamera PORTAL_CAMERA = new PortalCamera();
@@ -91,7 +93,15 @@ public final class RemoteDimensionManager {
 
     public static void renderView(PortalEndpointEntity endpoint, float partialTick) {
         Minecraft minecraft = Minecraft.getInstance();
+        if (isRendererUnsupported()) {
+            if (!rendererWarningSent) {
+                LOGGER.warn("Remote portal view disabled because Embeddium/Oculus is loaded; the native shell remains available.");
+                rendererWarningSent = true;
+            }
+            return;
+        }
         if (remote == null || minecraft.player == null || minecraft.level == null || !endpoint.isOpen()) return;
+        if (packetsReceived == 0 || System.currentTimeMillis() - lastPacketTime > 6000L) return;
         if (!remote.dimension.equals(endpoint.destinationId())) return;
         TextureTarget target = targetFor(endpoint.getId());
         Vec3 playerEye = minecraft.player.getEyePosition(partialTick);
@@ -135,7 +145,14 @@ public final class RemoteDimensionManager {
     }
 
     public static boolean hasRemoteView(PortalEndpointEntity endpoint) {
-        return remote != null && remote.dimension.equals(endpoint.destinationId()) && TARGETS.containsKey(endpoint.getId());
+        return !isRendererUnsupported() && packetsReceived > 0
+            && System.currentTimeMillis() - lastPacketTime <= 6000L
+            && remote != null && remote.dimension.equals(endpoint.destinationId())
+            && TARGETS.containsKey(endpoint.getId());
+    }
+
+    private static boolean isRendererUnsupported() {
+        return ModList.get().isLoaded("embeddium") || ModList.get().isLoaded("oculus");
     }
 
     public static void pruneTargets(java.util.Set<Integer> activeIds) {
@@ -233,6 +250,7 @@ public final class RemoteDimensionManager {
         }
         packetsReceived = 0;
         lastPacketTime = 0L;
+        rendererWarningSent = false;
     }
 
     private static final class PortalCamera extends Camera {
