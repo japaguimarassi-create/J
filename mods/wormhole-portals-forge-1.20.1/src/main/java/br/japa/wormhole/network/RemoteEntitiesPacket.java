@@ -10,6 +10,7 @@ import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.function.Supplier;
 public final class RemoteEntitiesPacket {
     private static final int MAX_ENTITIES = 64;
@@ -27,6 +28,9 @@ public final class RemoteEntitiesPacket {
             buffer.writeVarInt(entity.id());
             buffer.writeResourceLocation(entity.type());
             buffer.writeNbt(entity.data());
+            buffer.writeVarInt(entity.vehicleId());
+            buffer.writeVarInt(Math.min(16, entity.passengers().size()));
+            for (int i = 0; i < Math.min(16, entity.passengers().size()); i++) buffer.writeVarInt(entity.passengers().get(i));
         }
     }
     public static RemoteEntitiesPacket decode(FriendlyByteBuf buffer) {
@@ -40,7 +44,12 @@ public final class RemoteEntitiesPacket {
             CompoundTag data = buffer.readNbt();
             if (data == null) throw new DecoderException("Missing remote entity data");
             if (data.toString().length() > MAX_NBT_BYTES) throw new DecoderException("Remote entity data exceeds limit");
-            entities.add(new EntitySnapshot(id, type, data));
+            int vehicleId = buffer.readVarInt();
+            int passengerCount = buffer.readVarInt();
+            if (passengerCount < 0 || passengerCount > 16) throw new DecoderException("Invalid remote passenger count");
+            List<Integer> passengers = new ArrayList<>(passengerCount);
+            for (int p = 0; p < passengerCount; p++) passengers.add(buffer.readVarInt());
+            entities.add(new EntitySnapshot(id, type, data, vehicleId, passengers));
         }
         return new RemoteEntitiesPacket(dimension, entities);
     }
@@ -51,5 +60,10 @@ public final class RemoteEntitiesPacket {
             RemoteDimensionManager.updateEntities(packet.dimension, packet.entities)));
         context.setPacketHandled(true);
     }
-    public record EntitySnapshot(int id, ResourceLocation type, CompoundTag data) {}
+    public record EntitySnapshot(int id, ResourceLocation type, CompoundTag data, int vehicleId, List<Integer> passengers) {
+        public EntitySnapshot {
+            data = data.copy();
+            passengers = List.copyOf(passengers);
+        }
+    }
 }

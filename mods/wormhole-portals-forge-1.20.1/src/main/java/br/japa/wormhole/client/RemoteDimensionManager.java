@@ -198,6 +198,13 @@ public final class RemoteDimensionManager {
                 }
             }
         }
+        for (EntitySnapshot snapshot : snapshots) {
+            Entity passenger = REMOTE_ENTITIES.get(snapshot.id());
+            Entity vehicle = REMOTE_ENTITIES.get(snapshot.vehicleId());
+            if (snapshot.vehicleId() >= 0 && passenger != null && vehicle != null && passenger.getVehicle() != vehicle) {
+                passenger.startRiding(vehicle, true);
+            }
+        }
         var iterator = REMOTE_ENTITIES.entrySet().iterator();
         while (iterator.hasNext()) {
             var entry = iterator.next();
@@ -222,6 +229,17 @@ public final class RemoteDimensionManager {
             if (dataIndex >= arrays.size()) break;
             SectionPos pos = SectionPos.of(chunkX, minSection + bit, chunkZ);
             light.queueSectionData(layer, pos, new DataLayer(arrays.get(dataIndex++).clone()));
+        }
+    }
+
+    public static void tickRemoteEntities() {
+        if (remote == null) return;
+        for (Entity entity : List.copyOf(REMOTE_ENTITIES.values())) {
+            if (!entity.isRemoved()) {
+                try { entity.tick(); } catch (RuntimeException exception) {
+                    LOGGER.debug("Remote entity tick failed for {}", entity.getId(), exception);
+                }
+            }
         }
     }
 

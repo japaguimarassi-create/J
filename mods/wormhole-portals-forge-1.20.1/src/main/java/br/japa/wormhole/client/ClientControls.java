@@ -22,7 +22,9 @@ public final class ClientControls {
     public static final class Ticks {
         private Ticks() {}
         @SubscribeEvent public static void clientTick(TickEvent.ClientTickEvent event) {
-            if (event.phase != TickEvent.Phase.END || !OPEN_PANEL.consumeClick()) return;
+            if (event.phase != TickEvent.Phase.END) return;
+            RemoteDimensionManager.tickRemoteEntities();
+            if (!OPEN_PANEL.consumeClick()) return;
             Minecraft minecraft = Minecraft.getInstance(); if (minecraft.player == null || minecraft.level == null || minecraft.screen != null) return;
             var area = minecraft.player.getBoundingBox().inflate(12.0);
             PortalEndpointEntity nearest = minecraft.level.getEntitiesOfClass(PortalEndpointEntity.class, area).stream()

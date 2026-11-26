@@ -28,7 +28,7 @@ public final class RemoteChunkStreamer {
     private static final Map<UUID, Map<String, Long>> LAST_SENT = new HashMap<>();
     private static final Map<UUID, Map<String, Long>> LAST_ENTITY_SENT = new HashMap<>();
     private static final int VIEW_RADIUS = 1;
-    private static final long RESEND_INTERVAL = 40L;
+    private static final long RESEND_INTERVAL = 20L;
     private static final long ENTITY_SYNC_INTERVAL = 5L;
     private static final int MAX_REMOTE_ENTITIES = 64;
     private RemoteChunkStreamer() {}
@@ -48,7 +48,7 @@ public final class RemoteChunkStreamer {
                 String key = dimensionId + ":" + chunkX + ":" + chunkZ;
                 Long last = playerCache.get(key);
                 if (last != null && now - last < RESEND_INTERVAL) continue;
-                LevelChunk chunk = destination.getChunkSource().getChunkNow(chunkX, chunkZ);
+                LevelChunk chunk = destination.getChunk(chunkX, chunkZ);
                 if (chunk == null) continue;
                 ByteBuf raw = Unpooled.buffer();
                 try {
@@ -82,7 +82,11 @@ public final class RemoteChunkStreamer {
             if (typeId == null) continue;
             try {
                 CompoundTag data = entity.saveWithoutId(new CompoundTag());
-                snapshots.add(new RemoteEntitiesPacket.EntitySnapshot(entity.getId(), typeId, data));
+                snapshots.add(new RemoteEntitiesPacket.EntitySnapshot(
+                    entity.getId(), typeId, data,
+                    entity.getVehicle() == null ? -1 : entity.getVehicle().getId(),
+                    entity.getPassengers().stream().limit(16).map(Entity::getId).toList()
+                ));
             } catch (RuntimeException ignored) {
             }
         }
