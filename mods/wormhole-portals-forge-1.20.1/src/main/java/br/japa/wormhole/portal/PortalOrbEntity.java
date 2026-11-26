@@ -1,6 +1,7 @@
 package br.japa.wormhole.portal;
 import br.japa.wormhole.item.PortalGunItem;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
@@ -28,6 +29,6 @@ public final class PortalOrbEntity extends ThrowableProjectile {
         }
         discard();
     }
-    @Override public Packet<?> getAddEntityPacket() { return NetworkHooks.getEntitySpawningPacket(this); }
+    @Override public Packet<ClientGamePacketListener> getAddEntityPacket() { return NetworkHooks.getEntitySpawningPacket(this); }
     @Override public boolean isPickable() { return false; }
 }
