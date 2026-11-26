@@ -2,5 +2,7 @@
   "item.wormhole_portals.portal_anchor": "Âncora de Portal",
   "item.wormhole_portals.portal_tuner": "Sintonizador de Portal",
   "item.wormhole_portals.portal_gun": "Arma de Portal",
-  "itemGroup.wormhole_portals": "Wormhole Portals"
+  "itemGroup.wormhole_portals": "Frameless-Style Portals",
+  "key.wormhole_portals.open_panel": "Abrir painel de portal",
+  "screen.wormhole_portals.settings": "Configurações do portal"
 }
