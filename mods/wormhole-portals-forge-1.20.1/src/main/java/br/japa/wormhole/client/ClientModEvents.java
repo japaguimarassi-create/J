@@ -9,5 +9,6 @@ public final class ClientModEvents {
     private ClientModEvents() {}
     @SubscribeEvent public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerEntityRenderer(WormholePortals.PORTAL_ENTITY.get(), PortalEndpointRenderer::new);
+        event.registerEntityRenderer(WormholePortals.PORTAL_ORB.get(), PortalOrbRenderer::new);
     }
 }
