@@ -346,8 +346,11 @@ function initScene() {
   transform.setMode("translate");
   transform.setSize(0.78);
   scene.add(transform.getHelper());
-  transform.addEventListener("dragging-changed", (event) => {
-    orbit.enabled = !event.value;
+  transform.addEventListener("mouseDown", () => {
+    orbit.enabled = false;
+  });
+  transform.addEventListener("mouseUp", () => {
+    orbit.enabled = true;
   });
   transform.addEventListener("objectChange", () => {
     if (selectionBox) selectionBox.update();
@@ -398,6 +401,7 @@ function initScene() {
   environmentTarget = pmrem.fromScene(room, 0.04);
   scene.environment = environmentTarget.texture;
   scene.environmentIntensity = 1;
+  room.dispose();
   pmrem.dispose();
 
   scene.add(modelRoot);
