@@ -24,8 +24,11 @@ public final class PortalEndpointRenderer extends EntityRenderer<PortalEndpointE
         pose.pushPose();
         double radius = entity.radius();
         double phase = entity.animationTicks() * 0.09 + entity.getId() * 0.31;
-        if (entity.isOpen() && RemoteDimensionManager.hasRemoteView(entity)) {
-            drawRemoteSurface(entity, pose, radius * 0.992, partialTick);
+        if (entity.isOpen()) {
+            RemoteDimensionManager.renderView(entity, partialTick);
+            if (RemoteDimensionManager.hasRemoteView(entity)) {
+                drawRemoteSurface(entity, pose, radius * 0.992, partialTick);
+            }
         }
         VertexConsumer lines = buffers.getBuffer(RenderType.lines());
         int alpha = entity.isOpen() ? (int)(170 + 65 * Math.sin(phase)) : (int)(95 + 55 * Math.sin(phase * 1.7));

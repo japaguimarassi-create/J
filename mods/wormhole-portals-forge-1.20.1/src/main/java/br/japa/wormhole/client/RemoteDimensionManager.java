@@ -48,8 +48,14 @@ public final class RemoteDimensionManager {
         if (minecraft.level == null || minecraft.getConnection() == null) return;
         try {
             ensureWorld(minecraft, dimensionId, dimensionTypeId);
-            FriendlyByteBuf input = new FriendlyByteBuf(Unpooled.wrappedBuffer(payload));
-            ClientboundLevelChunkWithLightPacket packet = new ClientboundLevelChunkWithLightPacket(input);
+            io.netty.buffer.ByteBuf raw = Unpooled.wrappedBuffer(payload);
+            ClientboundLevelChunkWithLightPacket packet;
+            try {
+                FriendlyByteBuf input = new FriendlyByteBuf(raw);
+                packet = new ClientboundLevelChunkWithLightPacket(input);
+            } finally {
+                raw.release();
+            }
             var chunkData = packet.getChunkData();
             remote.level.getChunkSource().replaceWithPacketData(packet.getX(), packet.getZ(), chunkData.getReadBuffer(),
                 chunkData.getHeightmaps(), chunkData.getBlockEntitiesTagsConsumer(packet.getX(), packet.getZ()));
@@ -211,12 +217,14 @@ public final class RemoteDimensionManager {
     public static long lastPacketTime() { return lastPacketTime; }
 
     public static void close() {
-        for (TextureTarget target : TARGETS.values()) target.destroyBuffers();
-        TARGETS.clear();
         closeRemoteWorld();
     }
 
     private static void closeRemoteWorld() {
+        for (TextureTarget target : TARGETS.values()) {
+            try { target.destroyBuffers(); } catch (RuntimeException ignored) { }
+        }
+        TARGETS.clear();
         REMOTE_ENTITIES.clear();
         if (remote != null) {
             try { remote.renderer.close(); } catch (Exception ignored) { }
