@@ -11,6 +11,8 @@
 - [x] SavedData block-state restoration records for carved terrain.
 - [x] Basic placement preview and obstruction warning.
 - [x] Portal settings GUI and server-validated radius/range/enable/remove controls.
+- [x] Portal settings GUI destination cycling and border toggle.
+- [x] Anchor preview checks unbreakable blocks, block entities and bubble-mode hardness limits.
 - [x] Own remote ClientLevel and LevelRenderer.
 - [x] Bounded 3x3 snapshots for destination chunks, heightmaps, block entities and lighting.
 - [x] Off-screen TextureTarget render and spherical aperture projection for the remote view.
