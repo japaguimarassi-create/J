@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": ["OSO", "SFS", "OSO"],
+  "key": {
+    "O": { "item": "minecraft:obsidian" },
+    "S": { "item": "minecraft:amethyst_shard" },
+    "F": { "item": "minecraft:flint_and_steel" }
+  },
+  "result": { "item": "wormhole_portals:portal_anchor", "count": 1 }
+}
