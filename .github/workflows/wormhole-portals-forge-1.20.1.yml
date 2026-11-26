@@ -38,7 +38,8 @@ jobs:
       - name: Verify independent Forge JAR
         run: test -s build/libs/frameless-style-portals-forge-1.20.1-0.3.0-alpha.1.jar
       - name: Verify no Immersive Portals references in runtime metadata
-        run: '! unzip -p build/libs/frameless-style-portals-forge-1.20.1-0.3.0-alpha.1.jar META-INF/mods.toml | grep -qi 'modId="imm_ptl_core"''
+        run: |
+          ! unzip -p build/libs/frameless-style-portals-forge-1.20.1-0.3.0-alpha.1.jar META-INF/mods.toml | grep -qi 'modId="imm_ptl_core"'
       - uses: actions/upload-artifact@v4
         with:
           name: frameless-style-portals-forge-1.20.1
