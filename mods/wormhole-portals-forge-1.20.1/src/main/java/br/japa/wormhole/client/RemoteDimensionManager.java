@@ -1,7 +1,9 @@
 package br.japa.wormhole.client;
+import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.logging.LogUtils;
 import io.netty.buffer.Unpooled;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
@@ -12,20 +14,30 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.lighting.LevelLightEngine;
+import net.minecraft.world.phys.Vec3;
+import br.japa.wormhole.portal.PortalEndpointEntity;
 import org.slf4j.Logger;
 import java.util.BitSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 public final class RemoteDimensionManager {
     private static final Logger LOGGER = LogUtils.getLogger();
+    private static final int TARGET_SIZE = 384;
+    private static final int MAX_TARGETS = 4;
     private static RemoteWorld remote;
     private static long lastPacketTime;
     private static int packetsReceived;
+    private static final Map<Integer, TextureTarget> TARGETS = new HashMap<>();
+    private static final PortalCamera PORTAL_CAMERA = new PortalCamera();
     private RemoteDimensionManager() {}
+
     public static void receive(ResourceLocation dimensionId, ResourceLocation dimensionTypeId, int chunkX, int chunkZ, byte[] payload) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null || minecraft.getConnection() == null) return;
@@ -47,9 +59,10 @@ public final class RemoteDimensionManager {
             LOGGER.warn("Failed to apply remote dimension chunk {} {}, {}", dimensionId, chunkX, chunkZ, exception);
         }
     }
+
     private static void ensureWorld(Minecraft minecraft, ResourceLocation dimensionId, ResourceLocation typeId) {
         if (remote != null && remote.dimension.equals(dimensionId) && remote.dimensionType.equals(typeId)) return;
-        close();
+        closeRemoteWorld();
         ResourceKey<Level> dimensionKey = ResourceKey.create(Registries.DIMENSION, dimensionId);
         ResourceKey<DimensionType> typeKey = ResourceKey.create(Registries.DIMENSION_TYPE, typeId);
         Holder<DimensionType> type = minecraft.level.registryAccess().registryOrThrow(Registries.DIMENSION_TYPE).getHolderOrThrow(typeKey);
@@ -64,6 +77,65 @@ public final class RemoteDimensionManager {
         remote = new RemoteWorld(dimensionId, typeId, level, renderer);
         packetsReceived = 0;
     }
+
+    public static void renderView(PortalEndpointEntity endpoint, float partialTick) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (remote == null || minecraft.player == null || minecraft.level == null || !endpoint.isOpen()) return;
+        if (!remote.dimension.equals(endpoint.destinationId())) return;
+        TextureTarget target = targetFor(endpoint.getId());
+        Vec3 playerEye = minecraft.player.getEyePosition(partialTick);
+        Vec3 mappedEye = endpoint.targetPosition().add(playerEye.subtract(endpoint.position()));
+        PORTAL_CAMERA.setupRemote(remote.level, minecraft.player, mappedEye, minecraft.player.getYRot(), minecraft.player.getXRot(), partialTick);
+        target.setClearColor(0.005F, 0.008F, 0.025F, 1.0F);
+        target.bindWrite(true);
+        target.clear(false);
+        try {
+            PoseStack stack = new PoseStack();
+            float fov = minecraft.options.fov().get().floatValue();
+            remote.renderer.renderLevel(stack, partialTick, System.nanoTime(), false, PORTAL_CAMERA,
+                minecraft.gameRenderer, minecraft.gameRenderer.lightTexture(), minecraft.gameRenderer.getProjectionMatrix(fov));
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Remote view rendering failed for portal {}", endpoint.linkId(), exception);
+        } finally {
+            target.unbindWrite();
+            minecraft.getMainRenderTarget().bindWrite(true);
+        }
+    }
+
+    private static TextureTarget targetFor(int entityId) {
+        TextureTarget existing = TARGETS.get(entityId);
+        if (existing != null) return existing;
+        if (TARGETS.size() >= MAX_TARGETS) {
+            Integer first = TARGETS.keySet().iterator().next();
+            TextureTarget removed = TARGETS.remove(first);
+            if (removed != null) removed.destroyBuffers();
+        }
+        TextureTarget target = new TextureTarget(TARGET_SIZE, TARGET_SIZE, true, false);
+        target.setFilterMode(9729);
+        TARGETS.put(entityId, target);
+        return target;
+    }
+
+    public static int textureId(int entityId) {
+        TextureTarget target = TARGETS.get(entityId);
+        return target == null ? -1 : target.getColorTextureId();
+    }
+
+    public static boolean hasRemoteView(PortalEndpointEntity endpoint) {
+        return remote != null && remote.dimension.equals(endpoint.destinationId()) && TARGETS.containsKey(endpoint.getId());
+    }
+
+    public static void pruneTargets(java.util.Set<Integer> activeIds) {
+        var iterator = TARGETS.entrySet().iterator();
+        while (iterator.hasNext()) {
+            var entry = iterator.next();
+            if (!activeIds.contains(entry.getKey())) {
+                entry.getValue().destroyBuffers();
+                iterator.remove();
+            }
+        }
+    }
+
     private static void applyLight(ClientLevel level, ClientboundLevelChunkWithLightPacket packet) {
         var data = packet.getLightData();
         LevelLightEngine light = level.getLightEngine();
@@ -71,6 +143,7 @@ public final class RemoteDimensionManager {
         applyLayer(light, LightLayer.BLOCK, packet.getX(), packet.getZ(), light.getMinLightSection(), data.getBlockYMask(), data.getBlockUpdates());
         light.runLightUpdates();
     }
+
     private static void applyLayer(LevelLightEngine light, LightLayer layer, int chunkX, int chunkZ, int minSection, BitSet mask, List<byte[]> arrays) {
         int dataIndex = 0;
         for (int bit = mask.nextSetBit(0); bit >= 0; bit = mask.nextSetBit(bit + 1)) {
@@ -79,12 +152,20 @@ public final class RemoteDimensionManager {
             light.queueSectionData(layer, pos, new DataLayer(arrays.get(dataIndex++).clone()));
         }
     }
+
     public static ClientLevel level() { return remote == null ? null : remote.level; }
     public static LevelRenderer renderer() { return remote == null ? null : remote.renderer; }
     public static ResourceLocation dimension() { return remote == null ? null : remote.dimension; }
     public static int packetsReceived() { return packetsReceived; }
     public static long lastPacketTime() { return lastPacketTime; }
+
     public static void close() {
+        for (TextureTarget target : TARGETS.values()) target.destroyBuffers();
+        TARGETS.clear();
+        closeRemoteWorld();
+    }
+
+    private static void closeRemoteWorld() {
         if (remote != null) {
             try { remote.renderer.close(); } catch (Exception ignored) { }
             try { remote.level.close(); } catch (Exception ignored) { }
@@ -93,5 +174,14 @@ public final class RemoteDimensionManager {
         packetsReceived = 0;
         lastPacketTime = 0L;
     }
+
+    private static final class PortalCamera extends Camera {
+        private void setupRemote(ClientLevel level, Entity focus, Vec3 position, float yaw, float pitch, float partialTick) {
+            setup(level, focus, false, false, partialTick);
+            setPosition(position.x, position.y, position.z);
+            setRotation(yaw, pitch);
+        }
+    }
+
     private record RemoteWorld(ResourceLocation dimension, ResourceLocation dimensionType, ClientLevel level, LevelRenderer renderer) {}
 }
