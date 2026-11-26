@@ -26,7 +26,10 @@ public final class BubblePortalFactory {
         for (ServerLevel level : server.getAllLevels()) for (Entity entity : level.getAllEntities()) if (entity instanceof PortalEndpointEntity portal && portal.linkId().equals(id)) result.add(portal);
         return result;
     }
-    public static void removeLink(MinecraftServer server, String id) { for (PortalEndpointEntity portal : allPortals(server, id)) portal.discard(); }
+    public static void removeLink(MinecraftServer server, String id) {
+        PortalCarvingData.get(server).restoreLink(server, id);
+        for (PortalEndpointEntity portal : allPortals(server, id)) portal.discard();
+    }
     public static List<PortalEndpointEntity> findPortals(ServerLevel level, Vec3 point, double radius) { return level.getEntitiesOfClass(PortalEndpointEntity.class, new AABB(point, point).inflate(radius)); }
     public static PortalEndpointEntity findAnyTag(MinecraftServer server, String id) { List<PortalEndpointEntity> all = allPortals(server, id); return all.isEmpty() ? null : all.get(0); }
     public static void resize(MinecraftServer server, String id, double radius) { if (radius < 1 || radius > 8) throw new IllegalArgumentException("Radius must be 1–8 blocks"); for (PortalEndpointEntity p : allPortals(server, id)) p.setRadius(radius); }
@@ -36,6 +39,7 @@ public final class BubblePortalFactory {
     public static void retarget(MinecraftServer server, String id, ServerLevel destination, Vec3 target) {
         List<PortalEndpointEntity> all = allPortals(server, id); if (all.size() != 2) throw new IllegalArgumentException("Portal pair is incomplete");
         PortalEndpointEntity source = all.get(0); ServerLevel sourceWorld = (ServerLevel) source.level(); Vec3 sourcePoint = source.position(); double radius = source.radius(), range = source.activationRange(); boolean border = source.hasBorder();
+        PortalCarvingData.get(server).restoreLink(server, id);
         removeLink(server, id); createPair(sourceWorld, sourcePoint, destination, target, radius, range, border, id);
     }
     public static Vec3 defaultDestination(ServerLevel from, ServerLevel to, Vec3 source) {
