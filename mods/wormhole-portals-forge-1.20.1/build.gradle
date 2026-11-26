@@ -7,9 +7,7 @@ plugins {
 
 group = project.mod_group
 version = project.mod_version
-base {
-    archivesName = 'wormhole-portals-forge-1.20.1'
-}
+base { archivesName = 'frameless-style-portals-forge-1.20.1' }
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(17)
@@ -23,44 +21,31 @@ minecraft {
         configureEach {
             workingDirectory project.file('run')
             property 'forge.logging.console.level', 'info'
-            mods {
-                wormhole_portals {
-                    source sourceSets.main
-                }
-            }
+            mods { wormhole_portals { source sourceSets.main } }
         }
         client {}
         server { args '--nogui' }
     }
 }
 
-repositories {
-    maven { url = 'https://api.modrinth.com/maven' }
-    mavenCentral()
-}
-
-dependencies {
-    minecraft "net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}"
-    implementation fg.deobf('maven.modrinth:zf4Szzx2:Q6Z7eOLL')
-}
+repositories { mavenCentral() }
+dependencies { minecraft "net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}" }
 
 processResources {
     inputs.property 'version', project.version
-    filesMatching('META-INF/mods.toml') {
-        expand version: project.version, minecraft_version: project.minecraft_version, forge_version: project.forge_version
-    }
+    inputs.property 'minecraft_version', project.minecraft_version
+    inputs.property 'forge_version', project.forge_version
+    filesMatching('META-INF/mods.toml') { expand version: project.version, minecraft_version: project.minecraft_version, forge_version: project.forge_version }
 }
 
 jar {
-    manifest {
-        attributes([
-            'Specification-Title': 'wormhole_portals',
-            'Specification-Vendor': 'Japa',
-            'Specification-Version': '1',
-            'Implementation-Title': project.name,
-            'Implementation-Version': project.version
-        ])
-    }
+    manifest { attributes([
+        'Specification-Title': 'frameless_style_portals',
+        'Specification-Vendor': 'Japa',
+        'Specification-Version': '1',
+        'Implementation-Title': project.name,
+        'Implementation-Version': project.version
+    ]) }
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -68,10 +53,4 @@ tasks.withType(JavaCompile).configureEach {
     options.release = 17
 }
 
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            from components.java
-        }
-    }
-}
+publishing { publications { mavenJava(MavenPublication) { from components.java } } }
