@@ -17,6 +17,7 @@ public final class PortalControlNetwork {
         if (registered) return;
         CHANNEL.registerMessage(0, PortalControlPacket.class, PortalControlPacket::encode, PortalControlPacket::decode, PortalControlPacket::handle);
         CHANNEL.registerMessage(1, RemoteChunkPacket.class, RemoteChunkPacket::encode, RemoteChunkPacket::decode, RemoteChunkPacket::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
+        CHANNEL.registerMessage(2, RemoteEntitiesPacket.class, RemoteEntitiesPacket::encode, RemoteEntitiesPacket::decode, RemoteEntitiesPacket::handle, Optional.of(NetworkDirection.PLAY_TO_CLIENT));
         registered = true;
     }
 }
