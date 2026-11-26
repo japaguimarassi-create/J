@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#10121b">
+<title>Zap Estourado — Gerador de áudio meme</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#10121b;color:#f5f6ff}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 50% 0,#29204b,#10121b 58%)}
+main{width:min(100%,520px);background:#191c2a;border:1px solid #34394e;border-radius:24px;padding:28px;box-shadow:0 20px 70px #0008}
+h1{margin:0 0 8px;font-size:clamp(28px,7vw,38px)}p{color:#b9bfd4;line-height:1.5}.tag{display:inline-block;background:#30264c;color:#d9c8ff;padding:6px 10px;border-radius:99px;font-size:12px;font-weight:700}
+.control{margin:24px 0}label{display:flex;justify-content:space-between;margin-bottom:10px;font-weight:650}input{width:100%;accent-color:#a78bfa}button,a.download{border:0;border-radius:14px;padding:14px 18px;font-weight:750;font-size:15px;cursor:pointer;text-decoration:none;display:inline-flex;justify-content:center;align-items:center}
+button{background:#a78bfa;color:#171225;width:100%}button:disabled{opacity:.55;cursor:wait}.download{background:#292f43;color:#fff;width:100%;margin-top:12px}#status{min-height:24px;margin-top:16px;font-size:14px;color:#d8ccff}.note{font-size:12px;color:#929ab3;border-top:1px solid #34394e;padding-top:16px;margin-top:22px}
+</style>
+</head>
+<body>
+<main>
+<span class="tag">GERADOR LOCAL • SEM API</span>
+<h1>🔊 Zap Estourado</h1>
+<p>Crie um efeito de zoeira original: um grito robótico/cartunesco com distorção digital, grave e subida repentina de tom. Não reproduz o áudio original do “gemidão”.</p>
+<div class="control"><label for="duration">Duração <output id="durationValue">3,5 s</output></label><input id="duration" type="range" min="1.5" max="6" step=".5" value="3.5"></div>
+<div class="control"><label for="intensity">Distorção <output id="intensityValue">75%</output></label><input id="intensity" type="range" min="20" max="100" step="5" value="75"></div>
+<button id="generate">GERAR ÁUDIO 😂</button>
+<a class="download" id="download" hidden>BAIXAR WAV</a>
+<div id="status" role="status">Ajuste os controles e gere seu efeito.</div>
+<p class="note">O áudio é sintetizado no próprio navegador. Comece com o volume do celular baixo; o efeito tem som propositalmente agressivo e distorcido.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const duration=$('duration'),intensity=$('intensity');
+duration.oninput=()=> $('durationValue').value=duration.value+' s';
+intensity.oninput=()=> $('intensityValue').value=intensity.value+'%';
+function wavBlob(buffer){
+ const channels=buffer.numberOfChannels,frames=buffer.length,rate=buffer.sampleRate;
+ const bytes=new ArrayBuffer(44+frames*channels*2),v=new DataView(bytes);
+ const str=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+ str(0,'RIFF');v.setUint32(4,36+frames*channels*2,true);str(8,'WAVE');str(12,'fmt ');
+ v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,channels,true);
+ v.setUint32(24,rate,true);v.setUint32(28,rate*channels*2,true);v.setUint16(32,channels*2,true);v.setUint16(34,16,true);str(36,'data');v.setUint32(40,frames*channels*2,true);
+ let p=44;
+ for(let i=0;i<frames;i++)for(let c=0;c<channels;c++){let x=Math.max(-1,Math.min(1,buffer.getChannelData(c)[i]));v.setInt16(p,x<0?x*32768:x*32767,true);p+=2}
+ return new Blob([bytes],{type:'audio/wav'});
+}
+$('generate').onclick=async()=>{
+ const btn=$('generate'),status=$('status'),link=$('download');
+ btn.disabled=true;link.hidden=true;status.textContent='Sintetizando o caos...';
+ try{
+  const seconds=Number(duration.value),drive=Number(intensity.value)/100;
+  const rate=44100,ctx=new OfflineAudioContext(1,Math.ceil(rate*seconds),rate);
+  const master=ctx.createGain();master.gain.setValueAtTime(.0001,0);master.gain.linearRampToValueAtTime(.72,.08);master.gain.setValueAtTime(.72,seconds-.35);master.gain.exponentialRampToValueAtTime(.0001,seconds);master.connect(ctx.destination);
+  const shaper=ctx.createWaveShaper(),curve=new Float32Array(2048),amount=1+drive*90;
+  for(let i=0;i<curve.length;i++){const x=i*2/(curve.length-1)-1;curve[i]=Math.tanh(amount*x)/Math.tanh(amount)}
+  shaper.curve=curve;shaper.oversample='4x';shaper.connect(master);
+  const tones=[{f:115,m:1.0},{f:231,m:.55},{f:463,m:.28},{f:697,m:.18}];
+  tones.forEach((t,index)=>{
+   const osc=ctx.createOscillator(),gain=ctx.createGain();
+   osc.type=index===0?'sawtooth':'square';
+   osc.frequency.setValueAtTime(t.f,0);
+   osc.frequency.exponentialRampToValueAtTime(t.f*(index===0?5.5:3.4),seconds*.34);
+   osc.frequency.exponentialRampToValueAtTime(t.f*.72,seconds*.78);
+   gain.gain.value=t.m*(index===0?1:.45);
+   osc.connect(gain);gain.connect(shaper);osc.start(0);osc.stop(seconds);
+  });
+  const noise=ctx.createBuffer(1,Math.ceil(rate*seconds),rate),data=noise.getChannelData(0);
+  for(let i=0;i<data.length;i++){const t=i/rate;data[i]=(Math.random()*2-1)*.13*(t<.12?1:Math.max(0,1-(t/seconds)))}
+  const src=ctx.createBufferSource(),ng=ctx.createGain();src.buffer=noise;ng.gain.value=drive*.65;src.connect(ng);ng.connect(shaper);src.start();
+  const rendered=await ctx.startRendering(),blob=wavBlob(rendered),url=URL.createObjectURL(blob);
+  link.href=url;link.download='zap-estourado.wav';link.hidden=false;status.textContent='Pronto! Seu efeito de zoeira foi gerado.';
+ }catch(e){status.textContent='Não foi possível gerar o áudio neste navegador.'}
+ finally{btn.disabled=false}
+};
+</script>
+</body>
+</html>
