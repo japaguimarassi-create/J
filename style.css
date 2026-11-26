@@ -179,3 +179,17 @@ input[type="range"] { width: 100%; margin: 10px 0 0; accent-color: #79a9ff; heig
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+@media (max-width: 620px) {
+  .left-panel.mobile-open {
+    display: block;
+    position: fixed;
+    z-index: 32;
+    left: 0;
+    top: 56px;
+    bottom: 68px;
+    width: min(286px, 88vw);
+    overflow-y: auto;
+    border-right: 1px solid var(--line-strong);
+    box-shadow: 18px 0 40px rgba(0, 0, 0, .42);
+  }
+}
