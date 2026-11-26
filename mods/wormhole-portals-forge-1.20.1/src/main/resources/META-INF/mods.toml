@@ -9,7 +9,7 @@ displayName="Frameless-Style Portals"
 authors="Japa"
 description='''
 Independent Forge 1.20.1 implementation of spherical dimensional portal gameplay.
-This project does not require or bundle Immersive Portals.
+No external portal engine dependency is required or bundled.
 '''
 
 [[dependencies.wormhole_portals]]
