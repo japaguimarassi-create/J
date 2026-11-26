@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080b12">
+  <meta name="description" content="Aether 3D Studio — editor 3D no navegador com materiais PBR, iluminação de estúdio e exportação GLB.">
+  <title>Aether 3D Studio</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="Aether 3D Studio">
+      <span class="brand-mark">A</span>
+      <span><strong>AETHER</strong><small>3D STUDIO</small></span>
+    </a>
+    <div class="project-name"><span class="live-dot"></span><span id="projectStatus">Projeto sem título</span></div>
+    <div class="top-actions">
+      <button class="quiet-btn" id="openProjectBtn" title="Abrir projeto">Abrir</button>
+      <button class="quiet-btn" id="saveBtn" title="Salvar projeto neste dispositivo">Salvar</button>
+      <button class="primary-btn" id="exportBtn">Exportar GLB ↗</button>
+      <button class="icon-btn mobile-props-btn" id="togglePropsBtn" aria-label="Abrir propriedades">☷</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="left-panel">
+      <section class="panel-section">
+        <div class="section-heading"><span>01</span> GEOMETRIA</div>
+        <div class="primitive-grid">
+          <button class="primitive-btn" data-primitive="box"><span class="primitive-icon">▣</span><span>Cubo</span></button>
+          <button class="primitive-btn" data-primitive="sphere"><span class="primitive-icon">●</span><span>Esfera</span></button>
+          <button class="primitive-btn" data-primitive="cylinder"><span class="primitive-icon">▤</span><span>Cilindro</span></button>
+          <button class="primitive-btn" data-primitive="torus"><span class="primitive-icon">◎</span><span>Rosca</span></button>
+          <button class="primitive-btn" data-primitive="cone"><span class="primitive-icon">△</span><span>Cone</span></button>
+          <button class="primitive-btn" data-primitive="knot"><span class="primitive-icon">❋</span><span>Nó</span></button>
+          <button class="primitive-btn" data-primitive="plane"><span class="primitive-icon">▱</span><span>Plano</span></button>
+          <button class="primitive-btn" data-primitive="rock"><span class="primitive-icon">⬡</span><span>Rocha</span></button>
+        </div>
+      </section>
+
+      <section class="panel-section">
+        <div class="section-heading"><span>02</span> CENA</div>
+        <div class="scene-actions">
+          <button class="wide-btn" id="duplicateBtn">＋ Duplicar selecionado</button>
+          <button class="wide-btn danger-btn" id="deleteBtn">− Excluir selecionado</button>
+        </div>
+        <div class="scene-tree" id="sceneTree"></div>
+      </section>
+
+      <section class="panel-section utility-section">
+        <div class="section-heading"><span>03</span> VISUALIZAÇÃO</div>
+        <label class="toggle-row"><span>Grade de referência</span><input id="gridToggle" type="checkbox" checked><i></i></label>
+        <label class="toggle-row"><span>Sombras em tempo real</span><input id="shadowToggle" type="checkbox" checked><i></i></label>
+        <label class="toggle-row"><span>Qualidade alta</span><input id="qualityToggle" type="checkbox"><i></i></label>
+      </section>
+    </aside>
+
+    <main class="viewport-stage">
+      <div id="viewport" class="viewport">
+        <div class="viewport-topline">
+          <div class="viewport-chip"><span class="live-dot"></span> VIEWPORT 3D</div>
+          <div class="viewport-hint">Arraste para orbitar · Pinça/scroll para zoom</div>
+        </div>
+        <div class="axis-legend"><span class="axis-x">X</span><span class="axis-y">Y</span><span class="axis-z">Z</span></div>
+        <div class="viewport-bottomline">
+          <span id="meshStats">0 objetos · 0 polígonos</span>
+          <button id="frameBtn" class="viewport-small-btn">Enquadrar objeto ⌖</button>
+        </div>
+        <div id="loadingState" class="loading-state"><div class="loading-orb"></div><span>Preparando ambiente 3D…</span></div>
+      </div>
+      <div class="transform-toolbar" role="toolbar" aria-label="Ferramentas de transformação">
+        <button class="tool-btn active" data-mode="translate" title="Mover (G)">↔<small>Mover</small></button>
+        <button class="tool-btn" data-mode="rotate" title="Girar (R)">⟳<small>Girar</small></button>
+        <button class="tool-btn" data-mode="scale" title="Escalar (S)">⤢<small>Escala</small></button>
+        <span class="toolbar-divider"></span>
+        <button class="tool-btn camera-tool" id="cameraResetBtn" title="Redefinir câmera">⌂<small>Câmera</small></button>
+        <button class="tool-btn camera-tool" id="screenshotBtn" title="Capturar imagem">▧<small>Captura</small></button>
+      </div>
+    </main>
+
+    <aside class="right-panel" id="propertiesPanel">
+      <div class="properties-header">
+        <div><div class="section-heading"><span>04</span> INSPECTOR</div><h2>Propriedades</h2></div>
+        <button class="icon-btn close-props-btn" id="closePropsBtn" aria-label="Fechar propriedades">×</button>
+      </div>
+      <section class="property-section">
+        <label class="field-label" for="objectName">Nome do objeto</label>
+        <input class="text-input" id="objectName" type="text" value="Esfera" maxlength="48">
+        <div class="property-subhead">MATERIAL FÍSICO · PBR</div>
+        <label class="field-label" for="materialPreset">Presets de superfície</label>
+        <select class="select-input" id="materialPreset">
+          <option value="chrome">Cromo polido</option>
+          <option value="steel">Aço escovado</option>
+          <option value="gold">Ouro</option>
+          <option value="ceramic">Cerâmica</option>
+          <option value="glass">Vidro</option>
+          <option value="plastic">Plástico</option>
+          <option value="rubber">Borracha</option>
+          <option value="stone">Pedra</option>
+          <option value="skin">Superfície orgânica</option>
+        </select>
+        <div class="color-field">
+          <label class="field-label" for="baseColor">Cor base</label>
+          <input id="baseColor" type="color" value="#b9c5d8">
+        </div>
+        <div class="range-field"><div><label for="roughness">Rugosidade</label><output id="roughnessValue">0.18</output></div><input id="roughness" type="range" min="0" max="1" step="0.01" value="0.18"></div>
+        <div class="range-field"><div><label for="metalness">Metalização</label><output id="metalnessValue">0.92</output></div><input id="metalness" type="range" min="0" max="1" step="0.01" value="0.92"></div>
+        <div class="range-field"><div><label for="clearcoat">Verniz / Clearcoat</label><output id="clearcoatValue">0.45</output></div><input id="clearcoat" type="range" min="0" max="1" step="0.01" value="0.45"></div>
+      </section>
+
+      <section class="property-section lighting-section">
+        <div class="property-subhead">ILUMINAÇÃO DE ESTÚDIO</div>
+        <label class="field-label" for="lightingPreset">Configuração de luz</label>
+        <select class="select-input" id="lightingPreset">
+          <option value="softbox">Softbox — suave</option>
+          <option value="cinematic">Cinema — contraste</option>
+          <option value="product">Produto — neutra</option>
+        </select>
+        <div class="range-field"><div><label for="environmentStrength">Reflexos do ambiente</label><output id="environmentStrengthValue">1.0</output></div><input id="environmentStrength" type="range" min="0" max="2" step="0.05" value="1"></div>
+        <div class="range-field"><div><label for="lightStrength">Intensidade da luz</label><output id="lightStrengthValue">3.0</output></div><input id="lightStrength" type="range" min="0" max="6" step="0.1" value="3"></div>
+      </section>
+      <section class="property-section export-section">
+        <div class="property-subhead">SAÍDA</div>
+        <button class="wide-btn export-option" id="exportObjBtn">Exportar OBJ</button>
+        <button class="wide-btn export-option" id="exportStlBtn">Exportar STL</button>
+        <button class="wide-btn export-option" id="exportProjectBtn">Baixar projeto JSON</button>
+      </section>
+      <div class="inspector-footer"><span class="status-dot"></span> Renderizador WebGL · PBR</div>
+    </aside>
+  </div>
+
+  <div class="mobile-dock">
+    <button class="primitive-btn" data-primitive="box"><span class="primitive-icon">▣</span><span>Cubo</span></button>
+    <button class="primitive-btn" data-primitive="sphere"><span class="primitive-icon">●</span><span>Esfera</span></button>
+    <button class="primitive-btn" data-primitive="cylinder"><span class="primitive-icon">▤</span><span>Cilindro</span></button>
+    <button class="primitive-btn" data-primitive="torus"><span class="primitive-icon">◎</span><span>Rosca</span></button>
+    <button class="primitive-btn" data-primitive="rock"><span class="primitive-icon">⬡</span><span>Rocha</span></button>
+    <button class="dock-more" id="dockMoreBtn">＋<span>Mais</span></button>
+  </div>
+
+  <input id="fileInput" type="file" accept=".glb,.json,model/gltf-binary,application/json" hidden>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
