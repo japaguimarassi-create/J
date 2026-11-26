@@ -33,7 +33,7 @@ A biblioteca Three.js 0.187.0 e seus módulos são carregados pelo CDN jsDelivr.
 
 1. Importe o repositório `japaguimarassi-create/J` na Vercel.
 2. Selecione a branch `aether-3d-studio-v1`.
-3. Defina o diretório raiz como `/` (raiz do repositório).
+3. Mantenha o Root Directory na raiz do repositório (configuração padrão, sem subpasta).
 4. Use o preset `Other`, sem comando de build e com diretório de saída `.`.
 5. Faça o deploy.
 
