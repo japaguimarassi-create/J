@@ -12,9 +12,24 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import java.util.HashSet;
+import java.util.Set;
 @Mod.EventBusSubscriber(modid = WormholePortals.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public final class BubbleRenderer {
     private BubbleRenderer() {}
+    @SubscribeEvent public static void prepareRemoteViews(RenderLevelStageEvent event) {
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_SKY) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || mc.player == null) return;
+        Set<Integer> active = new HashSet<>();
+        for (Entity entity : mc.level.entitiesForRendering()) {
+            if (!(entity instanceof PortalEndpointEntity portal) || !portal.isOpen()) continue;
+            if (portal.distanceToSqr(mc.player) > portal.activationRange() * portal.activationRange()) continue;
+            active.add(portal.getId());
+            RemoteDimensionManager.renderView(portal, event.getPartialTick());
+        }
+        RemoteDimensionManager.pruneTargets(active);
+    }
     @SubscribeEvent public static void renderPlacementPreview(RenderLevelStageEvent event) {
         if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
         Minecraft mc = Minecraft.getInstance(); if (mc.level == null || mc.player == null) return;
