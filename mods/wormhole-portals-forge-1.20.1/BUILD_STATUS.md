@@ -1,7 +1,18 @@
-# Build status
+# Native Forge branch status
 
-The source is intended to compile on GitHub Actions with Java 17, Gradle 8.8, Forge 1.20.1-47.3.0 and Immersive Portals 3.0.7. The workflow must finish successfully and verify the expected output before this build is marked compiled.
+- [x] Remove Immersive Portals from Gradle dependencies.
+- [x] Remove Immersive Portals runtime dependency from mods.toml.
+- [x] Replace external Portal entities with a native Forge entity.
+- [x] Add native endpoint pairing and server-side proximity activation.
+- [x] Add procedural sphere/swirl/border rendering.
+- [x] Add basic entity dimension transit and cooldown protection.
+- [x] Port Anchor, Tuner and command paths to the native entity model.
+- [ ] Live remote dimension world and chunk/entity streaming.
+- [ ] No-freeze cross-dimensional traversal.
+- [ ] Full Anchor config UI and collision preview.
+- [ ] Floor/ceiling/wall door placement, carving and rollback.
+- [ ] Portal Gun orb projectile, linked-door UX, width/height wheel controls and size display.
+- [ ] Full renderer/shader compatibility layer.
+- [ ] In-game client/server testing (explicitly excluded for this task).
 
-Expected artifact: `wormhole-portals-forge-1.20.1-0.2.0-alpha.1.jar`.
-
-The mod still requires in-game validation for portal rendering, entity crossing, placement, client/server synchronization and performance. The 20-face bubble is an approximation, not an exact recreation of the Frameless GPU mask.
+The previous 0.2.0 artifact belongs to the Immersive-Portals-based branch and must not be used as the native Frameless-style build. This branch is a rewrite and requires a new CI build.
