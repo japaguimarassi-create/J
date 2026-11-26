@@ -31,7 +31,7 @@ public final class BubbleRenderer {
         RemoteDimensionManager.pruneTargets(active);
     }
     @SubscribeEvent public static void renderPlacementPreview(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) return;
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS || RemoteDimensionManager.isRenderingRemote()) return;
         Minecraft mc = Minecraft.getInstance(); if (mc.level == null || mc.player == null) return;
         ItemStack held = mc.player.getMainHandItem();
         if (!held.is(WormholePortals.PORTAL_ANCHOR.get())) return;

@@ -31,6 +31,20 @@ public final class PortalControlPacket {
                 case 1 -> BubblePortalFactory.setRange(player.server, id, Math.max(2.0, Math.min(128.0, endpoint.activationRange() + message.value)));
                 case 2 -> BubblePortalFactory.setEnabled(player.server, id, !endpoint.isEnabled());
                 case 3 -> BubblePortalFactory.removeLink(player.server, id);
+                case 5 -> BubblePortalFactory.setBorder(player.server, id, !endpoint.hasBorder());
+                case 6 -> {
+                    java.util.List<net.minecraft.server.level.ServerLevel> levels = new java.util.ArrayList<>();
+                    player.server.getAllLevels().forEach(level -> levels.add(level));
+                    if (levels.isEmpty()) return;
+                    int current = -1;
+                    for (int i = 0; i < levels.size(); i++) {
+                        if (levels.get(i).dimension().location().equals(endpoint.destinationId())) current = i;
+                    }
+                    var destination = levels.get((current + 1 + levels.size()) % levels.size());
+                    var origin = (net.minecraft.server.level.ServerLevel) endpoint.level();
+                    var target = BubblePortalFactory.defaultDestination(origin, destination, endpoint.position());
+                    BubblePortalFactory.retargetFromEndpoint(player.server, id, endpoint, destination, target);
+                }
                 default -> { }
             }
         });

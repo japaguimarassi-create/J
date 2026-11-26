@@ -36,6 +36,16 @@ public final class BubblePortalFactory {
     public static void setRange(MinecraftServer server, String id, double range) { if (range < 2 || range > 128) throw new IllegalArgumentException("Range must be 2–128 blocks"); for (PortalEndpointEntity p : allPortals(server, id)) p.setRange(range); }
     public static void setEnabled(MinecraftServer server, String id, boolean value) { for (PortalEndpointEntity p : allPortals(server, id)) { p.setEnabled(value); p.setOpen(false); } }
     public static void setBorder(MinecraftServer server, String id, boolean value) { for (PortalEndpointEntity p : allPortals(server, id)) p.setBorder(value); }
+    public static void retargetFromEndpoint(MinecraftServer server, String id, PortalEndpointEntity endpoint, ServerLevel destination, Vec3 target) {
+        if (endpoint == null || endpoint.isRemoved()) throw new IllegalArgumentException("Portal endpoint is unavailable");
+        ServerLevel sourceWorld = (ServerLevel) endpoint.level();
+        Vec3 sourcePoint = endpoint.position();
+        double radius = endpoint.radius();
+        double range = endpoint.activationRange();
+        boolean border = endpoint.hasBorder();
+        removeLink(server, id);
+        createPair(sourceWorld, sourcePoint, destination, target, radius, range, border, id);
+    }
     public static void retarget(MinecraftServer server, String id, ServerLevel destination, Vec3 target) {
         List<PortalEndpointEntity> all = allPortals(server, id); if (all.size() != 2) throw new IllegalArgumentException("Portal pair is incomplete");
         PortalEndpointEntity source = all.get(0); ServerLevel sourceWorld = (ServerLevel) source.level(); Vec3 sourcePoint = source.position(); double radius = source.radius(), range = source.activationRange(); boolean border = source.hasBorder();

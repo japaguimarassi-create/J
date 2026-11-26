@@ -28,7 +28,7 @@ public final class ClientControls {
             PortalEndpointEntity nearest = minecraft.level.getEntitiesOfClass(PortalEndpointEntity.class, area).stream()
                 .min((a,b) -> Double.compare(a.distanceToSqr(minecraft.player), b.distanceToSqr(minecraft.player))).orElse(null);
             if (nearest == null) { minecraft.player.displayClientMessage(Component.literal("Nenhum portal próximo."), true); return; }
-            minecraft.setScreen(new PortalSettingsScreen(nearest.getId(), nearest.linkId(), nearest.radius(), nearest.activationRange(), nearest.isEnabled()));
+            minecraft.setScreen(new PortalSettingsScreen(nearest.getId(), nearest.linkId(), nearest.radius(), nearest.activationRange(), nearest.isEnabled(), nearest.destinationId().toString(), nearest.hasBorder()));
         }
         @SubscribeEvent public static void mouseWheel(InputEvent.MouseScrollingEvent event) {
             Minecraft mc = Minecraft.getInstance(); if (mc.player == null) return;
