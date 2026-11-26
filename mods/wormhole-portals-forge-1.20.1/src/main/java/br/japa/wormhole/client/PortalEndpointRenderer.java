@@ -47,6 +47,7 @@ public final class PortalEndpointRenderer extends EntityRenderer<PortalEndpointE
         if (right.lengthSqr() < 1.0E-5) right = new Vec3(1.0, 0.0, 0.0);
         right = right.normalize();
         Vec3 cameraUp = forward.cross(right).normalize();
+        Vec3 cameraOffset = minecraft.player.getEyePosition(partialTick).subtract(endpoint.position());
         double fov = Math.toRadians(minecraft.options.fov().get().doubleValue());
         double tanHalfFov = Math.tan(fov * 0.5);
         int latitudeSteps = 28;
@@ -66,10 +67,10 @@ public final class PortalEndpointRenderer extends EntityRenderer<PortalEndpointE
             for (int lon = 0; lon < longitudeSteps; lon++) {
                 double theta0 = Math.PI * 2.0 * lon / longitudeSteps;
                 double theta1 = Math.PI * 2.0 * (lon + 1) / longitudeSteps;
-                MappedVertex a = mapPoint(radius, phi0, theta0, forward, right, cameraUp, tanHalfFov);
-                MappedVertex b = mapPoint(radius, phi0, theta1, forward, right, cameraUp, tanHalfFov);
-                MappedVertex c = mapPoint(radius, phi1, theta1, forward, right, cameraUp, tanHalfFov);
-                MappedVertex d = mapPoint(radius, phi1, theta0, forward, right, cameraUp, tanHalfFov);
+                MappedVertex a = mapPoint(radius, phi0, theta0, cameraOffset, forward, right, cameraUp, tanHalfFov);
+                MappedVertex b = mapPoint(radius, phi0, theta1, cameraOffset, forward, right, cameraUp, tanHalfFov);
+                MappedVertex c = mapPoint(radius, phi1, theta1, cameraOffset, forward, right, cameraUp, tanHalfFov);
+                MappedVertex d = mapPoint(radius, phi1, theta0, cameraOffset, forward, right, cameraUp, tanHalfFov);
                 if (a == null || b == null || c == null || d == null) continue;
                 vertex(builder, matrix, a); vertex(builder, matrix, b); vertex(builder, matrix, c);
                 vertex(builder, matrix, a); vertex(builder, matrix, c); vertex(builder, matrix, d);
@@ -81,13 +82,14 @@ public final class PortalEndpointRenderer extends EntityRenderer<PortalEndpointE
         RenderSystem.disableBlend();
     }
 
-    private static MappedVertex mapPoint(double radius, double phi, double theta, Vec3 forward, Vec3 right, Vec3 up, double tanHalfFov) {
+    private static MappedVertex mapPoint(double radius, double phi, double theta, Vec3 cameraOffset, Vec3 forward, Vec3 right, Vec3 up, double tanHalfFov) {
         double sin = Math.sin(phi);
         Vec3 direction = new Vec3(sin * Math.cos(theta), Math.cos(phi), sin * Math.sin(theta));
-        double depth = direction.dot(forward);
+        Vec3 ray = direction.scale(radius).subtract(cameraOffset);
+        double depth = ray.dot(forward);
         if (depth <= 0.08) return null;
-        double nx = direction.dot(right) / (depth * tanHalfFov);
-        double ny = direction.dot(up) / (depth * tanHalfFov);
+        double nx = ray.dot(right) / (depth * tanHalfFov);
+        double ny = ray.dot(up) / (depth * tanHalfFov);
         if (nx < -1.02 || nx > 1.02 || ny < -1.02 || ny > 1.02) return null;
         double u = 0.5 + nx * 0.5;
         double v = 0.5 + ny * 0.5;
