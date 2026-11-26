@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": ["C C", " A ", " C "],
+  "key": {
+    "C": { "item": "minecraft:copper_ingot" },
+    "A": { "item": "minecraft:amethyst_shard" }
+  },
+  "result": { "item": "wormhole_portals:portal_tuner", "count": 1 }
+}
