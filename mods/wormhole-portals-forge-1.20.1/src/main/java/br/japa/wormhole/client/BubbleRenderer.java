@@ -18,7 +18,7 @@ import java.util.Set;
 public final class BubbleRenderer {
     private BubbleRenderer() {}
     @SubscribeEvent public static void prepareRemoteViews(RenderLevelStageEvent event) {
-        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_SKY) return;
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_SKY || RemoteDimensionManager.isRenderingRemote()) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return;
         Set<Integer> active = new HashSet<>();

@@ -34,6 +34,7 @@ public final class RemoteDimensionManager {
     private static RemoteWorld remote;
     private static long lastPacketTime;
     private static int packetsReceived;
+    private static boolean renderingRemote;
     private static final Map<Integer, TextureTarget> TARGETS = new HashMap<>();
     private static final PortalCamera PORTAL_CAMERA = new PortalCamera();
     private RemoteDimensionManager() {}
@@ -89,6 +90,7 @@ public final class RemoteDimensionManager {
         target.setClearColor(0.005F, 0.008F, 0.025F, 1.0F);
         target.bindWrite(true);
         target.clear(false);
+        renderingRemote = true;
         try {
             PoseStack stack = new PoseStack();
             float fov = minecraft.options.fov().get().floatValue();
@@ -97,6 +99,7 @@ public final class RemoteDimensionManager {
         } catch (RuntimeException exception) {
             LOGGER.warn("Remote view rendering failed for portal {}", endpoint.linkId(), exception);
         } finally {
+            renderingRemote = false;
             target.unbindWrite();
             minecraft.getMainRenderTarget().bindWrite(true);
         }
@@ -152,6 +155,8 @@ public final class RemoteDimensionManager {
             light.queueSectionData(layer, pos, new DataLayer(arrays.get(dataIndex++).clone()));
         }
     }
+
+    public static boolean isRenderingRemote() { return renderingRemote; }
 
     public static ClientLevel level() { return remote == null ? null : remote.level; }
     public static LevelRenderer renderer() { return remote == null ? null : remote.renderer; }
