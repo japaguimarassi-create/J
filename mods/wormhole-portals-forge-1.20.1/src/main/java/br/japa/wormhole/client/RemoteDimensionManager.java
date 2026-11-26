@@ -22,6 +22,9 @@ import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.lighting.LevelLightEngine;
 import net.minecraft.world.phys.Vec3;
 import br.japa.wormhole.portal.PortalEndpointEntity;
+import br.japa.wormhole.network.RemoteEntitiesPacket.EntitySnapshot;
+import net.minecraft.world.entity.Entity;
+import net.minecraftforge.registries.ForgeRegistries;
 import org.slf4j.Logger;
 import java.util.BitSet;
 import java.util.HashMap;
@@ -36,6 +39,7 @@ public final class RemoteDimensionManager {
     private static int packetsReceived;
     private static boolean renderingRemote;
     private static final Map<Integer, TextureTarget> TARGETS = new HashMap<>();
+    private static final Map<Integer, Entity> REMOTE_ENTITIES = new HashMap<>();
     private static final PortalCamera PORTAL_CAMERA = new PortalCamera();
     private RemoteDimensionManager() {}
 
@@ -139,6 +143,48 @@ public final class RemoteDimensionManager {
         }
     }
 
+    public static void updateEntities(ResourceLocation dimensionId, List<EntitySnapshot> snapshots) {
+        if (remote == null || !remote.dimension.equals(dimensionId)) return;
+        java.util.Set<Integer> present = new java.util.HashSet<>();
+        for (EntitySnapshot snapshot : snapshots) {
+            present.add(snapshot.id());
+            var type = ForgeRegistries.ENTITY_TYPES.getValue(snapshot.type());
+            if (type == null || snapshot.type().equals(new ResourceLocation("minecraft", "player"))) continue;
+            Entity entity = REMOTE_ENTITIES.get(snapshot.id());
+            if (entity != null && entity.getType() != type) {
+                remote.level.removeEntity(snapshot.id(), Entity.RemovalReason.DISCARDED);
+                REMOTE_ENTITIES.remove(snapshot.id());
+                entity = null;
+            }
+            if (entity == null) {
+                entity = type.create(remote.level);
+                if (entity == null) continue;
+                try {
+                    entity.load(snapshot.data());
+                    remote.level.putNonPlayerEntity(snapshot.id(), entity);
+                    REMOTE_ENTITIES.put(snapshot.id(), entity);
+                } catch (RuntimeException exception) {
+                    LOGGER.warn("Could not create remote entity type {}", snapshot.type(), exception);
+                    entity.discard();
+                }
+            } else {
+                try {
+                    entity.load(snapshot.data());
+                } catch (RuntimeException exception) {
+                    LOGGER.warn("Could not update remote entity {}", snapshot.id(), exception);
+                }
+            }
+        }
+        var iterator = REMOTE_ENTITIES.entrySet().iterator();
+        while (iterator.hasNext()) {
+            var entry = iterator.next();
+            if (!present.contains(entry.getKey())) {
+                remote.level.removeEntity(entry.getKey(), Entity.RemovalReason.DISCARDED);
+                iterator.remove();
+            }
+        }
+    }
+
     private static void applyLight(ClientLevel level, ClientboundLevelChunkWithLightPacket packet) {
         var data = packet.getLightData();
         LevelLightEngine light = level.getLightEngine();
@@ -171,6 +217,7 @@ public final class RemoteDimensionManager {
     }
 
     private static void closeRemoteWorld() {
+        REMOTE_ENTITIES.clear();
         if (remote != null) {
             try { remote.renderer.close(); } catch (Exception ignored) { }
             try { remote.level.close(); } catch (Exception ignored) { }
