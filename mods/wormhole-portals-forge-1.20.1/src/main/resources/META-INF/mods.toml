@@ -1,0 +1,34 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+
+[[mods]]
+modId="wormhole_portals"
+version="${version}"
+displayName="Wormhole Portals"
+authors="Japa"
+description='''
+Independent spherical portal implementation for Minecraft Forge 1.20.1.
+Requires Immersive Portals Core for seamless multidimensional rendering and entity transit.
+'''
+
+[[dependencies.wormhole_portals]]
+modId="forge"
+mandatory=true
+versionRange="[${forge_version},)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.wormhole_portals]]
+modId="minecraft"
+mandatory=true
+versionRange="[${minecraft_version},1.20.2)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.wormhole_portals]]
+modId="imm_ptl_core"
+mandatory=true
+versionRange="[3.0.7,)"
+ordering="AFTER"
+side="BOTH"
