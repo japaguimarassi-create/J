@@ -5,12 +5,12 @@ on:
     branches:
       - ps4-mobile-controller-2026-11
     paths:
-      - "ps4-mobile-controller/**"
+      - "ps4-mobile-controller/apply_controller_only.py"
       - ".github/workflows/build-ps4-mobile-controller.yml"
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -56,10 +56,21 @@ jobs:
       - name: Verify APK output
         run: test -s upstream/android/app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: ps4-mobile-controller-debug-apk
           path: upstream/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish APK release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ps4-mobile-controller-apk
+          name: PS4 Mobile Controller APK
+          body: "Controller-only Android build. Audio and video are disabled; controls run through a registered PS4 Remote Play session."
+          files: upstream/android/app/build/outputs/apk/debug/app-debug.apk
+          overwrite_files: true
+          prerelease: true
+          make_latest: false
