@@ -20,15 +20,11 @@ class MainActivity : Activity() {
         requestWindowFeature(Window.FEATURE_NO_TITLE)
         window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN)
         window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
-        setContentView(ControllerView())
+        setContentView(ControllerView(this))
     }
 }
 
-private class ControllerView : View(thisContextHack()) {
-    companion object {
-        private lateinit var appContext: android.content.Context
-        fun thisContextHack(): android.content.Context = appContext
-    }
+private class ControllerView(context: android.content.Context) : View(context) {
     private val p = Paint(Paint.ANTI_ALIAS_FLAG)
     private val active = mutableSetOf<String>()
     private val pointers = mutableMapOf<Int, String>()
@@ -46,10 +42,6 @@ private class ControllerView : View(thisContextHack()) {
 
     init {
         isFocusable = true
-    }
-
-    constructor(context: android.content.Context, marker: Unit = Unit) : this() {
-        appContext = context
     }
 
     override fun onDraw(c: Canvas) {
