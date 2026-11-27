@@ -18,4 +18,4 @@ The app is derived from Chiaki-ng, which is licensed under AGPL-3.0-only with Op
 
 ## Important
 
-This is not a Bluetooth HID controller. It controls the PS4 through a registered Remote Play session. The no-video mode is implemented by setting \`CHIAKI_AUDIO_VIDEO_DISABLED\` in the native connection structure.
+The installed package ID is `com.japaguimarassi.ps4mobilecontroller` so it can coexist with other Chiaki installs. This is not a Bluetooth HID controller. It controls the PS4 through a registered Remote Play session. The no-video mode is implemented by setting \`CHIAKI_AUDIO_VIDEO_DISABLED\` in the native connection structure.
