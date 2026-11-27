@@ -1,0 +1,65 @@
+name: Build PS4 Mobile Controller APK
+
+on:
+  push:
+    branches:
+      - ps4-mobile-controller-2026-11
+    paths:
+      - "ps4-mobile-controller/**"
+      - ".github/workflows/build-ps4-mobile-controller.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout project patch
+        uses: actions/checkout@v4
+        with:
+          ref: ps4-mobile-controller-2026-11
+          path: project
+
+      - name: Checkout Chiaki-ng source
+        uses: actions/checkout@v4
+        with:
+          repository: chiaki-ng/chiaki-ng
+          ref: 43728af2e639fecb8a7af1cd68c29820a40de973
+          path: upstream
+          submodules: recursive
+
+      - name: Apply controller-only interface
+        run: python3 project/ps4-mobile-controller/apply_controller_only.py upstream
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android build components
+        run: |
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;28.2.13676358" "cmake;3.22.1"
+
+      - name: Build debug APK
+        working-directory: upstream/android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon --stacktrace assembleDebug
+
+      - name: Verify APK output
+        run: test -s upstream/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ps4-mobile-controller-debug-apk
+          path: upstream/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
