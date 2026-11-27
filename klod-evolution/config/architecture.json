@@ -1,0 +1,26 @@
+{
+  "name": "KLOD Evolution",
+  "design_target": {
+    "logical_stages": 40000,
+    "virtual_units_per_stage": 60000,
+    "total_virtual_units": 2400000000,
+    "materialized": false,
+    "note": "Especificação conceitual. Não representa pesos alocados ou treinamento concluído."
+  },
+  "runtime": {
+    "layers": 6,
+    "d_model": 128,
+    "attention_heads": 4,
+    "experts_per_layer": 4,
+    "top_k_experts": 1,
+    "max_seq_len": 256,
+    "vocab_size": 258,
+    "dropout": 0.05
+  },
+  "selection": {
+    "worker_timeout_seconds": 20,
+    "max_rounds_per_run": 20,
+    "automatic_promotion": false,
+    "termination_scope": "somente workers filhos de avaliação criados pelo próprio controlador"
+  }
+}

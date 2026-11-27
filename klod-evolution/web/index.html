@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1020">
+  <title>KLOD Evolution</title>
+  <style>
+    :root{color-scheme:dark;font-family:Inter,system-ui,Arial,sans-serif;background:#080c18;color:#edf2ff}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 15% 0,#17264a 0,transparent 38%),#080c18}
+    main{width:min(900px,100%);margin:0 auto;padding:28px 18px 48px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px}
+    h1{margin:0;font-size:clamp(28px,6vw,42px);letter-spacing:-1.5px}.sub{color:#94a3c5;margin-top:6px}
+    .status{border:1px solid #243253;border-radius:999px;padding:8px 12px;color:#a8b8db;font-size:12px;white-space:nowrap}
+    .panel{border:1px solid #263452;background:#0d1425;border-radius:18px;padding:18px;margin:14px 0;box-shadow:0 16px 45px #0003}
+    .chat{min-height:320px;max-height:52vh;overflow:auto;display:flex;flex-direction:column;gap:12px}.bubble{padding:12px 14px;border-radius:14px;max-width:88%;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5}.user{align-self:flex-end;background:#233d70}.ai{align-self:flex-start;background:#172239;border:1px solid #283957}
+    textarea,input{width:100%;background:#090f1d;border:1px solid #2b3a5a;border-radius:12px;color:#eef3ff;padding:13px;font:inherit;outline:none}textarea{min-height:92px;resize:vertical}
+    button{background:#6b8cff;color:#071126;border:0;border-radius:12px;padding:12px 17px;font-weight:750;font-size:14px}button:disabled{opacity:.5}.actions{display:flex;justify-content:flex-end;margin-top:10px}
+    .tools{display:grid;grid-template-columns:1fr 1fr;gap:12px}.tools label{display:block;color:#aebcda;font-size:13px;margin-bottom:7px}.hint{font-size:12px;line-height:1.5;color:#8798bd;margin-top:12px}
+    pre{white-space:pre-wrap;overflow-wrap:anywhere;color:#c6d4f5}.section-title{font-size:16px;margin:0 0 12px}
+    @media(max-width:560px){.top{align-items:flex-start;flex-direction:column}.tools{grid-template-columns:1fr}.bubble{max-width:96%}}
+  </style>
+</head>
+<body>
+<main>
+  <header class="top"><div><h1>KLOD <span style="color:#7e9cff">Evolution</span></h1><div class="sub">Núcleo experimental de IA local</div></div><div class="status" id="status">Verificando sistema…</div></header>
+  <section class="panel"><h2 class="section-title">Conversa</h2><div class="chat" id="chat"><div class="bubble ai">Sistema inicializado. Treine um checkpoint para habilitar a geração neural.</div></div><textarea id="message" placeholder="Escreva uma mensagem…"></textarea><div class="actions"><button id="send">Enviar</button></div><div class="hint">O modelo não é declarado treinado até existir um checkpoint válido.</div></section>
+  <section class="panel"><h2 class="section-title">Arquivos do workspace</h2><div class="tools"><div><label for="path">Caminho relativo</label><input id="path" placeholder="projeto/arquivo.txt"></div><div><label for="content">Conteúdo para criar</label><textarea id="content" placeholder="Conteúdo do arquivo"></textarea></div></div><div class="actions" style="gap:8px"><button id="analyze" style="background:#263b66;color:#edf2ff">Analisar</button><button id="create">Criar arquivo</button></div><pre id="fileResult"></pre><div class="hint">Ações limitadas ao workspace configurado. A primeira versão não executa código recebido.</div></section>
+</main>
+<script>
+const byId = id => document.getElementById(id);
+async function api(path, body) {
+  const response = await fetch(path, {
+    method: body ? "POST" : "GET",
+    headers: {"Content-Type": "application/json"},
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.detail || "Falha na solicitação");
+  return data;
+}
+function bubble(text, kind) {
+  const node = document.createElement("div");
+  node.className = "bubble " + kind;
+  node.textContent = text;
+  byId("chat").append(node);
+  byId("chat").scrollTop = byId("chat").scrollHeight;
+}
+async function health() {
+  try {
+    const state = await api("/api/health");
+    byId("status").textContent = state.model_trained ? "Modelo carregado" : "Aguardando treinamento";
+  } catch {
+    byId("status").textContent = "API indisponível";
+  }
+}
+byId("send").onclick = async () => {
+  const message = byId("message").value.trim();
+  if (!message) return;
+  byId("message").value = "";
+  bubble(message, "user");
+  byId("send").disabled = true;
+  try {
+    const result = await api("/api/chat", {message});
+    bubble(result.response || "(sem resposta)", "ai");
+  } catch (error) {
+    bubble(error.message, "ai");
+  } finally {
+    byId("send").disabled = false;
+  }
+};
+byId("analyze").onclick = async () => {
+  try {
+    byId("fileResult").textContent = JSON.stringify(
+      await api("/api/files/analyze", {path: byId("path").value}), null, 2
+    );
+  } catch (error) {
+    byId("fileResult").textContent = error.message;
+  }
+};
+byId("create").onclick = async () => {
+  try {
+    byId("fileResult").textContent = JSON.stringify(
+      await api("/api/files/create", {path: byId("path").value, content: byId("content").value}), null, 2
+    );
+  } catch (error) {
+    byId("fileResult").textContent = error.message;
+  }
+};
+health();
+</script>
+</body>
+</html>

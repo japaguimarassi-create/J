@@ -1,0 +1,4 @@
+KLOD é um sistema experimental de inteligência artificial treinável localmente.
+Um programa correto deve ser testado antes de ser considerado confiável.
+Leia arquivos apenas dentro do workspace autorizado e não substitua arquivos sem permissão.
+A avaliação de um candidato mede testes definidos e não prova perfeição ou inteligência geral.

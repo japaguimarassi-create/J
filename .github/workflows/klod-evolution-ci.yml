@@ -1,0 +1,22 @@
+name: KLOD Evolution CI
+on:
+  push:
+    paths:
+      - 'klod-evolution/**'
+      - '.github/workflows/klod-evolution-ci.yml'
+  pull_request:
+    paths:
+      - 'klod-evolution/**'
+      - '.github/workflows/klod-evolution-ci.yml'
+  workflow_dispatch:
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --upgrade pip
+      - run: pip install -r klod-evolution/requirements.txt
+      - run: PYTHONPATH=klod-evolution pytest -q klod-evolution/tests
