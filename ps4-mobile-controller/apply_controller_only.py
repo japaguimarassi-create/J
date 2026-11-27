@@ -339,8 +339,8 @@ controls = r'''<?xml version="1.0" encoding="utf-8"?>
 
     <com.metallic.chiaki.touchcontrols.AnalogStickView
         android:id="@+id/leftAnalogStickView"
-        android:layout_width="132dp"
-        android:layout_height="132dp"
+        android:layout_width="140dp"
+        android:layout_height="140dp"
         app:radius="@dimen/control_analog_stick_radius"
         app:handleRadius="@dimen/control_analog_stick_handle_radius"
         app:drawableBase="@drawable/control_analog_stick_base"
@@ -350,8 +350,8 @@ controls = r'''<?xml version="1.0" encoding="utf-8"?>
 
     <com.metallic.chiaki.touchcontrols.AnalogStickView
         android:id="@+id/rightAnalogStickView"
-        android:layout_width="132dp"
-        android:layout_height="132dp"
+        android:layout_width="140dp"
+        android:layout_height="140dp"
         app:radius="@dimen/control_analog_stick_radius"
         app:handleRadius="@dimen/control_analog_stick_handle_radius"
         app:drawableBase="@drawable/control_analog_stick_base"
