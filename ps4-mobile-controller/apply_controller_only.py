@@ -420,6 +420,9 @@ edit(
 strings = "android/app/src/main/res/values/strings.xml"
 edit(strings, '<string name="app_name">Chiaki</string>', '<string name="app_name">PS4 Mobile Controller</string>')
 
+gradle = "android/app/build.gradle"
+edit(gradle, 'applicationId "com.metallic.chiaki"', 'applicationId "com.japaguimarassi.ps4mobilecontroller"')
+
 dimens = "android/app/src/main/res/values/dimens.xml"
 edit(dimens, '<dimen name="control_analog_stick_radius">48dp</dimen>', '<dimen name="control_analog_stick_radius">42dp</dimen>')
 edit(dimens, '<dimen name="control_analog_stick_handle_radius">32dp</dimen>', '<dimen name="control_analog_stick_handle_radius">25dp</dimen>')
