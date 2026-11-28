@@ -1,7 +1,7 @@
 import torch
 import pytest
 
-from klod.hybrid_model import HybridConfig, HybridKlodModel
+from klod.hybrid_model import HybridConfig, HybridKlodModel, SparseDepthRouter
 from klod.train_hybrid import estimate_parameters
 
 
@@ -40,6 +40,19 @@ def test_hybrid_model_uses_full_dense_and_sparse_components():
     assert model.sparse_experts.top_k == 2
     assert model.depth_router.logical_layers == 128
     assert model.depth_router.active_stages == 3
+
+
+def test_depth_router_selects_stages_per_token_without_future_leakage():
+    config = micro_config()
+    router = SparseDepthRouter(config).eval()
+    first = torch.randn(2, 10, config.hidden_size)
+    changed_future = first.clone()
+    changed_future[:, 6:, :] = torch.randn_like(changed_future[:, 6:, :]) * 5
+    ids_a, weights_a, _ = router(first)
+    ids_b, weights_b, _ = router(changed_future)
+    assert ids_a.shape == (2, 10, config.active_stages)
+    assert torch.equal(ids_a[:, :6], ids_b[:, :6])
+    assert torch.allclose(weights_a[:, :6], weights_b[:, :6])
 
 
 def test_hybrid_parameter_estimate_is_positive_and_lower_than_dense_target():
