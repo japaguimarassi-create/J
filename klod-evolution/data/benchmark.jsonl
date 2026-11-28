@@ -1,0 +1,5 @@
+{"id":"py-add","category":"programming","prompt":"Escreva somente uma função Python chamada add que recebe a e b e retorna a soma.","expected":"def add(a, b):\n    return a + b"}
+{"id":"py-even","category":"programming","prompt":"Escreva somente uma função Python chamada is_even que retorna True quando n é par.","expected":"def is_even(n):\n    return n % 2 == 0"}
+{"id":"py-reverse","category":"programming","prompt":"Escreva somente uma função Python chamada reverse_text que retorna o texto invertido.","expected":"def reverse_text(text):\n    return text[::-1]"}
+{"id":"reasoning","category":"reasoning","prompt":"Se há 3 caixas com 4 bolas em cada uma, quantas bolas existem no total? Responda apenas o número.","expected":"12"}
+{"id":"general","category":"general","prompt":"Qual é a capital do Brasil? Responda apenas o nome da cidade.","expected":"Brasília"}

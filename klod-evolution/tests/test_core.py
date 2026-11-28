@@ -1,8 +1,13 @@
+import json
 import tempfile
+import zipfile
+from pathlib import Path
 
 import pytest
 import torch
 
+from klod.code_tools import validate_code
+from klod.memory import ConversationMemory
 from klod.model import ByteTokenizer, KlodModel, ModelConfig
 from klod.tools import analyze_file, create_file
 
@@ -42,3 +47,43 @@ def test_workspace_blocks_path_traversal():
 def test_config_rejects_invalid_head_width():
     with pytest.raises(ValueError):
         KlodModel(ModelConfig(d_model=30, n_heads=4))
+
+
+def test_conversation_memory_is_persistent_and_bounded():
+    with tempfile.TemporaryDirectory() as directory:
+        memory = ConversationMemory(Path(directory) / "memory.sqlite3", max_messages_per_conversation=10)
+        memory.add("test-thread", "user", "primeira")
+        memory.add("test-thread", "assistant", "resposta")
+        assert [item["content"] for item in memory.recent("test-thread")] == ["primeira", "resposta"]
+        assert memory.clear("test-thread") == 2
+        assert memory.recent("test-thread") == []
+
+
+def test_python_code_static_validation():
+    with tempfile.TemporaryDirectory() as directory:
+        create_file(directory, "valid.py", "def add(a, b):\n    return a + b\n")
+        assert validate_code(directory, "valid.py")["valid"] is True
+        create_file(directory, "invalid.py", "def broken(:\n")
+        assert validate_code(directory, "invalid.py")["valid"] is False
+
+
+def test_json_and_zip_static_validation():
+    with tempfile.TemporaryDirectory() as directory:
+        create_file(directory, "config.json", json.dumps({"ok": True}))
+        assert validate_code(directory, "config.json")["valid"] is True
+        archive_path = Path(directory) / "mod.jar"
+        with zipfile.ZipFile(archive_path, "w") as archive:
+            archive.writestr("META-INF/MANIFEST.MF", "Manifest-Version: 1.0\n")
+            archive.writestr("example/Mod.class", b"class-data")
+        result = validate_code(directory, "mod.jar")
+        assert result["valid"] is True
+        assert result["has_manifest"] is True
+        assert result["entries"] == 2
+
+
+def test_benchmark_metrics():
+    from klod.benchmarks import normalize, token_f1
+
+    assert normalize("  Olá   Mundo ") == "olá mundo"
+    assert token_f1("a + b", "a + b") == 1.0
+    assert token_f1("a", "b") == 0.0

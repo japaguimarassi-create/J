@@ -5,18 +5,23 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from .code_tools import validate_code
+from .memory import ConversationMemory
 from .runtime import KlodRuntime
 from .tools import analyze_file, create_file
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 WORKSPACE = Path(os.getenv("KLOD_WORKSPACE", BASE_DIR / "workspace")).resolve()
+DATA_DIR = Path(os.getenv("KLOD_DATA_DIR", BASE_DIR / "runtime_data")).resolve()
 CHECKPOINT = os.getenv("KLOD_CHECKPOINT")
 RUNTIME = KlodRuntime(CHECKPOINT) if CHECKPOINT else KlodRuntime()
-app = FastAPI(title="KLOD Evolution", version="0.1.0")
+MEMORY = ConversationMemory(DATA_DIR / "memory.sqlite3")
+app = FastAPI(title="KLOD Evolution", version="0.2.0")
 
 
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=12000)
+    conversation_id: str = Field(default="default", min_length=1, max_length=80, pattern=r"^[a-zA-Z0-9_.-]+$")
     max_new_tokens: int = Field(default=180, ge=1, le=512)
 
 
@@ -34,9 +39,11 @@ class FileAnalyzeRequest(BaseModel):
 def health():
     return {
         "name": "KLOD Evolution",
+        "version": "0.2.0",
         "status": "ready",
         "model_trained": RUNTIME.trained,
         "workspace": str(WORKSPACE),
+        "memory_enabled": True,
     }
 
 
@@ -45,15 +52,42 @@ def chat(request: ChatRequest):
     if not RUNTIME.trained:
         raise HTTPException(
             status_code=409,
-            detail="Modelo ainda não treinado. Execute klod.train com um corpus local.",
+            detail="Modelo ainda não treinado. Execute klod.train primeiro.",
         )
     try:
-        return {"response": RUNTIME.chat(request.message, request.max_new_tokens)}
+        history = MEMORY.recent(request.conversation_id, limit=8)
+        context = "\n".join(
+            f"{'Usuário' if item['role'] == 'user' else 'KLOD'}: {item['content']}"
+            for item in history
+        )
+        prompt = f"{context}\nUsuário: {request.message}" if context else request.message
+        response = RUNTIME.chat(prompt, request.max_new_tokens)
+        MEMORY.add(request.conversation_id, "user", request.message)
+        MEMORY.add(request.conversation_id, "assistant", response)
+        return {
+            "response": response,
+            "conversation_id": request.conversation_id,
+            "memory_messages_used": len(history),
+        }
     except Exception as exc:
         raise HTTPException(
             status_code=500,
             detail=f"Generation failed: {type(exc).__name__}: {exc}",
         ) from exc
+
+
+@app.get("/api/conversations/{conversation_id}")
+def conversation_history(conversation_id: str):
+    if not conversation_id or len(conversation_id) > 80:
+        raise HTTPException(status_code=400, detail="Invalid conversation ID")
+    return {"conversation_id": conversation_id, "messages": MEMORY.recent(conversation_id, limit=40)}
+
+
+@app.delete("/api/conversations/{conversation_id}")
+def clear_conversation(conversation_id: str):
+    if not conversation_id or len(conversation_id) > 80:
+        raise HTTPException(status_code=400, detail="Invalid conversation ID")
+    return {"conversation_id": conversation_id, "deleted_messages": MEMORY.clear(conversation_id)}
 
 
 @app.post("/api/files/analyze")
@@ -79,6 +113,20 @@ def file_create(request: FileCreateRequest):
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=413, detail=str(exc)) from exc
+
+
+@app.post("/api/code/validate")
+def code_validate(request: FileAnalyzeRequest):
+    try:
+        return validate_code(WORKSPACE, request.path)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="File not found in workspace") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    except UnicodeDecodeError as exc:
+        raise HTTPException(status_code=415, detail="File is not valid UTF-8 text") from exc
 
 
 @app.get("/")
