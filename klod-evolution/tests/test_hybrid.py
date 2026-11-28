@@ -42,6 +42,13 @@ def test_hybrid_model_uses_full_dense_and_sparse_components():
     assert model.depth_router.active_stages == 3
 
 
+def test_hybrid_parameter_estimate_matches_model():
+    config = micro_config()
+    model = HybridKlodModel(config)
+    estimate = estimate_parameters(config)
+    assert estimate["total_parameters_estimate"] == model.parameter_count()
+
+
 def test_depth_router_selects_stages_per_token_without_future_leakage():
     config = micro_config()
     router = SparseDepthRouter(config).eval()
