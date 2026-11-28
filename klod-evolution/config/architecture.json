@@ -4,8 +4,27 @@
     "logical_stages": 40000,
     "virtual_units_per_stage": 60000,
     "total_virtual_units": 2400000000,
+    "dense_weight_parameters_estimate": 143996400000000,
+    "fp16_weight_storage_decimal_tb_estimate": 287.9928,
     "materialized": false,
-    "note": "Especificação conceitual. Não representa pesos alocados ou treinamento concluído."
+    "note": "40k x 60k permanece uma especificação-alvo. O runtime atual usa modelos menores e shards especialistas independentes; não materializa todos os neurônios ou conexões."
+  },
+  "decomposition": {
+    "practical_strategy": "independent_capability_shards",
+    "shard_manifest": "config/shards.json",
+    "training_entrypoint": "python -m klod.train_shards",
+    "checkpoint_layout": "runs/shards/<shard_id>.pt",
+    "shared_tokenizer": true,
+    "router": "keyword baseline with lazy checkpoint loading",
+    "max_loaded_shards": 2,
+    "domains": [
+      "conversation",
+      "programming",
+      "reasoning",
+      "files",
+      "game_dev"
+    ],
+    "caveat": "Os shards de capacidade podem ser treinados separadamente e combinados via roteamento. Isso não equivale a particionar e treinar todas as matrizes densas 40k x 60k."
   },
   "runtime": {
     "layers": 6,

@@ -1,0 +1,7 @@
+{"prompt":"Se há 4 caixas com 6 objetos em cada, quantos objetos há?","completion":"24 objetos, pois 4 vezes 6 é igual a 24."}
+{"prompt":"Explique como verificar uma conta matemática.","completion":"Refaça a operação por outro caminho e substitua o resultado na expressão original."}
+{"prompt":"Qual é a diferença entre hipótese e conclusão?","completion":"A hipótese é uma condição assumida; a conclusão é o resultado deduzido a partir das hipóteses."}
+{"prompt":"Se todo A é B e X é A, o que podemos concluir?","completion":"Podemos concluir que X é B, pela transitividade da inclusão."}
+{"prompt":"Como abordar um problema complexo?","completion":"Defina o objetivo, divida o problema em partes, resolva cada parte e confira se os resultados se encaixam."}
+{"prompt":"O que é uma variável desconhecida em uma equação?","completion":"É um valor representado por um símbolo que precisa ser determinado."}
+{"prompt":"Por que um exemplo não prova uma regra geral?","completion":"Um exemplo mostra um caso específico; uma regra geral precisa de uma demonstração válida para todos os casos do domínio."}

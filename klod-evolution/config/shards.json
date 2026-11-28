@@ -1,0 +1,117 @@
+{
+  "name": "KLOD Modular Shard System",
+  "version": 1,
+  "target_reference": {
+    "logical_layers": 40000,
+    "virtual_neurons_per_layer": 60000,
+    "virtual_neuron_slots": 2400000000,
+    "materialized": false
+  },
+  "strategy": {
+    "type": "independently_trained_capability_models",
+    "description": "Separate specialist checkpoints with shared tokenizer and a lightweight router. This is a practical functional decomposition, not an exact partition of the dense target tensor.",
+    "default_profile": "small",
+    "max_loaded_models": 2,
+    "router": "keyword_baseline"
+  },
+  "shards": [
+    {
+      "id": "conversation",
+      "domain": "conversa e linguagem",
+      "corpus": "data/shards/conversation.jsonl",
+      "keywords": [
+        "olá",
+        "oi",
+        "conversa",
+        "explique",
+        "responda",
+        "resumo",
+        "texto",
+        "escreva",
+        "pergunta",
+        "resposta"
+      ]
+    },
+    {
+      "id": "programming",
+      "domain": "programação e depuração",
+      "corpus": "data/shards/programming.jsonl",
+      "keywords": [
+        "python",
+        "javascript",
+        "java",
+        "código",
+        "codigo",
+        "função",
+        "funcao",
+        "classe",
+        "bug",
+        "erro",
+        "compile",
+        "compilar",
+        "programa",
+        "script",
+        "api"
+      ]
+    },
+    {
+      "id": "reasoning",
+      "domain": "matemática e raciocínio",
+      "corpus": "data/shards/reasoning.jsonl",
+      "keywords": [
+        "calcule",
+        "matemática",
+        "matematica",
+        "equação",
+        "equacao",
+        "lógica",
+        "logica",
+        "prova",
+        "teorema",
+        "por que",
+        "deduza",
+        "raciocínio",
+        "raciocinio"
+      ]
+    },
+    {
+      "id": "files",
+      "domain": "arquivos e documentos",
+      "corpus": "data/shards/files.jsonl",
+      "keywords": [
+        "arquivo",
+        "pasta",
+        "documento",
+        "json",
+        "csv",
+        "xml",
+        "pdf",
+        "analisar",
+        "ler arquivo",
+        "criar arquivo",
+        "extensão",
+        "extensao"
+      ]
+    },
+    {
+      "id": "game_dev",
+      "domain": "desenvolvimento de jogos",
+      "corpus": "data/shards/game_dev.jsonl",
+      "keywords": [
+        "jogo",
+        "game",
+        "minecraft",
+        "roblox",
+        "unity",
+        "godot",
+        "colisão",
+        "colisao",
+        "personagem",
+        "fase",
+        "render",
+        "sprite",
+        "gameplay"
+      ]
+    }
+  ]
+}

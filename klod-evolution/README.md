@@ -1,99 +1,84 @@
 # KLOD Evolution
 
-KLOD Evolution é uma base experimental de IA criada do zero para treinamento local, conversa com checkpoints próprios, memória de conversas, análise e criação de arquivos, validação estática de código e seleção comparativa de modelos.
+KLOD Evolution é uma base experimental de IA com treinamento próprio, memória de conversas, ferramentas de arquivos, validação estática e especialistas independentes.
 
-## Escala solicitada
+## Meta 40.000 x 60.000
 
-A especificação-alvo registra 40.000 estágios lógicos e 60.000 unidades virtuais por estágio: 2,4 bilhões de unidades. Uma rede densa com 60.000 unidades entre estágios teria aproximadamente 144 trilhões de pesos (cerca de 288 TB em FP16), sem contar otimizador e ativações. Essa rede não foi materializada nem treinada.
+A meta define 40.000 posições lógicas de camada e 60.000 neurônios virtuais por camada, totalizando 2,4 bilhões de posições de neurônios. Em uma arquitetura densa convencional, as matrizes entre camadas teriam aproximadamente 143.996.400.000.000 pesos, ou cerca de 288 TB em FP16 somente para os pesos.
 
-O runtime inicial usa uma rede configurável e pequena, com atenção causal e especialistas roteados. Os números virtuais são metadados de pesquisa, não uma alegação de que a rede gigantesca existe.
+Dividir uma matriz em blocos de 500 x 500 reduz o tamanho de cada arquivo de bloco, mas produz até 576 milhões de blocos de pesos para toda a rede. Esses blocos não podem ser treinados como peças independentes e simplesmente encaixados: o gradiente de cada bloco depende das ativações e dos erros propagados pelo restante da rede.
 
-## Componentes
+Por isso, esta versão implementa uma decomposição funcional prática: modelos especialistas independentes, cada qual com corpus, treinamento e checkpoint próprios. Eles compartilham o tokenizer e são selecionados por um roteador. Isso permite aumentar o número de especialistas e treiná-los separadamente, mas não afirma que a rede densa integral já existe.
 
-- klod/model.py: modelo causal byte-level com roteamento top-1 entre especialistas.
-- klod/train.py: treinamento a partir de TXT/JSONL, validação reservada e early stopping.
-- klod/runtime.py: carregamento de checkpoint e geração.
-- klod/memory.py: histórico persistente por conversa em SQLite.
-- klod/tools.py: análise e criação de arquivos dentro de um workspace autorizado.
-- klod/code_tools.py: validação estática de Python, JSON, TOML, XML, JavaScript (se Node estiver instalado) e metadados de APK/JAR.
-- klod/evolution.py: seleção por gerações, sobreviventes, mutações de arquitetura e benchmark de tarefas.
-- klod/benchmarks.py: compara saídas com respostas de referência, inclusive tarefas de programação.
-- klod/server.py: API HTTP e interface web.
+## Especialistas
 
-## Instalação
+O manifesto config/shards.json define:
+- conversation: diálogo e linguagem;
+- programming: código e depuração;
+- reasoning: matemática e raciocínio;
+- files: análise e operações de documentos;
+- game_dev: lógica e arquitetura de jogos.
 
-Requer Python 3.11+.
+Cada módulo salva seu checkpoint em runs/shards/<id>.pt. O runtime carrega os módulos sob demanda e mantém no máximo dois modelos na memória por padrão.
+
+## Perfis de recursos
+
+| Perfil | Camadas físicas | Largura | Cabeças | Especialistas |
+|---|---:|---:|---:|---:|
+| micro | 1 | 32 | 2 | 2 |
+| small | 2 | 64 | 4 | 2 |
+| medium | 4 | 128 | 4 | 4 |
+| large | 6 | 256 | 8 | 4 |
+
+O perfil informa o tamanho de cada modelo físico especialista, não o tamanho integral da meta lógica. Use medium ou large somente com memória e GPU suficientes.
+
+## Treinar todos os especialistas separadamente
+
+Na pasta klod-evolution:
 
 ~~~bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+python -m klod.train_shards --manifest config/shards.json --profile small --steps 100 --seq-len 64
 ~~~
 
-No Android/Termux, o treinamento com PyTorch pode não estar disponível em todas as builds. Nesse caso, treine em Linux com PyTorch e use a API nesse ambiente.
+O treinador processa um especialista por vez, grava um checkpoint independente e produz runs/shards/training-report.json.
 
-## Dados de treinamento
-
-Adicione dados autorizados em data/train.txt ou data/train.jsonl. O JSONL aceita registros com text, content, messages ou pares prompt/completion. Um exemplo está em data/conversations.example.jsonl.
-
-Use dados com permissão de uso, remova credenciais e informações pessoais e mantenha conjuntos de validação separados quando possível.
-
-## Treinamento com validação e parada antecipada
+Para treinar somente um especialista:
 
 ~~~bash
-python -m klod.train --data data/train.txt --steps 1000 --batch-size 4 --seq-len 128 --eval-every 50 --patience 8 --out runs/klod.pt
+python -m klod.train_shards --manifest config/shards.json --only programming --profile medium --steps 1000 --seq-len 128
 ~~~
 
-Para validação em um arquivo independente:
+Os especialistas também podem ser treinados em máquinas diferentes: execute o comando com --only para cada ID, use o mesmo manifesto e reúna os checkpoints no mesmo diretório de execução. Cada job independente precisa receber seu próprio ambiente e dados.
+
+Para conferir o custo aproximado das configurações:
 
 ~~~bash
-python -m klod.train --data data/train.jsonl --validation-data data/validation.jsonl --steps 5000 --eval-every 100 --patience 10 --out runs/klod.pt
+python -m klod.shard_plan --out config/shard-plan.json
 ~~~
 
-O checkpoint salvo corresponde ao melhor resultado de validação observado, e não necessariamente ao último passo. data/bootstrap.txt é apenas material mínimo para teste técnico; não é corpus suficiente para um assistente competente.
+## Usar os especialistas na API
 
-## Seleção evolutiva com avaliação de tarefas
-
-Cada geração treina candidatos em condições comparáveis. Os melhores são mantidos como sobreviventes; os descendentes recebem mutações em largura, cabeças, profundidade, especialistas, taxa de aprendizado e dropout. Cada candidato também é avaliado em data/benchmark.jsonl.
+Após treinar os módulos:
 
 ~~~bash
-python -m klod.evolution --data data/train.txt --benchmark-data data/benchmark.jsonl --generations 3 --population 4 --elite-count 1 --steps 80 --seq-len 24
+uvicorn klod.server:app --host 127.0.0.1 --port 8000
 ~~~
 
-O fitness combina F1 médio de tokens e correspondência exata do benchmark. Em caso de empate, favorece menor perda em dados reservados, menos parâmetros e menor tempo de treinamento. O conjunto de benchmark precisa ser separado do corpus de treinamento.
+A API seleciona um especialista usando roteamento por palavras-chave. GET /api/shards lista os módulos treinados. O roteador atual é um baseline explicável, não um classificador neural treinado.
 
-Para promover explicitamente o melhor checkpoint:
+## Treinamento e dados
 
-~~~bash
-python -m klod.evolution --data data/train.txt --benchmark-data data/benchmark.jsonl --generations 3 --population 4 --elite-count 1 --steps 80 --seq-len 24 --promote
-~~~
+Os arquivos data/shards/*.jsonl são exemplos de inicialização e testes de CI. Eles são minúsculos e não ensinam competência robusta. Substitua ou amplie cada corpus com dados autorizados, representativos e de boa qualidade. Remova segredos e informações pessoais; mantenha validação separada.
 
-A evolução atual procura arquiteturas melhores e treina os pesos de cada candidato do zero; ela ainda não herda nem cruza pesos entre gerações. Benchmarks finitos podem ser sobreajustados, por isso uma aprovação exige também testes novos, revisão humana e testes de segurança.
+A seleção evolutiva anterior continua disponível em klod/evolution.py. Ela pesquisa arquiteturas pequenas e compara validação e tarefas, mas não transforma shards especialistas em uma rede densa de 40.000 x 60.000.
 
-Se o destino já existir, a promoção é recusada por padrão. Use --overwrite-checkpoint somente quando realmente quiser substituir o arquivo. O controlador pode encerrar apenas os próprios workers filhos que excederem o tempo ou falharem. Não existe desligamento de processos externos.
+## Limites atuais
 
-## Benchmark de conversa e programação
-
-~~~bash
-python -m klod.benchmarks --checkpoint runs/klod.pt --data data/benchmark.jsonl
-~~~
-
-As métricas incluem correspondência exata, similaridade textual e F1 de tokens. Elas medem semelhança com as respostas de referência, não inteligência geral.
-
-## Executar a interface
-
-Execute a partir da pasta klod-evolution/:
-
-~~~bash
-KLOD_CHECKPOINT=runs/klod.pt uvicorn klod.server:app --host 127.0.0.1 --port 8000
-~~~
-
-Abra http://127.0.0.1:8000. Sem checkpoint, a API informa que o modelo ainda não foi treinado.
-
-O histórico é gravado localmente em runtime_data/memory.sqlite3, podendo ser apagado pelo botão Limpar conversa ou pelo endpoint DELETE /api/conversations/{id}. O workspace padrão é workspace/. Caminhos que escapem desse diretório são rejeitados.
-
-A validação de código é estática. Python é analisado com AST; JavaScript usa node --check, quando disponível, sem executar o arquivo. APK/JAR são inspecionados somente pelos metadados do ZIP; nenhum conteúdo é extraído ou executado. A primeira versão não executa código recebido nem compila projetos arbitrários.
-
-## Estado
-
-Esta é uma fundação executável, não uma IA de nível comercial. Nenhum grande corpus foi fornecido, nenhum treinamento massivo ocorreu e nenhum benchmark externo foi vencido. A próxima etapa é treinamento em corpus autorizado maior, avaliação por categoria, melhoria de raciocínio e ferramentas de programação e execução de builds em ambiente isolado e limitado.
+- Nenhum modelo treinado nesta base materializa os 2,4 bilhões de neurônios virtuais.
+- O CI treina apenas perfis micro por poucas etapas para validar a mecânica.
+- A composição de especialistas por roteamento não é equivalente à propagação de gradientes em uma rede densa única.
+- A execução arbitrária de código e a compilação de APK/JAR ainda não fazem parte do runtime.
+- Atingir a meta densa exigiria uma infraestrutura distribuída de grande porte, armazenamento de centenas de terabytes para pesos e treinamento coordenado em todo o grafo.

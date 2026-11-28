@@ -1,0 +1,7 @@
+{"prompt":"Como analisar um arquivo JSON?","completion":"Leia o arquivo como texto UTF-8 e valide sua estrutura com um parser JSON antes de usar os campos."}
+{"prompt":"Como evitar sobrescrever um arquivo sem permissão?","completion":"Verifique se o destino existe e exija uma opção explícita de sobrescrita antes de gravar."}
+{"prompt":"O que significa analisar metadados de um APK?","completion":"Significa inspecionar a estrutura e os nomes de arquivos do pacote sem executar o aplicativo."}
+{"prompt":"Como contar linhas de um arquivo de texto?","completion":"Leia o conteúdo com a codificação correta e conte os elementos retornados por splitlines()."}
+{"prompt":"Como proteger um workspace contra path traversal?","completion":"Resolva o caminho absoluto e confirme que o destino permanece dentro da pasta autorizada."}
+{"prompt":"Como comparar duas versões de um arquivo?","completion":"Calcule um diff textual e confira as alterações antes de substituir a versão anterior."}
+{"prompt":"O que fazer se um arquivo não for UTF-8?","completion":"Detecte o erro de decodificação e informe que o arquivo precisa de outro leitor ou codificação."}

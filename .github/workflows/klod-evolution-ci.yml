@@ -20,6 +20,28 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install -r klod-evolution/requirements.txt
       - run: PYTHONPATH=klod-evolution pytest -q klod-evolution/tests
+      - name: Generate dense target resource plan
+        run: |
+          PYTHONPATH=klod-evolution python -m klod.shard_plan \
+            --out "$RUNNER_TEMP/klod-shard-plan.json"
+      - name: Train each independent specialist with micro profile
+        run: |
+          PYTHONPATH=klod-evolution python -m klod.train_shards \
+            --manifest klod-evolution/config/shards.json \
+            --profile micro \
+            --steps 2 \
+            --batch-size 2 \
+            --seq-len 16 \
+            --device cpu \
+            --checkpoint-dir "$RUNNER_TEMP/klod-shards" \
+            --report "$RUNNER_TEMP/shard-training-report.json"
+      - name: Load and route all trained specialist checkpoints
+        run: |
+          PYTHONPATH=klod-evolution python -m klod.shard_runtime \
+            --manifest klod-evolution/config/shards.json \
+            --checkpoint-dir "$RUNNER_TEMP/klod-shards" \
+            --device cpu \
+            --smoke
       - name: Train a checkpoint with validation and early stopping
         run: |
           PYTHONPATH=klod-evolution python -m klod.train \

@@ -8,15 +8,23 @@ from pydantic import BaseModel, Field
 from .code_tools import validate_code
 from .memory import ConversationMemory
 from .runtime import KlodRuntime
+from .shard_runtime import ShardedKlodRuntime
 from .tools import analyze_file, create_file
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 WORKSPACE = Path(os.getenv("KLOD_WORKSPACE", BASE_DIR / "workspace")).resolve()
 DATA_DIR = Path(os.getenv("KLOD_DATA_DIR", BASE_DIR / "runtime_data")).resolve()
 CHECKPOINT = os.getenv("KLOD_CHECKPOINT")
+SHARD_MANIFEST = Path(os.getenv("KLOD_SHARD_MANIFEST", BASE_DIR / "config" / "shards.json"))
+SHARD_CHECKPOINT_DIR = Path(os.getenv("KLOD_SHARD_DIR", BASE_DIR / "runs" / "shards"))
 RUNTIME = KlodRuntime(CHECKPOINT) if CHECKPOINT else KlodRuntime()
+SHARD_RUNTIME = ShardedKlodRuntime(
+    SHARD_MANIFEST,
+    SHARD_CHECKPOINT_DIR,
+    max_loaded_models=2,
+)
 MEMORY = ConversationMemory(DATA_DIR / "memory.sqlite3")
-app = FastAPI(title="KLOD Evolution", version="0.2.0")
+app = FastAPI(title="KLOD Evolution", version="0.3.0")
 
 
 class ChatRequest(BaseModel):
@@ -37,22 +45,35 @@ class FileAnalyzeRequest(BaseModel):
 
 @app.get("/api/health")
 def health():
+    shard_status = SHARD_RUNTIME.list_shards()
+    trained_shards = [item["id"] for item in shard_status if item["trained"]]
     return {
         "name": "KLOD Evolution",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "status": "ready",
-        "model_trained": RUNTIME.trained,
+        "model_trained": RUNTIME.trained or bool(trained_shards),
+        "base_model_trained": RUNTIME.trained,
+        "trained_shards": trained_shards,
         "workspace": str(WORKSPACE),
         "memory_enabled": True,
     }
 
 
+@app.get("/api/shards")
+def list_shards():
+    return {
+        "strategy": "independently trained capability models",
+        "loaded_shards": list(SHARD_RUNTIME.cache.keys()),
+        "shards": SHARD_RUNTIME.list_shards(),
+    }
+
+
 @app.post("/api/chat")
 def chat(request: ChatRequest):
-    if not RUNTIME.trained:
+    if not RUNTIME.trained and not SHARD_RUNTIME.available:
         raise HTTPException(
             status_code=409,
-            detail="Modelo ainda não treinado. Execute klod.train primeiro.",
+            detail="Nenhum checkpoint treinado foi encontrado. Execute klod.train ou klod.train_shards.",
         )
     try:
         history = MEMORY.recent(request.conversation_id, limit=8)
@@ -61,13 +82,25 @@ def chat(request: ChatRequest):
             for item in history
         )
         prompt = f"{context}\nUsuário: {request.message}" if context else request.message
-        response = RUNTIME.chat(prompt, request.max_new_tokens)
+
+        selected_shard = None
+        selected_domain = None
+        if SHARD_RUNTIME.available:
+            result = SHARD_RUNTIME.chat_with_metadata(prompt, request.max_new_tokens)
+            response = result["response"]
+            selected_shard = result["shard_id"]
+            selected_domain = result["domain"]
+        else:
+            response = RUNTIME.chat(prompt, request.max_new_tokens)
+
         MEMORY.add(request.conversation_id, "user", request.message)
         MEMORY.add(request.conversation_id, "assistant", response)
         return {
             "response": response,
             "conversation_id": request.conversation_id,
             "memory_messages_used": len(history),
+            "shard_id": selected_shard,
+            "shard_domain": selected_domain,
         }
     except Exception as exc:
         raise HTTPException(

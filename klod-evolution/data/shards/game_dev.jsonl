@@ -1,0 +1,7 @@
+{"prompt":"Explique o loop principal de um jogo.","completion":"O loop atualiza a lógica, processa entradas, calcula física e renderiza cada quadro."}
+{"prompt":"Como detectar colisão entre dois retângulos?","completion":"Verifique se os intervalos horizontais e verticais dos retângulos se sobrepõem."}
+{"prompt":"O que é delta time?","completion":"Delta time é o tempo decorrido desde o quadro anterior e ajuda a manter movimentos independentes da taxa de quadros."}
+{"prompt":"Como planejar um sistema de inventário?","completion":"Defina itens, quantidades, limites, operações de adicionar e remover e regras para itens incompatíveis."}
+{"prompt":"Como separar lógica e renderização?","completion":"Mantenha atualização do estado do jogo separada do desenho dos objetos na tela."}
+{"prompt":"Qual é a função de um sistema de cenas?","completion":"Ele organiza estados como menu, jogo, pausa e tela final, controlando sua transição."}
+{"prompt":"Como testar um jogo sem depender de testes manuais?","completion":"Crie testes para física, regras, inventário, transições de cena e casos de entrada reproduzíveis."}

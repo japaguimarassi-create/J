@@ -1,0 +1,7 @@
+{"prompt":"Crie uma função Python que some dois números.","completion":"def add(a, b):\n    return a + b"}
+{"prompt":"Crie uma função Python que verifica se um número é par.","completion":"def is_even(number):\n    return number % 2 == 0"}
+{"prompt":"Explique o que é uma variável em programação.","completion":"Uma variável é um nome que referencia um valor usado por um programa."}
+{"prompt":"Como depurar um erro de sintaxe?","completion":"Leia a mensagem do interpretador, confira a linha indicada e verifique parênteses, aspas e indentação."}
+{"prompt":"O que é uma API?","completion":"Uma API define uma forma estruturada para que programas troquem dados e solicitem operações."}
+{"prompt":"Crie uma função JavaScript que inverte uma string.","completion":"function reverseText(value) {\n  return [...value].reverse().join(\"\");\n}"}
+{"prompt":"Por que devemos testar uma função?","completion":"Testes verificam resultados esperados, detectam regressões e ajudam a localizar erros."}
