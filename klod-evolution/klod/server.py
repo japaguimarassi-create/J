@@ -24,7 +24,7 @@ SHARD_RUNTIME = ShardedKlodRuntime(
     max_loaded_models=2,
 )
 MEMORY = ConversationMemory(DATA_DIR / "memory.sqlite3")
-app = FastAPI(title="KLOD Evolution", version="0.3.0")
+app = FastAPI(title="KLOD Evolution", version="0.4.0")
 
 
 class ChatRequest(BaseModel):
@@ -49,10 +49,11 @@ def health():
     trained_shards = [item["id"] for item in shard_status if item["trained"]]
     return {
         "name": "KLOD Evolution",
-        "version": "0.3.0",
+        "version": "0.4.0",
         "status": "ready",
         "model_trained": RUNTIME.trained or bool(trained_shards),
         "base_model_trained": RUNTIME.trained,
+        "base_model_architecture": RUNTIME.architecture_type,
         "trained_shards": trained_shards,
         "workspace": str(WORKSPACE),
         "memory_enabled": True,
@@ -73,7 +74,7 @@ def chat(request: ChatRequest):
     if not RUNTIME.trained and not SHARD_RUNTIME.available:
         raise HTTPException(
             status_code=409,
-            detail="Nenhum checkpoint treinado foi encontrado. Execute klod.train ou klod.train_shards.",
+            detail="Nenhum checkpoint treinado foi encontrado. Execute klod.train_hybrid, klod.train ou klod.train_shards.",
         )
     try:
         history = MEMORY.recent(request.conversation_id, limit=8)
@@ -85,13 +86,15 @@ def chat(request: ChatRequest):
 
         selected_shard = None
         selected_domain = None
-        if SHARD_RUNTIME.available:
+        if RUNTIME.trained:
+            response = RUNTIME.chat(prompt, request.max_new_tokens)
+            selected_architecture = RUNTIME.architecture_type
+        else:
             result = SHARD_RUNTIME.chat_with_metadata(prompt, request.max_new_tokens)
             response = result["response"]
             selected_shard = result["shard_id"]
             selected_domain = result["domain"]
-        else:
-            response = RUNTIME.chat(prompt, request.max_new_tokens)
+            selected_architecture = "capability_shard"
 
         MEMORY.add(request.conversation_id, "user", request.message)
         MEMORY.add(request.conversation_id, "assistant", response)
@@ -99,6 +102,7 @@ def chat(request: ChatRequest):
             "response": response,
             "conversation_id": request.conversation_id,
             "memory_messages_used": len(history),
+            "architecture_type": selected_architecture,
             "shard_id": selected_shard,
             "shard_domain": selected_domain,
         }
