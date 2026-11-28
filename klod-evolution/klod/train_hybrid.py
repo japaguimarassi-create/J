@@ -80,7 +80,7 @@ def estimate_parameters(config: HybridConfig) -> dict:
     components = {
         "token_embedding": vocab * h,
         "position_embedding_and_projection": seq_len * stage_rank + stage_rank * h,
-        "logical_stage_router": h * stage_rank + stage_rank + stage_rank * logical + logical,
+        "logical_stage_router": h * stage_rank + stage_rank * logical + logical,
         "logical_stage_embeddings": logical * stage_rank + stage_rank * h,
         "factorized_attention": 4 * h * attn_rank + 4 * attn_rank * attn_rank + 4 * attn_rank,
         "shared_dense_core": 2 * h * dense_rank,
