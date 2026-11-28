@@ -160,10 +160,10 @@ def test_mutation_creates_a_valid_child_with_lineage():
     )
 
 
-def test_candidate_ranking_prefers_lower_validation_loss():
+def test_candidate_ranking_prefers_reference_task_score():
     results = [
-        {"candidate": "slower", "passed": True, "validation_loss": 1.4, "parameter_count": 100, "training_seconds": 2},
-        {"candidate": "better", "passed": True, "validation_loss": 1.2, "parameter_count": 1000, "training_seconds": 3},
-        {"candidate": "failed", "passed": False, "validation_loss": 0.1, "parameter_count": 1, "training_seconds": 1},
+        {"candidate": "low-task", "passed": True, "task_score": 0.35, "validation_loss": 0.8, "parameter_count": 100, "training_seconds": 2},
+        {"candidate": "high-task", "passed": True, "task_score": 0.72, "validation_loss": 1.4, "parameter_count": 1000, "training_seconds": 3},
+        {"candidate": "failed", "passed": False, "task_score": 1.0, "validation_loss": 0.1, "parameter_count": 1, "training_seconds": 1},
     ]
-    assert rank_candidates(results)[0]["candidate"] == "better"
+    assert rank_candidates(results)[0]["candidate"] == "high-task"

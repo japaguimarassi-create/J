@@ -4,11 +4,13 @@ import multiprocessing as mp
 import random
 import shutil
 import time
+from collections import defaultdict
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import torch
 
+from .benchmarks import load_cases, normalize, token_f1
 from .model import ByteTokenizer, KlodModel, ModelConfig
 from .train import read_corpus
 
@@ -70,21 +72,70 @@ def _mean_loss(model: KlodModel, data: torch.Tensor, seq_len: int, max_windows: 
     return sum(losses) / len(losses)
 
 
+def _evaluate_tasks(
+    model: KlodModel,
+    tokenizer: ByteTokenizer,
+    benchmark_path: str,
+    max_new_tokens: int,
+) -> dict:
+    cases = load_cases(Path(benchmark_path))
+    torch.manual_seed(2024)
+    results = []
+    category_scores = defaultdict(list)
+
+    model.eval()
+    for case in cases:
+        prompt = f"\nUsuário: {case['prompt']}\nKLOD:"
+        input_ids = torch.tensor(
+            [tokenizer.encode(prompt, add_eos=False)],
+            dtype=torch.long,
+        )
+        generated = model.generate(input_ids, max_new_tokens=max_new_tokens)
+        prediction = tokenizer.decode(generated[0, input_ids.size(1):].tolist()).strip()
+        expected = case["expected"]
+        score = token_f1(prediction, expected)
+        exact = normalize(prediction) == normalize(expected)
+        results.append({
+            "id": case["id"],
+            "category": case["category"],
+            "token_f1": score,
+            "exact_match": exact,
+        })
+        category_scores[case["category"]].append(score)
+
+    mean_f1 = sum(item["token_f1"] for item in results) / len(results)
+    exact_rate = sum(item["exact_match"] for item in results) / len(results)
+    return {
+        "cases": len(results),
+        "mean_token_f1": mean_f1,
+        "exact_match_rate": exact_rate,
+        "task_score": 0.75 * mean_f1 + 0.25 * exact_rate,
+        "category_token_f1": {
+            category: sum(scores) / len(scores)
+            for category, scores in sorted(category_scores.items())
+        },
+        "details": results,
+    }
+
+
 def _candidate_worker(
     send_pipe,
     candidate_data: dict,
     corpus_path: str,
+    benchmark_path: str,
     steps: int,
     batch_size: int,
     seq_len: int,
+    benchmark_tokens: int,
     checkpoint_dir: str,
 ) -> None:
     try:
         torch.set_num_threads(1)
         torch.manual_seed(1701)
         candidate = Candidate(**candidate_data)
+        tokenizer = ByteTokenizer()
         corpus = read_corpus(Path(corpus_path))
-        token_ids = ByteTokenizer().encode(corpus)
+        token_ids = tokenizer.encode(corpus)
         split = int(len(token_ids) * 0.82)
         training_data = torch.tensor(token_ids[:split], dtype=torch.long)
         validation_data = torch.tensor(token_ids[split:], dtype=torch.long)
@@ -111,6 +162,7 @@ def _candidate_worker(
 
         final_train_loss = _mean_loss(model, training_data, seq_len)
         validation_loss = _mean_loss(model, validation_data, seq_len)
+        task_metrics = _evaluate_tasks(model, tokenizer, benchmark_path, benchmark_tokens)
         elapsed = time.perf_counter() - started
         parameter_count = sum(parameter.numel() for parameter in model.parameters())
         checkpoint_path = Path(checkpoint_dir) / f"{candidate.name}.pt"
@@ -122,6 +174,7 @@ def _candidate_worker(
                 "steps": steps,
                 "final_train_loss": final_train_loss,
                 "validation_loss": validation_loss,
+                "task_score": task_metrics["task_score"],
                 "candidate": candidate.name,
                 "generation": candidate.generation,
                 "parent": candidate.parent,
@@ -132,6 +185,8 @@ def _candidate_worker(
         checks = {
             "finite_train_loss": torch.isfinite(torch.tensor(final_train_loss)).item(),
             "finite_validation_loss": torch.isfinite(torch.tensor(validation_loss)).item(),
+            "finite_task_score": torch.isfinite(torch.tensor(task_metrics["task_score"])).item(),
+            "benchmark_has_cases": task_metrics["cases"] > 0,
             "checkpoint_written": checkpoint_path.is_file() and checkpoint_path.stat().st_size > 0,
             "parameter_count_positive": parameter_count > 0,
         }
@@ -144,8 +199,10 @@ def _candidate_worker(
             "passed": all(checks.values()),
             "initial_train_loss": initial_train_loss,
             "final_train_loss": final_train_loss,
-            "validation_loss": validation_loss,
             "training_improved": final_train_loss < initial_train_loss,
+            "validation_loss": validation_loss,
+            "benchmark": task_metrics,
+            "task_score": task_metrics["task_score"],
             "parameter_count": parameter_count,
             "training_seconds": round(elapsed, 3),
             "checkpoint": str(checkpoint_path),
@@ -168,9 +225,11 @@ def _candidate_worker(
 def evaluate(
     candidate: Candidate,
     corpus_path: str,
+    benchmark_path: str,
     steps: int = 80,
     batch_size: int = 4,
     seq_len: int = 24,
+    benchmark_tokens: int = 64,
     timeout_seconds: float = 120,
     checkpoint_dir: str = "runs/evolution-candidates",
 ) -> dict:
@@ -178,14 +237,33 @@ def evaluate(
     receive_pipe, send_pipe = context.Pipe(duplex=False)
     process = context.Process(
         target=_candidate_worker,
-        args=(send_pipe, asdict(candidate), corpus_path, steps, batch_size, seq_len, checkpoint_dir),
+        args=(
+            send_pipe,
+            asdict(candidate),
+            corpus_path,
+            benchmark_path,
+            steps,
+            batch_size,
+            seq_len,
+            benchmark_tokens,
+            checkpoint_dir,
+        ),
         daemon=True,
     )
     process.start()
     send_pipe.close()
     try:
         if receive_pipe.poll(timeout_seconds):
-            result = receive_pipe.recv()
+            try:
+                result = receive_pipe.recv()
+            except EOFError:
+                result = {
+                    "candidate": candidate.name,
+                    "generation": candidate.generation,
+                    "parent": candidate.parent,
+                    "passed": False,
+                    "error": "worker exited without a result",
+                }
         else:
             result = {
                 "candidate": candidate.name,
@@ -280,10 +358,14 @@ def mutate_candidate(parent: Candidate, name: str, generation: int, rng: random.
 
 
 def rank_candidates(results: list[dict]) -> list[dict]:
-    passing = [result for result in results if result.get("passed")]
+    passing = [
+        result for result in results
+        if result.get("passed") and "task_score" in result and "validation_loss" in result
+    ]
     return sorted(
         passing,
         key=lambda item: (
+            -item["task_score"],
             item["validation_loss"],
             item["parameter_count"],
             item["training_seconds"],
@@ -293,7 +375,7 @@ def rank_candidates(results: list[dict]) -> list[dict]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Run bounded genetic architecture search with trained and validated candidates"
+        description="Run bounded genetic architecture search using validation loss and task benchmarks"
     )
     parser.add_argument("--generations", type=int, default=3)
     parser.add_argument("--population", type=int, default=4)
@@ -301,9 +383,11 @@ def main() -> None:
     parser.add_argument("--steps", type=int, default=80)
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--seq-len", type=int, default=24)
+    parser.add_argument("--benchmark-tokens", type=int, default=64)
     parser.add_argument("--timeout", type=float, default=120)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--data", type=Path, required=True)
+    parser.add_argument("--benchmark-data", type=Path, default=Path("data/benchmark.jsonl"))
     parser.add_argument("--checkpoint-dir", type=Path, default=Path("runs/evolution-candidates"))
     parser.add_argument("--out", type=Path, default=Path("runs/evolution-report.json"))
     parser.add_argument("--promote", action="store_true")
@@ -325,10 +409,16 @@ def main() -> None:
         raise SystemExit("--batch-size must be between 1 and 128")
     if not 8 <= args.seq_len <= 8192:
         raise SystemExit("--seq-len must be between 8 and 8192")
+    if not 1 <= args.benchmark_tokens <= 256:
+        raise SystemExit("--benchmark-tokens must be between 1 and 256")
     if not 10 <= args.timeout <= 600:
         raise SystemExit("--timeout must be between 10 and 600 seconds")
     if not args.data.is_file():
         raise SystemExit(f"Training corpus not found: {args.data}")
+    if not args.benchmark_data.is_file():
+        raise SystemExit(f"Benchmark dataset not found: {args.benchmark_data}")
+    if args.data.resolve() == args.benchmark_data.resolve():
+        raise SystemExit("Training corpus and benchmark dataset must be different files")
     if args.promote and args.promoted_checkpoint.exists() and not args.overwrite_checkpoint:
         raise SystemExit(
             f"Checkpoint already exists: {args.promoted_checkpoint}. "
@@ -338,6 +428,9 @@ def main() -> None:
     corpus = read_corpus(args.data)
     if len(ByteTokenizer().encode(corpus)) < args.seq_len * 2 + 10:
         raise SystemExit("Corpus is too small for a train/validation split at this sequence length")
+    benchmark_cases = load_cases(args.benchmark_data)
+    if not benchmark_cases:
+        raise SystemExit("Benchmark dataset has no usable cases")
 
     args.checkpoint_dir.mkdir(parents=True, exist_ok=True)
     rng = random.Random(args.seed)
@@ -351,9 +444,11 @@ def main() -> None:
             result = evaluate(
                 candidate,
                 str(args.data.resolve()),
+                str(args.benchmark_data.resolve()),
                 args.steps,
                 args.batch_size,
                 args.seq_len,
+                args.benchmark_tokens,
                 args.timeout,
                 str(args.checkpoint_dir.resolve()),
             )
@@ -366,19 +461,17 @@ def main() -> None:
             "evaluated": len(generation_results),
             "passed": sum(bool(item.get("passed")) for item in generation_results),
             "best_candidate_so_far": ranked[0]["candidate"] if ranked else None,
+            "best_task_score_so_far": ranked[0]["task_score"] if ranked else None,
             "best_validation_loss_so_far": ranked[0]["validation_loss"] if ranked else None,
         })
 
         if generation == args.generations or not ranked:
             break
 
-        survivors = [
-            Candidate(**item["config"])
-            for item in ranked[:args.elite_count]
-        ]
+        survivors = [Candidate(**item["config"]) for item in ranked[:args.elite_count]]
         offspring_count = args.population - len(survivors)
-        next_population = []
         parent_pool = ranked[:max(1, min(len(ranked), args.elite_count * 2))]
+        next_population = []
         for index in range(offspring_count):
             parent_result = rng.choice(parent_pool)
             parent = Candidate(**parent_result["config"])
@@ -398,16 +491,18 @@ def main() -> None:
         "results": all_results,
         "selected_candidate": selected.get("candidate") if selected else None,
         "selected_generation": selected.get("generation") if selected else None,
+        "selected_task_score": selected.get("task_score") if selected else None,
         "selected_validation_loss": selected.get("validation_loss") if selected else None,
         "selected_checkpoint": selected.get("checkpoint") if selected else None,
-        "selection_metric": "lowest held-out next-token cross-entropy, then fewer parameters and lower training time",
+        "selection_metric": "highest task_score (75% mean token F1 + 25% exact-match rate), then lowest held-out loss, fewer parameters and lower training time",
         "corpus": str(args.data),
+        "benchmark_data": str(args.benchmark_data),
         "training_steps_per_candidate": args.steps,
         "architecture_evolution": "survivors are retained; offspring mutate width, heads, depth, experts, learning rate and dropout",
         "weight_inheritance": False,
         "automatic_promotion": False,
         "promoted": False,
-        "limits": "This is architecture search. It does not prove language quality; use task benchmarks and human review.",
+        "limits": "Reference benchmarks are finite and can be overfit. Use fresh tests, human review and safety checks before promotion.",
     }
 
     if selected and args.promote:

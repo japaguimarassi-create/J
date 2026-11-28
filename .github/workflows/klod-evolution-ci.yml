@@ -41,16 +41,18 @@ jobs:
             --data klod-evolution/data/benchmark.jsonl \
             --out "$RUNNER_TEMP/training-benchmark.json" \
             --max-new-tokens 8
-      - name: Run two generations of architecture selection
+      - name: Run two generations of task-aware architecture selection
         run: |
           PYTHONPATH=klod-evolution python -m klod.evolution \
             --data klod-evolution/data/bootstrap.txt \
+            --benchmark-data klod-evolution/data/benchmark.jsonl \
             --generations 2 \
             --population 2 \
             --elite-count 1 \
             --steps 3 \
             --batch-size 2 \
             --seq-len 12 \
+            --benchmark-tokens 8 \
             --timeout 120 \
             --checkpoint-dir "$RUNNER_TEMP/klod-candidates" \
             --out "$RUNNER_TEMP/evolution-report.json" \

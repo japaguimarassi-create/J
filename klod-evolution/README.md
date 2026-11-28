@@ -16,7 +16,7 @@ O runtime inicial usa uma rede configurável e pequena, com atenção causal e e
 - klod/memory.py: histórico persistente por conversa em SQLite.
 - klod/tools.py: análise e criação de arquivos dentro de um workspace autorizado.
 - klod/code_tools.py: validação estática de Python, JSON, TOML, XML, JavaScript (se Node estiver instalado) e metadados de APK/JAR.
-- klod/evolution.py: seleção evolutiva por gerações, sobreviventes e mutações de arquitetura.
+- klod/evolution.py: seleção por gerações, sobreviventes, mutações de arquitetura e benchmark de tarefas.
 - klod/benchmarks.py: compara saídas com respostas de referência, inclusive tarefas de programação.
 - klod/server.py: API HTTP e interface web.
 
@@ -52,21 +52,23 @@ python -m klod.train --data data/train.jsonl --validation-data data/validation.j
 
 O checkpoint salvo corresponde ao melhor resultado de validação observado, e não necessariamente ao último passo. data/bootstrap.txt é apenas material mínimo para teste técnico; não é corpus suficiente para um assistente competente.
 
-## Seleção evolutiva por gerações
+## Seleção evolutiva com avaliação de tarefas
 
-Cada geração treina candidatos em condições comparáveis. Os melhores são mantidos como sobreviventes; os descendentes recebem mutações em largura, cabeças, profundidade, especialistas, taxa de aprendizado e dropout.
+Cada geração treina candidatos em condições comparáveis. Os melhores são mantidos como sobreviventes; os descendentes recebem mutações em largura, cabeças, profundidade, especialistas, taxa de aprendizado e dropout. Cada candidato também é avaliado em data/benchmark.jsonl.
 
 ~~~bash
-python -m klod.evolution --data data/train.txt --generations 3 --population 4 --elite-count 1 --steps 80 --seq-len 24
+python -m klod.evolution --data data/train.txt --benchmark-data data/benchmark.jsonl --generations 3 --population 4 --elite-count 1 --steps 80 --seq-len 24
 ~~~
+
+O fitness combina F1 médio de tokens e correspondência exata do benchmark. Em caso de empate, favorece menor perda em dados reservados, menos parâmetros e menor tempo de treinamento. O conjunto de benchmark precisa ser separado do corpus de treinamento.
 
 Para promover explicitamente o melhor checkpoint:
 
 ~~~bash
-python -m klod.evolution --data data/train.txt --generations 3 --population 4 --elite-count 1 --steps 80 --seq-len 24 --promote
+python -m klod.evolution --data data/train.txt --benchmark-data data/benchmark.jsonl --generations 3 --population 4 --elite-count 1 --steps 80 --seq-len 24 --promote
 ~~~
 
-A evolução atual procura arquiteturas melhores e treina os pesos de cada candidato do zero; ela ainda não herda nem cruza pesos entre gerações. A métrica principal é cross-entropy em dados reservados. Isso não prova qualidade geral de conversa, lógica ou programação. Para isso são necessários benchmarks por tarefa e revisão humana.
+A evolução atual procura arquiteturas melhores e treina os pesos de cada candidato do zero; ela ainda não herda nem cruza pesos entre gerações. Benchmarks finitos podem ser sobreajustados, por isso uma aprovação exige também testes novos, revisão humana e testes de segurança.
 
 Se o destino já existir, a promoção é recusada por padrão. Use --overwrite-checkpoint somente quando realmente quiser substituir o arquivo. O controlador pode encerrar apenas os próprios workers filhos que excederem o tempo ou falharem. Não existe desligamento de processos externos.
 
