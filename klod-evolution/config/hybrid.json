@@ -24,12 +24,12 @@
     "hybrid_estimate_command": "python -m klod.shard_plan --out config/shard-plan.json",
     "target_training_command": "python -m klod.train_hybrid --data data/train.txt --profile target --device cuda --dtype bf16 --steps 100 --batch-size 1 --seq-len 32",
     "note": "The target profile has a real 40000-wide hidden state and a 20000-entry stage bank, but only eight selected stages execute per forward. It does not execute 20000 sequential dense layers.",
-    "estimated_parameters": 85309609,
-    "estimated_fp16_weight_bytes": 170619218,
-    "estimated_fp16_weight_decimal_gb": 0.170619218,
-    "adamw_state_floor_bytes": 1364953744,
+    "estimated_parameters": 85309545,
+    "estimated_fp16_weight_bytes": 170619090,
+    "estimated_fp16_weight_decimal_gb": 0.17061909,
+    "adamw_state_floor_bytes": 1364952720,
     "dense_equivalent_parameter_estimate": 31998400000000,
-    "parameter_reduction_factor": 375085.5311035361
+    "parameter_reduction_factor": 375085.8124961281
   },
   "profiles": {
     "micro": {
