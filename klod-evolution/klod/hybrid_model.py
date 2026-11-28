@@ -179,7 +179,11 @@ class SparseDepthRouter(nn.Module):
         load.scatter_add_(
             0,
             selected_flat,
-            torch.full_like(selected_flat, 1.0 / selected_flat.numel(), dtype=scores.dtype),
+            torch.full_like(
+                selected_flat,
+                1.0 / selected_flat.numel(),
+                dtype=scores.dtype,
+            ),
         )
         importance = probabilities.mean(dim=(0, 1))
         auxiliary_loss = self.logical_layers * torch.sum(importance * load)
@@ -244,7 +248,15 @@ class HybridKlodModel(nn.Module):
         x = self.token_embedding(input_ids) + position_vectors.unsqueeze(0)
         x = self.dropout(x)
 
-        stage_ids, stage_weights, stage_aux = self.depth_router(x)
+        prefix_sum = x.cumsum(dim=1)
+        prefix_counts = torch.arange(
+            1,
+            steps + 1,
+            device=x.device,
+            dtype=x.dtype,
+        ).view(1, steps, 1)
+        routing_context = x + prefix_sum / prefix_counts
+        stage_ids, stage_weights, stage_aux = self.depth_router(routing_context)
         expert_auxiliary_losses = []
 
         for stage_slot in range(self.config.active_stages):
