@@ -85,7 +85,15 @@ function bubble(text, kind) {
 async function health() {
   try {
     const state = await api("/api/health");
-    byId("status").textContent = state.model_trained ? "Modelo carregado" : "Aguardando treinamento";
+    if (state.base_model_architecture === "hybrid_dense_sparse") {
+      byId("status").textContent = "Híbrido denso-esparso";
+    } else if (state.base_model_trained) {
+      byId("status").textContent = "Modelo principal carregado";
+    } else if (state.trained_shards && state.trained_shards.length) {
+      byId("status").textContent = state.trained_shards.length + " especialistas carregados";
+    } else {
+      byId("status").textContent = "Aguardando treinamento";
+    }
   } catch {
     byId("status").textContent = "API indisponível";
   }
