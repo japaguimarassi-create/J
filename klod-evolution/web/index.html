@@ -12,25 +12,62 @@
     h1{margin:0;font-size:clamp(28px,6vw,42px);letter-spacing:-1.5px}.sub{color:#94a3c5;margin-top:6px}
     .status{border:1px solid #243253;border-radius:999px;padding:8px 12px;color:#a8b8db;font-size:12px;white-space:nowrap}
     .panel{border:1px solid #263452;background:#0d1425;border-radius:18px;padding:18px;margin:14px 0;box-shadow:0 16px 45px #0003}
-    .chat{min-height:320px;max-height:52vh;overflow:auto;display:flex;flex-direction:column;gap:12px}.bubble{padding:12px 14px;border-radius:14px;max-width:88%;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5}.user{align-self:flex-end;background:#233d70}.ai{align-self:flex-start;background:#172239;border:1px solid #283957}
-    textarea,input{width:100%;background:#090f1d;border:1px solid #2b3a5a;border-radius:12px;color:#eef3ff;padding:13px;font:inherit;outline:none}textarea{min-height:92px;resize:vertical}
-    button{background:#6b8cff;color:#071126;border:0;border-radius:12px;padding:12px 17px;font-weight:750;font-size:14px}button:disabled{opacity:.5}.actions{display:flex;justify-content:flex-end;margin-top:10px}
-    .tools{display:grid;grid-template-columns:1fr 1fr;gap:12px}.tools label{display:block;color:#aebcda;font-size:13px;margin-bottom:7px}.hint{font-size:12px;line-height:1.5;color:#8798bd;margin-top:12px}
+    .chat{min-height:320px;max-height:52vh;overflow:auto;display:flex;flex-direction:column;gap:12px}
+    .bubble{padding:12px 14px;border-radius:14px;max-width:88%;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5}
+    .user{align-self:flex-end;background:#233d70}.ai{align-self:flex-start;background:#172239;border:1px solid #283957}
+    textarea,input{width:100%;background:#090f1d;border:1px solid #2b3a5a;border-radius:12px;color:#eef3ff;padding:13px;font:inherit;outline:none}
+    textarea{min-height:92px;resize:vertical}
+    button{background:#6b8cff;color:#071126;border:0;border-radius:12px;padding:12px 17px;font-weight:750;font-size:14px}
+    button:disabled{opacity:.5}.actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:10px}
+    button.secondary{background:#263b66;color:#edf2ff}button.danger{background:#512d42;color:#ffe5ef}
+    .tools{display:grid;grid-template-columns:1fr 1fr;gap:12px}.tools label{display:block;color:#aebcda;font-size:13px;margin-bottom:7px}
+    .hint{font-size:12px;line-height:1.5;color:#8798bd;margin-top:12px}
     pre{white-space:pre-wrap;overflow-wrap:anywhere;color:#c6d4f5}.section-title{font-size:16px;margin:0 0 12px}
+    .memory-line{display:flex;align-items:center;justify-content:space-between;gap:10px;color:#8798bd;font-size:11px;margin:0 0 10px}
     @media(max-width:560px){.top{align-items:flex-start;flex-direction:column}.tools{grid-template-columns:1fr}.bubble{max-width:96%}}
   </style>
 </head>
 <body>
 <main>
-  <header class="top"><div><h1>KLOD <span style="color:#7e9cff">Evolution</span></h1><div class="sub">Núcleo experimental de IA local</div></div><div class="status" id="status">Verificando sistema…</div></header>
-  <section class="panel"><h2 class="section-title">Conversa</h2><div class="chat" id="chat"><div class="bubble ai">Sistema inicializado. Treine um checkpoint para habilitar a geração neural.</div></div><textarea id="message" placeholder="Escreva uma mensagem…"></textarea><div class="actions"><button id="send">Enviar</button></div><div class="hint">O modelo não é declarado treinado até existir um checkpoint válido.</div></section>
-  <section class="panel"><h2 class="section-title">Arquivos do workspace</h2><div class="tools"><div><label for="path">Caminho relativo</label><input id="path" placeholder="projeto/arquivo.txt"></div><div><label for="content">Conteúdo para criar</label><textarea id="content" placeholder="Conteúdo do arquivo"></textarea></div></div><div class="actions" style="gap:8px"><button id="analyze" style="background:#263b66;color:#edf2ff">Analisar</button><button id="create">Criar arquivo</button></div><pre id="fileResult"></pre><div class="hint">Ações limitadas ao workspace configurado. A primeira versão não executa código recebido.</div></section>
+  <header class="top">
+    <div><h1>KLOD <span style="color:#7e9cff">Evolution</span></h1><div class="sub">Núcleo experimental de IA local</div></div>
+    <div class="status" id="status">Verificando sistema…</div>
+  </header>
+  <section class="panel">
+    <h2 class="section-title">Conversa</h2>
+    <div class="memory-line"><span id="memoryState">Memória local por conversa</span><button class="danger" id="clearMemory" type="button">Limpar conversa</button></div>
+    <div class="chat" id="chat"><div class="bubble ai">Sistema inicializado. Treine um checkpoint para habilitar a geração neural.</div></div>
+    <textarea id="message" placeholder="Escreva uma mensagem…"></textarea>
+    <div class="actions"><button id="send" type="button">Enviar</button></div>
+    <div class="hint">O histórico desta conversa fica no banco SQLite local do servidor. Ele não é usado para treinar o modelo automaticamente.</div>
+  </section>
+  <section class="panel">
+    <h2 class="section-title">Arquivos do workspace</h2>
+    <div class="tools">
+      <div><label for="path">Caminho relativo</label><input id="path" placeholder="projeto/arquivo.py"></div>
+      <div><label for="content">Conteúdo para criar</label><textarea id="content" placeholder="Conteúdo do arquivo"></textarea></div>
+    </div>
+    <div class="actions">
+      <button id="analyze" class="secondary" type="button">Analisar</button>
+      <button id="validate" class="secondary" type="button">Validar código</button>
+      <button id="create" type="button">Criar arquivo</button>
+    </div>
+    <pre id="fileResult"></pre>
+    <div class="hint">Validação estática: Python, JSON, TOML, XML, JavaScript com Node instalado e estrutura de APK/JAR. Nenhum arquivo recebido é executado.</div>
+  </section>
 </main>
 <script>
 const byId = id => document.getElementById(id);
-async function api(path, body) {
+const makeId = () => {
+  if (window.crypto && typeof window.crypto.randomUUID === "function") return window.crypto.randomUUID();
+  return "chat-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+};
+const conversationId = localStorage.getItem("klodConversationId") || makeId();
+localStorage.setItem("klodConversationId", conversationId);
+
+async function api(path, body, method) {
   const response = await fetch(path, {
-    method: body ? "POST" : "GET",
+    method: method || (body ? "POST" : "GET"),
     headers: {"Content-Type": "application/json"},
     body: body ? JSON.stringify(body) : undefined
   });
@@ -53,6 +90,18 @@ async function health() {
     byId("status").textContent = "API indisponível";
   }
 }
+async function loadHistory() {
+  try {
+    const result = await api("/api/conversations/" + encodeURIComponent(conversationId));
+    if (result.messages.length) {
+      byId("chat").replaceChildren();
+      for (const item of result.messages) bubble(item.content, item.role === "user" ? "user" : "ai");
+      byId("memoryState").textContent = result.messages.length + " mensagens recuperadas";
+    }
+  } catch (error) {
+    byId("memoryState").textContent = "Memória indisponível: " + error.message;
+  }
+}
 byId("send").onclick = async () => {
   const message = byId("message").value.trim();
   if (!message) return;
@@ -60,18 +109,34 @@ byId("send").onclick = async () => {
   bubble(message, "user");
   byId("send").disabled = true;
   try {
-    const result = await api("/api/chat", {message});
+    const result = await api("/api/chat", {message, conversation_id: conversationId});
     bubble(result.response || "(sem resposta)", "ai");
+    byId("memoryState").textContent = "Memória salva nesta conversa";
   } catch (error) {
     bubble(error.message, "ai");
   } finally {
     byId("send").disabled = false;
   }
 };
+byId("message").addEventListener("keydown", event => {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    byId("send").click();
+  }
+});
 byId("analyze").onclick = async () => {
   try {
     byId("fileResult").textContent = JSON.stringify(
       await api("/api/files/analyze", {path: byId("path").value}), null, 2
+    );
+  } catch (error) {
+    byId("fileResult").textContent = error.message;
+  }
+};
+byId("validate").onclick = async () => {
+  try {
+    byId("fileResult").textContent = JSON.stringify(
+      await api("/api/code/validate", {path: byId("path").value}), null, 2
     );
   } catch (error) {
     byId("fileResult").textContent = error.message;
@@ -86,7 +151,19 @@ byId("create").onclick = async () => {
     byId("fileResult").textContent = error.message;
   }
 };
+byId("clearMemory").onclick = async () => {
+  if (!window.confirm("Apagar o histórico desta conversa no servidor?")) return;
+  try {
+    await api("/api/conversations/" + encodeURIComponent(conversationId), undefined, "DELETE");
+    byId("chat").replaceChildren();
+    bubble("Histórico apagado. Uma nova conversa pode começar.", "ai");
+    byId("memoryState").textContent = "Memória limpa";
+  } catch (error) {
+    byId("memoryState").textContent = "Falha ao limpar memória: " + error.message;
+  }
+};
 health();
+loadHistory();
 </script>
 </body>
 </html>
