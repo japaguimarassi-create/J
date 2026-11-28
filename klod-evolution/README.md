@@ -11,7 +11,7 @@ O runtime inicial usa uma rede configurável e pequena, com atenção causal e e
 ## Componentes
 
 - klod/model.py: modelo causal byte-level com roteamento top-1 entre especialistas.
-- klod/train.py: treinamento a partir de arquivos TXT ou JSONL locais.
+- klod/train.py: treinamento a partir de TXT/JSONL, validação reservada e early stopping.
 - klod/runtime.py: carregamento de checkpoint e geração.
 - klod/memory.py: histórico persistente por conversa em SQLite.
 - klod/tools.py: análise e criação de arquivos dentro de um workspace autorizado.
@@ -32,19 +32,29 @@ pip install -r requirements.txt
 
 No Android/Termux, o treinamento com PyTorch pode não estar disponível em todas as builds. Nesse caso, treine em Linux com PyTorch e use a API nesse ambiente.
 
-## Treinamento
+## Dados de treinamento
 
-Adicione dados autorizados em data/train.txt ou data/train.jsonl. Para JSONL, cada linha pode conter o campo text.
+Adicione dados autorizados em data/train.txt ou data/train.jsonl. O JSONL aceita registros com text, content, messages ou pares prompt/completion. Um exemplo está em data/conversations.example.jsonl.
+
+Use dados com permissão de uso, remova credenciais e informações pessoais e mantenha conjuntos de validação separados quando possível.
+
+## Treinamento com validação e parada antecipada
 
 ~~~bash
-python -m klod.train --data data/train.txt --steps 1000 --batch-size 4 --seq-len 128 --out runs/klod.pt
+python -m klod.train --data data/train.txt --steps 1000 --batch-size 4 --seq-len 128 --eval-every 50 --patience 8 --out runs/klod.pt
 ~~~
 
-data/bootstrap.txt é apenas material mínimo para teste técnico; não é corpus suficiente para um assistente competente.
+Para validação em um arquivo independente:
+
+~~~bash
+python -m klod.train --data data/train.jsonl --validation-data data/validation.jsonl --steps 5000 --eval-every 100 --patience 10 --out runs/klod.pt
+~~~
+
+O checkpoint salvo corresponde ao melhor resultado de validação observado, e não necessariamente ao último passo. data/bootstrap.txt é apenas material mínimo para teste técnico; não é corpus suficiente para um assistente competente.
 
 ## Seleção evolutiva treinável
 
-A seleção agora treina cada candidato no mesmo corpus, reserva uma parte final para validação e compara a cross-entropy nessa parte não vista durante o treinamento.
+A seleção treina cada candidato no mesmo corpus, reserva uma parte final para validação e compara a cross-entropy nessa parte não vista durante o treinamento.
 
 ~~~bash
 python -m klod.evolution --data data/train.txt --rounds 4 --steps 80 --seq-len 24
@@ -62,8 +72,6 @@ A cross-entropy mede previsão de próximos bytes, não qualidade geral de respo
 
 ## Benchmark de conversa e programação
 
-O arquivo data/benchmark.jsonl contém tarefas de referência pequenas. Avalie um checkpoint:
-
 ~~~bash
 python -m klod.benchmarks --checkpoint runs/klod.pt --data data/benchmark.jsonl
 ~~~
@@ -72,13 +80,15 @@ As métricas incluem correspondência exata, similaridade textual e F1 de tokens
 
 ## Executar a interface
 
+Execute a partir da pasta klod-evolution/:
+
 ~~~bash
 KLOD_CHECKPOINT=runs/klod.pt uvicorn klod.server:app --host 127.0.0.1 --port 8000
 ~~~
 
-Execute a partir de klod-evolution/ com o pacote instalado ou com PYTHONPATH definido. Abra http://127.0.0.1:8000. Sem checkpoint, a API informa que o modelo ainda não foi treinado.
+Abra http://127.0.0.1:8000. Sem checkpoint, a API informa que o modelo ainda não foi treinado.
 
-O histórico é gravado localmente em runtime_data/memory.sqlite3, podendo ser apagado pelo endpoint DELETE /api/conversations/{id}. O workspace padrão é workspace/. Caminhos que escapem desse diretório são rejeitados.
+O histórico é gravado localmente em runtime_data/memory.sqlite3, podendo ser apagado pelo botão Limpar conversa ou pelo endpoint DELETE /api/conversations/{id}. O workspace padrão é workspace/. Caminhos que escapem desse diretório são rejeitados.
 
 A validação de código é estática. Python é analisado com AST; JavaScript usa node --check, quando disponível, sem executar o arquivo. APK/JAR são inspecionados somente pelos metadados do ZIP; nenhum conteúdo é extraído ou executado. A primeira versão não executa código recebido nem compila projetos arbitrários.
 

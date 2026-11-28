@@ -10,6 +10,7 @@ from klod.code_tools import validate_code
 from klod.memory import ConversationMemory
 from klod.model import ByteTokenizer, KlodModel, ModelConfig
 from klod.tools import analyze_file, create_file
+from klod.train import read_corpus, mean_loss
 
 
 def test_byte_tokenizer_roundtrip():
@@ -87,3 +88,33 @@ def test_benchmark_metrics():
     assert normalize("  Olá   Mundo ") == "olá mundo"
     assert token_f1("a + b", "a + b") == 1.0
     assert token_f1("a", "b") == 0.0
+
+
+def test_training_loader_supports_chat_jsonl():
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / "chat.jsonl"
+        path.write_text(
+            json.dumps({
+                "messages": [
+                    {"role": "user", "content": "Olá"},
+                    {"role": "assistant", "content": "Oi"},
+                ]
+            }) + "\n" + json.dumps({
+                "prompt": "Some 2 + 2",
+                "completion": "4",
+            }),
+            encoding="utf-8",
+        )
+        corpus = read_corpus(path)
+        assert "Usuário: Olá" in corpus
+        assert "KLOD: Oi" in corpus
+        assert "Usuário: Some 2 + 2" in corpus
+
+
+def test_validation_loss_is_finite():
+    config = ModelConfig(d_model=32, n_heads=4, n_layers=1, n_experts=2, max_seq_len=12, dropout=0)
+    model = KlodModel(config)
+    data = torch.randint(2, 258, (80,), dtype=torch.long)
+    loss = mean_loss(model, data, seq_len=12)
+    assert isinstance(loss, float)
+    assert loss > 0

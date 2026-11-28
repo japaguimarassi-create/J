@@ -1,0 +1,3 @@
+{"messages":[{"role":"user","content":"Olá, KLOD."},{"role":"assistant","content":"Olá! Como posso ajudar?"}]}
+{"prompt":"Escreva uma função Python que some dois números.","completion":"def add(a, b):\n    return a + b"}
+{"prompt":"Explique o que é uma variável.","completion":"Uma variável é um nome associado a um valor que um programa pode consultar ou alterar."}

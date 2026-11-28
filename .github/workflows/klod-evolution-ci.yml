@@ -20,6 +20,27 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install -r klod-evolution/requirements.txt
       - run: PYTHONPATH=klod-evolution pytest -q klod-evolution/tests
+      - name: Train a checkpoint with validation and early stopping
+        run: |
+          PYTHONPATH=klod-evolution python -m klod.train \
+            --data klod-evolution/data/bootstrap.txt \
+            --steps 3 \
+            --batch-size 2 \
+            --seq-len 12 \
+            --layers 1 \
+            --width 32 \
+            --heads 2 \
+            --experts 2 \
+            --eval-every 1 \
+            --patience 2 \
+            --out "$RUNNER_TEMP/klod-trained.pt"
+      - name: Benchmark trained checkpoint
+        run: |
+          PYTHONPATH=klod-evolution python -m klod.benchmarks \
+            --checkpoint "$RUNNER_TEMP/klod-trained.pt" \
+            --data klod-evolution/data/benchmark.jsonl \
+            --out "$RUNNER_TEMP/training-benchmark.json" \
+            --max-new-tokens 8
       - name: Train and select one isolated candidate
         run: |
           PYTHONPATH=klod-evolution python -m klod.evolution \
@@ -32,11 +53,4 @@ jobs:
             --checkpoint-dir "$RUNNER_TEMP/klod-candidates" \
             --out "$RUNNER_TEMP/evolution-report.json" \
             --promote \
-            --promoted-checkpoint "$RUNNER_TEMP/klod-smoke.pt"
-      - name: Run reference benchmark
-        run: |
-          PYTHONPATH=klod-evolution python -m klod.benchmarks \
-            --checkpoint "$RUNNER_TEMP/klod-smoke.pt" \
-            --data klod-evolution/data/benchmark.jsonl \
-            --out "$RUNNER_TEMP/benchmark-report.json" \
-            --max-new-tokens 8
+            --promoted-checkpoint "$RUNNER_TEMP/klod-evolved.pt"
