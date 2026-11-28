@@ -72,7 +72,7 @@ def estimate_hybrid_target(
     components = {
         "token_embedding": vocab_size * h,
         "position_embedding_and_projection": max_seq_len * s + s * h,
-        "logical_stage_router": h * s + s + s * stages + stages,
+        "logical_stage_router": h * s + s * stages + stages,
         "logical_stage_embeddings": stages * s + s * h,
         "factorized_attention": 4 * h * a + 4 * a * a + 4 * a,
         "shared_dense_core": 2 * h * d,
