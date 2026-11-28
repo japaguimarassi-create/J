@@ -79,7 +79,7 @@ def estimate_hybrid_target(
         "sparse_low_rank_experts": 2 * n_experts * h * e,
         "expert_router": h * n_experts + n_experts,
         "sparse_gate": h + 1,
-        "normalization": 6 * h,
+        "normalization": 8 * h,
         "language_model_head": h * a + a * vocab_size,
     }
     hybrid_parameters = sum(components.values())
