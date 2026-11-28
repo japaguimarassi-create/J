@@ -1,4 +1,5 @@
 import json
+import random
 import tempfile
 import zipfile
 from pathlib import Path
@@ -7,6 +8,7 @@ import pytest
 import torch
 
 from klod.code_tools import validate_code
+from klod.evolution import Candidate, build_candidates, mutate_candidate, rank_candidates
 from klod.memory import ConversationMemory
 from klod.model import ByteTokenizer, KlodModel, ModelConfig
 from klod.tools import analyze_file, create_file
@@ -126,3 +128,42 @@ def test_validation_loss_uses_model_device():
     model = KlodModel(config).cuda()
     data = torch.randint(2, 258, (80,), dtype=torch.long)
     assert mean_loss(model, data, seq_len=12) > 0
+
+
+def test_population_builds_valid_architectures():
+    population = build_candidates(6, seed=7)
+    assert len(population) == 6
+    assert all(item.d_model % item.n_heads == 0 for item in population)
+    assert len({item.name for item in population}) == 6
+
+
+def test_mutation_creates_a_valid_child_with_lineage():
+    parent = Candidate("parent", 64, 4, 2, 4)
+    child = mutate_candidate(parent, "child", 2, random.Random(19))
+    assert child.parent == "parent"
+    assert child.generation == 2
+    assert child.model_config(24).d_model % child.model_config(24).n_heads == 0
+    assert (
+        child.d_model,
+        child.n_heads,
+        child.n_layers,
+        child.n_experts,
+        child.learning_rate,
+        child.dropout,
+    ) != (
+        parent.d_model,
+        parent.n_heads,
+        parent.n_layers,
+        parent.n_experts,
+        parent.learning_rate,
+        parent.dropout,
+    )
+
+
+def test_candidate_ranking_prefers_lower_validation_loss():
+    results = [
+        {"candidate": "slower", "passed": True, "validation_loss": 1.4, "parameter_count": 100, "training_seconds": 2},
+        {"candidate": "better", "passed": True, "validation_loss": 1.2, "parameter_count": 1000, "training_seconds": 3},
+        {"candidate": "failed", "passed": False, "validation_loss": 0.1, "parameter_count": 1, "training_seconds": 1},
+    ]
+    assert rank_candidates(results)[0]["candidate"] == "better"

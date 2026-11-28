@@ -16,7 +16,7 @@ O runtime inicial usa uma rede configurável e pequena, com atenção causal e e
 - klod/memory.py: histórico persistente por conversa em SQLite.
 - klod/tools.py: análise e criação de arquivos dentro de um workspace autorizado.
 - klod/code_tools.py: validação estática de Python, JSON, TOML, XML, JavaScript (se Node estiver instalado) e metadados de APK/JAR.
-- klod/evolution.py: treina candidatos isolados e seleciona pelo menor cross-entropy em uma parte reservada do corpus.
+- klod/evolution.py: seleção evolutiva por gerações, sobreviventes e mutações de arquitetura.
 - klod/benchmarks.py: compara saídas com respostas de referência, inclusive tarefas de programação.
 - klod/server.py: API HTTP e interface web.
 
@@ -52,23 +52,23 @@ python -m klod.train --data data/train.jsonl --validation-data data/validation.j
 
 O checkpoint salvo corresponde ao melhor resultado de validação observado, e não necessariamente ao último passo. data/bootstrap.txt é apenas material mínimo para teste técnico; não é corpus suficiente para um assistente competente.
 
-## Seleção evolutiva treinável
+## Seleção evolutiva por gerações
 
-A seleção treina cada candidato no mesmo corpus, reserva uma parte final para validação e compara a cross-entropy nessa parte não vista durante o treinamento.
-
-~~~bash
-python -m klod.evolution --data data/train.txt --rounds 4 --steps 80 --seq-len 24
-~~~
-
-Para promover explicitamente o checkpoint do melhor candidato:
+Cada geração treina candidatos em condições comparáveis. Os melhores são mantidos como sobreviventes; os descendentes recebem mutações em largura, cabeças, profundidade, especialistas, taxa de aprendizado e dropout.
 
 ~~~bash
-python -m klod.evolution --data data/train.txt --rounds 4 --steps 80 --seq-len 24 --promote
+python -m klod.evolution --data data/train.txt --generations 3 --population 4 --elite-count 1 --steps 80 --seq-len 24
 ~~~
+
+Para promover explicitamente o melhor checkpoint:
+
+~~~bash
+python -m klod.evolution --data data/train.txt --generations 3 --population 4 --elite-count 1 --steps 80 --seq-len 24 --promote
+~~~
+
+A evolução atual procura arquiteturas melhores e treina os pesos de cada candidato do zero; ela ainda não herda nem cruza pesos entre gerações. A métrica principal é cross-entropy em dados reservados. Isso não prova qualidade geral de conversa, lógica ou programação. Para isso são necessários benchmarks por tarefa e revisão humana.
 
 Se o destino já existir, a promoção é recusada por padrão. Use --overwrite-checkpoint somente quando realmente quiser substituir o arquivo. O controlador pode encerrar apenas os próprios workers filhos que excederem o tempo ou falharem. Não existe desligamento de processos externos.
-
-A cross-entropy mede previsão de próximos bytes, não qualidade geral de respostas, lógica ou programação. Modelos aprovados ainda precisam passar por benchmarks de tarefa, revisão humana e testes de segurança.
 
 ## Benchmark de conversa e programação
 
@@ -94,4 +94,4 @@ A validação de código é estática. Python é analisado com AST; JavaScript u
 
 ## Estado
 
-Esta é uma fundação executável, não uma IA de nível comercial. Nenhum grande corpus foi fornecido, nenhum treinamento massivo ocorreu e nenhum benchmark externo foi vencido. A próxima etapa é treinar com um corpus autorizado maior, medir resultados por categoria, expandir ferramentas de programação e implementar execução de builds em ambiente isolado e limitado.
+Esta é uma fundação executável, não uma IA de nível comercial. Nenhum grande corpus foi fornecido, nenhum treinamento massivo ocorreu e nenhum benchmark externo foi vencido. A próxima etapa é treinamento em corpus autorizado maior, avaliação por categoria, melhoria de raciocínio e ferramentas de programação e execução de builds em ambiente isolado e limitado.

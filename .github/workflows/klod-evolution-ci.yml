@@ -41,11 +41,13 @@ jobs:
             --data klod-evolution/data/benchmark.jsonl \
             --out "$RUNNER_TEMP/training-benchmark.json" \
             --max-new-tokens 8
-      - name: Train and select one isolated candidate
+      - name: Run two generations of architecture selection
         run: |
           PYTHONPATH=klod-evolution python -m klod.evolution \
             --data klod-evolution/data/bootstrap.txt \
-            --rounds 1 \
+            --generations 2 \
+            --population 2 \
+            --elite-count 1 \
             --steps 3 \
             --batch-size 2 \
             --seq-len 12 \
