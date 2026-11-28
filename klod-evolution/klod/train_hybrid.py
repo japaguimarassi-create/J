@@ -87,7 +87,7 @@ def estimate_parameters(config: HybridConfig) -> dict:
         "sparse_low_rank_experts": 2 * experts * h * expert_rank,
         "expert_router": h * experts + experts,
         "sparse_gate": h + 1,
-        "normalization": 6 * h,
+        "normalization": 8 * h,
         "language_model_head": h * attn_rank + attn_rank * vocab,
     }
     return {
