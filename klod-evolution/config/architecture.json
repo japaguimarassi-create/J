@@ -25,12 +25,12 @@
     "logical_layers": 20000,
     "materialized_target_network": false,
     "parameter_estimate": {
-      "estimated_parameters": 85229609,
-      "fp16_weight_bytes": 170459218,
-      "fp16_weight_decimal_gb": 0.170459218,
-      "adamw_training_state_floor_bytes": 1363673744,
+      "estimated_parameters": 85309609,
+      "fp16_weight_bytes": 170619218,
+      "fp16_weight_decimal_gb": 0.170619218,
+      "adamw_training_state_floor_bytes": 1364953744,
       "dense_equivalent_parameters": 31998400000000,
-      "parameter_reduction_factor": 375437.6017376778,
+      "parameter_reduction_factor": 375085.5311035361,
       "note": "Estimativa matemática da configuração-alvo, não medição de um checkpoint treinado; ativações, buffers e workspaces exigem memória adicional."
     }
   },
