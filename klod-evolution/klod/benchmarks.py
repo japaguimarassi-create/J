@@ -5,6 +5,8 @@ from collections import Counter, defaultdict
 from difflib import SequenceMatcher
 from pathlib import Path
 
+import torch
+
 from .runtime import KlodRuntime
 
 
@@ -31,6 +33,8 @@ def load_cases(path: Path) -> list[dict]:
         if not line.strip():
             continue
         item = json.loads(line)
+        if not isinstance(item, dict):
+            raise ValueError(f"Line {line_number} must contain an object")
         if not isinstance(item.get("prompt"), str) or not isinstance(item.get("expected"), str):
             raise ValueError(f"Line {line_number} must contain string prompt and expected fields")
         cases.append({
@@ -45,6 +49,9 @@ def load_cases(path: Path) -> list[dict]:
 
 
 def run_benchmark(checkpoint: str, dataset: Path, max_new_tokens: int = 256) -> dict:
+    torch.manual_seed(0)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(0)
     runtime = KlodRuntime(checkpoint)
     cases = load_cases(dataset)
     results = []

@@ -75,17 +75,21 @@ def mean_loss(model: KlodModel, data: torch.Tensor, seq_len: int, max_windows: i
         raise ValueError("Evaluation split is too small for the selected sequence length")
     count = min(max_windows, upper)
     starts = torch.linspace(0, upper - 1, steps=count).long().unique().tolist()
+    device = next(model.parameters()).device
+    was_training = model.training
     losses = []
     model.eval()
-    with torch.inference_mode():
-        for start in starts:
-            inputs = data[start:start + seq_len].unsqueeze(0)
-            targets = data[start + 1:start + seq_len + 1].unsqueeze(0)
-            _, loss = model(inputs, targets)
-            if loss is None or not torch.isfinite(loss):
-                raise RuntimeError("Evaluation produced a non-finite loss")
-            losses.append(float(loss.detach().cpu()))
-    model.train()
+    try:
+        with torch.inference_mode():
+            for start in starts:
+                inputs = data[start:start + seq_len].unsqueeze(0).to(device)
+                targets = data[start + 1:start + seq_len + 1].unsqueeze(0).to(device)
+                _, loss = model(inputs, targets)
+                if loss is None or not torch.isfinite(loss):
+                    raise RuntimeError("Evaluation produced a non-finite loss")
+                losses.append(float(loss.detach().cpu()))
+    finally:
+        model.train(was_training)
     return sum(losses) / len(losses)
 
 
@@ -127,6 +131,8 @@ def main() -> None:
     all_train_ids = tokenizer.encode(training_text)
     validation_source = "held-out-tail"
     if args.validation_data:
+        if args.validation_data.resolve() == args.data.resolve():
+            raise SystemExit("--validation-data must be different from --data")
         validation_text = read_corpus(args.validation_data)
         train_ids = all_train_ids
         validation_ids = tokenizer.encode(validation_text)

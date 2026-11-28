@@ -118,3 +118,11 @@ def test_validation_loss_is_finite():
     loss = mean_loss(model, data, seq_len=12)
     assert isinstance(loss, float)
     assert loss > 0
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA is not available")
+def test_validation_loss_uses_model_device():
+    config = ModelConfig(d_model=32, n_heads=4, n_layers=1, n_experts=2, max_seq_len=12, dropout=0)
+    model = KlodModel(config).cuda()
+    data = torch.randint(2, 258, (80,), dtype=torch.long)
+    assert mean_loss(model, data, seq_len=12) > 0
