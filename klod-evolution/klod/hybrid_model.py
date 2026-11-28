@@ -157,9 +157,11 @@ class SparseDepthRouter(nn.Module):
         self.stage_embedding = nn.Embedding(config.logical_layers, config.stage_rank)
         self.stage_up = nn.Linear(config.stage_rank, config.hidden_size, bias=False)
 
-    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        pooled = x.mean(dim=1)
-        scores = self.up(F.gelu(self.down(pooled)))
+    def forward(
+        self,
+        x: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        scores = self.up(F.gelu(self.down(x)))
         selected_scores, selected_ids = torch.topk(
             scores,
             self.active_stages,
@@ -167,14 +169,24 @@ class SparseDepthRouter(nn.Module):
         )
         selected_weights = selected_scores.softmax(dim=-1)
         probabilities = scores.softmax(dim=-1)
-        load = F.one_hot(
-            selected_ids,
-            num_classes=self.logical_layers,
-        ).to(probabilities.dtype).mean(dim=(0, 1))
-        importance = probabilities.mean(dim=0)
+
+        selected_flat = selected_ids.reshape(-1)
+        load = torch.zeros(
+            self.logical_layers,
+            device=scores.device,
+            dtype=scores.dtype,
+        )
+        load.scatter_add_(
+            0,
+            selected_flat,
+            torch.full_like(selected_flat, 1.0 / selected_flat.numel(), dtype=scores.dtype),
+        )
+        importance = probabilities.mean(dim=(0, 1))
         auxiliary_loss = self.logical_layers * torch.sum(importance * load)
-        stage_vectors = self.stage_up(self.stage_embedding(selected_ids))
-        return selected_ids, selected_weights, stage_vectors, auxiliary_loss
+        return selected_ids, selected_weights, auxiliary_loss
+
+    def stage_vector(self, stage_ids: torch.Tensor) -> torch.Tensor:
+        return self.stage_up(self.stage_embedding(stage_ids))
 
 
 class HybridKlodModel(nn.Module):
@@ -232,12 +244,14 @@ class HybridKlodModel(nn.Module):
         x = self.token_embedding(input_ids) + position_vectors.unsqueeze(0)
         x = self.dropout(x)
 
-        _, stage_weights, stage_vectors, stage_aux = self.depth_router(x)
+        stage_ids, stage_weights, stage_aux = self.depth_router(x)
         expert_auxiliary_losses = []
 
         for stage_slot in range(self.config.active_stages):
-            stage_weight = stage_weights[:, stage_slot].view(batch, 1, 1)
-            stage_vector = stage_vectors[:, stage_slot, :].unsqueeze(1)
+            stage_weight = stage_weights[:, :, stage_slot].unsqueeze(-1)
+            stage_vector = self.depth_router.stage_vector(
+                stage_ids[:, :, stage_slot]
+            )
             conditioned = x + stage_vector
 
             attention_delta = self.shared_attention(
