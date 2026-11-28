@@ -58,7 +58,7 @@ Treinamento do perfil-alvo:
 python -m klod.train_hybrid --data data/train.txt --profile target --device cuda --dtype bf16 --steps 100 --batch-size 1 --seq-len 32 --out runs/klod-hybrid-target.pt
 ~~~
 
-O perfil-alvo requer GPU e memória suficientes; o treinador bloqueia execução acidental em CPU, exceto quando \`--allow-cpu-target\` é informado explicitamente. O tamanho do corpus afeta diretamente a qualidade aprendida. \`data/bootstrap.txt\` é somente um arquivo de teste técnico.
+O perfil-alvo estima 85.309.609 parâmetros, aproximadamente 170,6 MB em pesos FP16 e um piso de 1,365 GB para parâmetros, gradientes e estados do AdamW em FP32. Esses números não incluem ativações, workspaces, fragmentação ou buffers e não são uma medição de VRAM. O perfil-alvo requer GPU e memória suficientes; o treinador bloqueia execução acidental em CPU, exceto quando \`--allow-cpu-target\` é informado explicitamente. O tamanho do corpus afeta diretamente a qualidade aprendida. \`data/bootstrap.txt\` é somente um arquivo de teste técnico.
 
 O treinamento usa validação reservada e salva o melhor checkpoint observado. O checkpoint registra sua arquitetura, tamanho estimado, hash do corpus e métricas de validação.
 
