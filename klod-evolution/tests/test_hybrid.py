@@ -77,6 +77,7 @@ def test_hybrid_parameter_estimate_is_positive_and_lower_than_dense_target():
     estimate = estimate_parameters(config)
     dense_equivalent = (config.logical_layers - 1) * config.hidden_size * config.hidden_size
     assert estimate["total_parameters_estimate"] > 0
+    assert estimate["total_parameters_estimate"] == 85_309_545
     assert estimate["total_parameters_estimate"] < dense_equivalent
     assert estimate["fp16_weight_bytes_estimate"] == estimate["total_parameters_estimate"] * 2
 
