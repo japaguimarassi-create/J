@@ -1,0 +1,74 @@
+{
+  "architecture_type": "hybrid_dense_sparse",
+  "target": {
+    "logical_layers": 20000,
+    "hidden_size": 40000,
+    "total_virtual_units": 800000000
+  },
+  "execution": {
+    "active_stages": 8,
+    "stage_selection": "learned_top_k",
+    "shared_dense_core": true,
+    "dense_rank": 128,
+    "sparse_experts": 8,
+    "top_k_experts": 2,
+    "expert_rank": 64,
+    "stage_rank": 64,
+    "attention_rank": 64,
+    "attention_heads": 4,
+    "max_seq_len": 256,
+    "parameter_sharing": "one dense core and one sparse expert bank reused across selected logical stages"
+  },
+  "resource_notes": {
+    "dense_equivalent_fp16_weights_tb": 63.9968,
+    "hybrid_estimate_command": "python -m klod.shard_plan --out config/shard-plan.json",
+    "target_training_command": "python -m klod.train_hybrid --data data/train.txt --profile target --device cuda --dtype bf16 --steps 100 --batch-size 1 --seq-len 32",
+    "note": "The target profile has a real 40000-wide hidden state and a 20000-entry stage bank, but only eight selected stages execute per forward. It does not execute 20000 sequential dense layers."
+  },
+  "profiles": {
+    "micro": {
+      "hidden_size": 64,
+      "logical_layers": 128,
+      "active_stages": 2,
+      "attention_rank": 16,
+      "dense_rank": 32,
+      "expert_rank": 16,
+      "stage_rank": 16,
+      "n_experts": 4,
+      "top_k_experts": 2
+    },
+    "small": {
+      "hidden_size": 256,
+      "logical_layers": 512,
+      "active_stages": 4,
+      "attention_rank": 32,
+      "dense_rank": 64,
+      "expert_rank": 32,
+      "stage_rank": 32,
+      "n_experts": 4,
+      "top_k_experts": 2
+    },
+    "medium": {
+      "hidden_size": 1024,
+      "logical_layers": 4096,
+      "active_stages": 6,
+      "attention_rank": 64,
+      "dense_rank": 128,
+      "expert_rank": 64,
+      "stage_rank": 64,
+      "n_experts": 8,
+      "top_k_experts": 2
+    },
+    "target": {
+      "hidden_size": 40000,
+      "logical_layers": 20000,
+      "active_stages": 8,
+      "attention_rank": 64,
+      "dense_rank": 128,
+      "expert_rank": 64,
+      "stage_rank": 64,
+      "n_experts": 8,
+      "top_k_experts": 2
+    }
+  }
+}

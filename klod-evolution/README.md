@@ -1,84 +1,103 @@
 # KLOD Evolution
 
-KLOD Evolution é uma base experimental de IA com treinamento próprio, memória de conversas, ferramentas de arquivos, validação estática e especialistas independentes.
+KLOD é uma IA experimental com dois níveis de escala: um núcleo híbrido denso-esparso com estágios lógicos roteados e especialistas independentes para conversa, programação, raciocínio, arquivos e desenvolvimento de jogos.
 
-## Meta 40.000 x 60.000
+## Novo alvo: 20.000 x 40.000
 
-A meta define 40.000 posições lógicas de camada e 60.000 neurônios virtuais por camada, totalizando 2,4 bilhões de posições de neurônios. Em uma arquitetura densa convencional, as matrizes entre camadas teriam aproximadamente 143.996.400.000.000 pesos, ou cerca de 288 TB em FP16 somente para os pesos.
+- 20.000 estágios lógicos.
+- 40.000 unidades ocultas por estágio.
+- 800 milhões de posições lógicas de neurônios.
+- Uma rede densa convencional exigiria aproximadamente 31.998.400.000.000 pesos.
+- Somente os pesos em FP16 ocupariam cerca de 63,9968 TB decimais (aproximadamente 58,2 TiB).
 
-Dividir uma matriz em blocos de 500 x 500 reduz o tamanho de cada arquivo de bloco, mas produz até 576 milhões de blocos de pesos para toda a rede. Esses blocos não podem ser treinados como peças independentes e simplesmente encaixados: o gradiente de cada bloco depende das ativações e dos erros propagados pelo restante da rede.
+A rede densa convencional completa não foi materializada nem treinada.
 
-Por isso, esta versão implementa uma decomposição funcional prática: modelos especialistas independentes, cada qual com corpus, treinamento e checkpoint próprios. Eles compartilham o tokenizer e são selecionados por um roteador. Isso permite aumentar o número de especialistas e treiná-los separadamente, mas não afirma que a rede densa integral já existe.
+## Arquitetura híbrida
 
-## Especialistas
+O novo modelo está em \`klod/hybrid_model.py\`. Ele combina:
 
-O manifesto config/shards.json define:
-- conversation: diálogo e linguagem;
-- programming: código e depuração;
-- reasoning: matemática e raciocínio;
-- files: análise e operações de documentos;
-- game_dev: lógica e arquitetura de jogos.
+1. **Caminho denso compartilhado:** uma transformação de baixa classificação (low-rank) é aplicada a todos os tokens em cada estágio ativo. Seus pesos são reutilizados entre estágios.
+2. **Atenção causal fatorada:** projeções comprimem o estado de 40.000 dimensões para um espaço de atenção menor e o expandem novamente.
+3. **Especialistas esparsos:** cada token seleciona apenas os melhores 2 entre 8 especialistas low-rank.
+4. **Profundidade esparsa:** um roteador seleciona 8 estágios de um banco lógico de 20.000. O caminho denso e os especialistas são executados nesses estágios selecionados.
+5. **Balanceamento de roteamento:** perdas auxiliares incentivam o uso de diferentes estágios e especialistas.
 
-Cada módulo salva seu checkpoint em runs/shards/<id>.pt. O runtime carrega os módulos sob demanda e mantém no máximo dois modelos na memória por padrão.
+O perfil \`target\` utiliza um estado oculto de 40.000 dimensões e um banco de 20.000 estágios. Ele **não executa 20.000 camadas sequenciais em cada passagem**: seleciona 8 estágios e reutiliza os mesmos pesos densos e especialistas. Essa troca reduz drasticamente armazenamento e computação, mas não é matematicamente equivalente à rede densa não compartilhada.
 
-## Perfis de recursos
+## Estimativa de recursos
 
-| Perfil | Camadas físicas | Largura | Cabeças | Especialistas |
-|---|---:|---:|---:|---:|
-| micro | 1 | 32 | 2 | 2 |
-| small | 2 | 64 | 4 | 2 |
-| medium | 4 | 128 | 4 | 4 |
-| large | 6 | 256 | 8 | 4 |
-
-O perfil informa o tamanho de cada modelo físico especialista, não o tamanho integral da meta lógica. Use medium ou large somente com memória e GPU suficientes.
-
-## Treinar todos os especialistas separadamente
-
-Na pasta klod-evolution:
-
-~~~bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python -m klod.train_shards --manifest config/shards.json --profile small --steps 100 --seq-len 64
-~~~
-
-O treinador processa um especialista por vez, grava um checkpoint independente e produz runs/shards/training-report.json.
-
-Para treinar somente um especialista:
-
-~~~bash
-python -m klod.train_shards --manifest config/shards.json --only programming --profile medium --steps 1000 --seq-len 128
-~~~
-
-Os especialistas também podem ser treinados em máquinas diferentes: execute o comando com --only para cada ID, use o mesmo manifesto e reúna os checkpoints no mesmo diretório de execução. Cada job independente precisa receber seu próprio ambiente e dados.
-
-Para conferir o custo aproximado das configurações:
+Gere o relatório:
 
 ~~~bash
 python -m klod.shard_plan --out config/shard-plan.json
 ~~~
 
-## Usar os especialistas na API
+O relatório compara o alvo denso com a estimativa do núcleo híbrido, detalhando embeddings, roteadores, atenção, núcleo denso low-rank e especialistas.
 
-Após treinar os módulos:
+A estimativa do modelo híbrido não inclui ativações, buffers de gradiente, fragmentação de memória ou workspaces da GPU. Ela não deve ser usada como garantia de VRAM necessária.
+
+## Treinar o núcleo híbrido
+
+Instalação:
 
 ~~~bash
-uvicorn klod.server:app --host 127.0.0.1 --port 8000
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ~~~
 
-A API seleciona um especialista usando roteamento por palavras-chave. GET /api/shards lista os módulos treinados. O roteador atual é um baseline explicável, não um classificador neural treinado.
+Primeiro, validar no perfil pequeno:
 
-## Treinamento e dados
+~~~bash
+python -m klod.train_hybrid --data data/bootstrap.txt --profile micro --steps 100 --seq-len 16 --batch-size 2 --out runs/klod-hybrid-micro.pt
+~~~
 
-Os arquivos data/shards/*.jsonl são exemplos de inicialização e testes de CI. Eles são minúsculos e não ensinam competência robusta. Substitua ou amplie cada corpus com dados autorizados, representativos e de boa qualidade. Remova segredos e informações pessoais; mantenha validação separada.
+Treinamento do perfil-alvo:
 
-A seleção evolutiva anterior continua disponível em klod/evolution.py. Ela pesquisa arquiteturas pequenas e compara validação e tarefas, mas não transforma shards especialistas em uma rede densa de 40.000 x 60.000.
+~~~bash
+python -m klod.train_hybrid --data data/train.txt --profile target --device cuda --dtype bf16 --steps 100 --batch-size 1 --seq-len 32 --out runs/klod-hybrid-target.pt
+~~~
 
-## Limites atuais
+O perfil-alvo requer GPU e memória suficientes; o treinador bloqueia execução acidental em CPU, exceto quando \`--allow-cpu-target\` é informado explicitamente. O tamanho do corpus afeta diretamente a qualidade aprendida. \`data/bootstrap.txt\` é somente um arquivo de teste técnico.
 
-- Nenhum modelo treinado nesta base materializa os 2,4 bilhões de neurônios virtuais.
-- O CI treina apenas perfis micro por poucas etapas para validar a mecânica.
-- A composição de especialistas por roteamento não é equivalente à propagação de gradientes em uma rede densa única.
-- A execução arbitrária de código e a compilação de APK/JAR ainda não fazem parte do runtime.
-- Atingir a meta densa exigiria uma infraestrutura distribuída de grande porte, armazenamento de centenas de terabytes para pesos e treinamento coordenado em todo o grafo.
+O treinamento usa validação reservada e salva o melhor checkpoint observado. O checkpoint registra sua arquitetura, tamanho estimado, hash do corpus e métricas de validação.
+
+## Executar a IA
+
+O runtime reconhece checkpoints compactos antigos e checkpoints \`hybrid_dense_sparse\`:
+
+~~~bash
+KLOD_CHECKPOINT=runs/klod-hybrid-target.pt uvicorn klod.server:app --host 127.0.0.1 --port 8000
+~~~
+
+O modelo híbrido usa a mesma API de conversa do KLOD. Os especialistas funcionais continuam disponíveis separadamente.
+
+## Especialistas complementares
+
+O manifesto \`config/shards.json\` define módulos independentes:
+
+- conversation
+- programming
+- reasoning
+- files
+- game_dev
+
+Treine-os separadamente:
+
+~~~bash
+python -m klod.train_shards --manifest config/shards.json --profile small --steps 100 --seq-len 64
+~~~
+
+Cada especialista grava seu próprio checkpoint. Eles complementam o núcleo híbrido, mas não são fragmentos literais da matriz densa 20k x 40k.
+
+## Evolução e seleção
+
+O sistema evolutivo compara arquiteturas por validação e tarefas de referência. O próximo estágio de pesquisa é estender essa seleção ao perfil híbrido, avaliando simultaneamente largura, ranks, quantidade de especialistas, top-k e orçamento de estágios ativos.
+
+## Limitações declaradas
+
+- O perfil micro do CI valida o código, não prova que o perfil de 40.000 dimensões foi treinado.
+- Nenhum corpus grande foi fornecido neste projeto.
+- Nenhum checkpoint-alvo foi treinado ainda.
+- O núcleo híbrido compartilha pesos entre estágios selecionados e usa projeções low-rank; ele é uma aproximação arquitetural, não a rede densa completa.
+- A compilação automática de APK/JAR e a execução irrestrita de código não fazem parte desta versão.

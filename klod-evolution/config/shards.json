@@ -1,15 +1,17 @@
 {
   "name": "KLOD Modular Shard System",
-  "version": 1,
+  "version": 2,
   "target_reference": {
-    "logical_layers": 40000,
-    "virtual_neurons_per_layer": 60000,
-    "virtual_neuron_slots": 2400000000,
+    "logical_layers": 20000,
+    "virtual_neurons_per_layer": 40000,
+    "virtual_neuron_slots": 800000000,
+    "dense_weight_parameters_estimate": 31998400000000,
+    "fp16_weight_storage_decimal_tb_estimate": 63.9968,
     "materialized": false
   },
   "strategy": {
     "type": "independently_trained_capability_models",
-    "description": "Separate specialist checkpoints with shared tokenizer and a lightweight router. This is a practical functional decomposition, not an exact partition of the dense target tensor.",
+    "description": "Independent expert language models complement the hybrid dense-sparse core. Each specialist has a separate corpus and checkpoint.",
     "default_profile": "small",
     "max_loaded_models": 2,
     "router": "keyword_baseline"

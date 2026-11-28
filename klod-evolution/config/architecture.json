@@ -1,21 +1,35 @@
 {
   "name": "KLOD Evolution",
   "design_target": {
-    "logical_stages": 40000,
-    "virtual_units_per_stage": 60000,
-    "total_virtual_units": 2400000000,
-    "dense_weight_parameters_estimate": 143996400000000,
-    "fp16_weight_storage_decimal_tb_estimate": 287.9928,
+    "logical_stages": 20000,
+    "virtual_units_per_stage": 40000,
+    "total_virtual_units": 800000000,
+    "dense_weight_parameters_estimate": 31998400000000,
+    "fp16_weight_storage_decimal_tb_estimate": 63.9968,
     "materialized": false,
-    "note": "40k x 60k permanece uma especificação-alvo. O runtime atual usa modelos menores e shards especialistas independentes; não materializa todos os neurônios ou conexões."
+    "note": "Meta 20k x 40k. O modelo híbrido mantém estados ocultos de 40k e um banco lógico de 20k estágios, mas ativa apenas um subconjunto por passagem e usa transformações densas fatoradas com especialistas esparsos."
+  },
+  "hybrid_runtime": {
+    "architecture_type": "hybrid_dense_sparse",
+    "config_file": "config/hybrid.json",
+    "training_entrypoint": "python -m klod.train_hybrid",
+    "default_target_profile": "target",
+    "dense_path": "shared low-rank dense core applied to every token at selected stages",
+    "sparse_path": "top-k low-rank experts per token",
+    "sparse_depth": "learned top-k stage selection from a 20000-stage logical bank",
+    "shared_weights": true,
+    "active_stages_per_forward": 8,
+    "expert_count": 8,
+    "top_k_experts": 2,
+    "hidden_size": 40000,
+    "logical_layers": 20000,
+    "materialized_target_network": false
   },
   "decomposition": {
-    "practical_strategy": "independent_capability_shards",
+    "practical_strategy": "hybrid_dense_sparse_plus_capability_shards",
     "shard_manifest": "config/shards.json",
-    "training_entrypoint": "python -m klod.train_shards",
+    "training_entrypoint_shards": "python -m klod.train_shards",
     "checkpoint_layout": "runs/shards/<shard_id>.pt",
-    "shared_tokenizer": true,
-    "router": "keyword baseline with lazy checkpoint loading",
     "max_loaded_shards": 2,
     "domains": [
       "conversation",
@@ -24,20 +38,20 @@
       "files",
       "game_dev"
     ],
-    "caveat": "Os shards de capacidade podem ser treinados separadamente e combinados via roteamento. Isso não equivale a particionar e treinar todas as matrizes densas 40k x 60k."
+    "caveat": "Capability shards complement the hybrid model and do not materialize the original fully dense tensor."
   },
-  "runtime": {
+  "compact_runtime": {
     "layers": 6,
     "d_model": 128,
     "attention_heads": 4,
     "experts_per_layer": 4,
-    "top_k_experts": 1,
+    "top_k_experts": 2,
     "max_seq_len": 256,
     "vocab_size": 258,
     "dropout": 0.05
   },
   "selection": {
-    "worker_timeout_seconds": 20,
+    "worker_timeout_seconds": 120,
     "max_rounds_per_run": 20,
     "automatic_promotion": false,
     "termination_scope": "somente workers filhos de avaliação criados pelo próprio controlador"
