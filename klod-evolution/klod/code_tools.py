@@ -8,7 +8,7 @@ import zipfile
 from pathlib import Path
 from xml.etree import ElementTree
 
-from .tools import MAX_TEXT_BYTES, _safe_target, analyze_file
+from .tools import MAX_TEXT_BYTES, _safe_target
 
 
 MAX_ARCHIVE_ENTRIES = 20000

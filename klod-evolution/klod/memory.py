@@ -1,4 +1,5 @@
 import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
 
 
@@ -24,10 +25,18 @@ class ConversationMemory:
                 "ON messages(conversation_id, id)"
             )
 
+    @contextmanager
     def _connect(self):
         connection = sqlite3.connect(self.database, timeout=10)
         connection.execute("PRAGMA busy_timeout = 10000")
-        return connection
+        try:
+            yield connection
+            connection.commit()
+        except BaseException:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
 
     def add(self, conversation_id: str, role: str, content: str) -> None:
         if role not in {"user", "assistant"}:

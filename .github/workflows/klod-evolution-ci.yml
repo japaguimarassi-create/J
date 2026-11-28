@@ -20,3 +20,23 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install -r klod-evolution/requirements.txt
       - run: PYTHONPATH=klod-evolution pytest -q klod-evolution/tests
+      - name: Train and select one isolated candidate
+        run: |
+          PYTHONPATH=klod-evolution python -m klod.evolution \
+            --data klod-evolution/data/bootstrap.txt \
+            --rounds 1 \
+            --steps 3 \
+            --batch-size 2 \
+            --seq-len 12 \
+            --timeout 120 \
+            --checkpoint-dir "$RUNNER_TEMP/klod-candidates" \
+            --out "$RUNNER_TEMP/evolution-report.json" \
+            --promote \
+            --promoted-checkpoint "$RUNNER_TEMP/klod-smoke.pt"
+      - name: Run reference benchmark
+        run: |
+          PYTHONPATH=klod-evolution python -m klod.benchmarks \
+            --checkpoint "$RUNNER_TEMP/klod-smoke.pt" \
+            --data klod-evolution/data/benchmark.jsonl \
+            --out "$RUNNER_TEMP/benchmark-report.json" \
+            --max-new-tokens 8
